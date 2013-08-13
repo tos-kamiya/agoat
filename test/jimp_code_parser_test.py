@@ -52,6 +52,48 @@ class JimpCodeParserTest(unittest.TestCase):
             (jcp.LABEL, 'label1'),
             (jcp.RETURN,)
         ])
+    
+    def test_switch(self):
+        lines = filter(None, r"""
+        tableswitch($i1)
+        {
+            case 0: goto label1;
+            case 1: goto label2;
+            case 2: goto label3;
+            case 3: goto label4;
+            default: goto label5;
+        };
+     label1:
+        goto label5;
+     label2:
+        $r17 = java.lang.System.out;
+        $r17.println("Hello 1");
+        goto label5;
+     label3:
+        $r17 = java.lang.System.out;
+        $r17.println("Hello 2");
+        goto label5;
+     label4:
+        $r17 = java.lang.System.out;
+        $r17.println("Hello 3");
+     label5:
+        return;
+""".split("\n"))
+        c = jcp.parse_jimp_code(1, lines)
+        self.assertSequenceEqual(c, [
+            (jcp.LABEL, 'label1'), 
+            (jcp.GOTO, 'label5'), 
+            (jcp.LABEL, 'label2'), 
+            (jcp.INVOKE, '$r17', 'println', ['"Hello 1"'], None), 
+            (jcp.GOTO, 'label5'), 
+            (jcp.LABEL, 'label3'), 
+            (jcp.INVOKE, '$r17', 'println', ['"Hello 2"'], None), 
+            (jcp.GOTO, 'label5'), 
+            (jcp.LABEL, 'label4'),
+            (jcp.INVOKE, '$r17', 'println', ['"Hello 3"'], None), 
+            (jcp.LABEL, 'label5'), 
+            (jcp.RETURN,)
+        ])
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

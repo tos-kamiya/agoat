@@ -19,6 +19,9 @@ _PAT_INVOKE_WO_RETURN = re.compile(r"^\s*(?P<receiver>%s)[.](?P<method_name>%s)[
 _PAT_IF_GOTO = re.compile(r"^\s*if\s+.*goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
 _PAT_GOTO = re.compile(r"^\s*goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
 _PAT_LABEL = re.compile(r"^\s*(?P<label>%s):$" % _IDENTIFIER)
+_PAT_TABLESWITCH = re.compile(r"^\s*tableswitch[(].*$")
+_PAT_CASE = re.compile(r"^\s*case\s+[^:]+:\s+goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
+_PAT_DEFAULT = re.compile(r"^\s*default:\s+goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
 
 _PAT_STRING_LITERAL = re.compile(r'^"([^\"]|\.)*?"' + '|' + r"^'([^\"]|\.)*?'")
 
@@ -83,21 +86,33 @@ def parse_jimp_code(linenum, lines):
                     found = True
                     break  # for p, cmd
             if found:
-                continue
+                continue  # while i
+            if _PAT_TABLESWITCH.match(L):
+                destination_labels = []
+                i += 2; L = lines[i]
+                while True:
+                    gd = togd(_PAT_CASE.match(L) or _PAT_DEFAULT.match(L))
+                    if not gd:
+                        assert re.match("^\s*};$", L)
+                        i += 1
+                        break
+                    destination_labels.append(gd["label"])
+                    i += 1; L = lines[i]
+                continue  # while i
             gd = togd(_PAT_SPECIALINVOKE.match(L) or _PAT_SPECIALINVOKE_WO_RETURN.match(L))
             if gd:
                 retv = gd["left"] if "left" in gd else None
                 argt = parse_args(gd["args"])
                 inss.append((SPECIALINVOKE, None, gd["method_name"], argt, retv))
                 i += 1
-                continue
+                continue  # while i
             gd = togd(_PAT_INVOKE.match(L) or _PAT_INVOKE_WO_RETURN.match(L))
             if gd:
                 retv = gd["left"] if "left" in gd else None
                 argt = parse_args(gd["args"])
                 inss.append((INVOKE, gd["receiver"], gd["method_name"], argt, retv))
                 i += 1
-                continue
+                continue  # while i
             if _PAT_SOME_ASSIGN.match(L):
                 i += 1
                 pass
