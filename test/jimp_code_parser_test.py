@@ -17,7 +17,7 @@ class JimpCodeParserTest(unittest.TestCase):
 """.split("\n"))
         c = jcp.parse_jimp_code(1, lines)
         self.assertSequenceEqual(c, [
-            (jcp.SPECIALINVOKE, None, '<init>', [], None, 2), 
+            (jcp.SPECIALINVOKE, None, '<init>', (), None, 2), 
             (jcp.RETURN, 3)
         ])
 
@@ -31,7 +31,7 @@ class JimpCodeParserTest(unittest.TestCase):
 """.split("\n"))
         c = jcp.parse_jimp_code(1, lines)
         self.assertSequenceEqual(c, [
-            (jcp.INVOKE, '$r1', 'format', ['"Hello\\n"', '$r2'], None, 4), 
+            (jcp.INVOKE, '$r1', 'format', ('"Hello\\n"', '$r2'), None, 4), 
             (jcp.RETURN, 5)
         ])
 
@@ -51,10 +51,10 @@ class JimpCodeParserTest(unittest.TestCase):
         c = jcp.parse_jimp_code(1, lines)
         self.assertSequenceEqual(c, [
             (jcp.IFGOTO, 'label0', 3), 
-            (jcp.INVOKE, '$r1', 'println', ['"> got some args..."'], None, 5),
+            (jcp.INVOKE, '$r1', 'println', ('"> got some args..."', ), None, 5),
             (jcp.GOTO, 'label1', 6), 
             (jcp.LABEL, 'label0', 7),
-            (jcp.INVOKE, '$r1', 'println', ['"> got no arg"'], None, 8),
+            (jcp.INVOKE, '$r1', 'println', ('"> got no arg"', ), None, 8),
             (jcp.LABEL, 'label1', 9),
             (jcp.RETURN, 10)
         ])
@@ -87,17 +87,17 @@ class JimpCodeParserTest(unittest.TestCase):
 """.split("\n"))
         c = jcp.parse_jimp_code(1, lines)
         self.assertSequenceEqual(c, [
-            (jcp.SWITCH, ['label1', 'label2', 'label3', 'label4', 'label5'], 1),
+            (jcp.SWITCH, ('label1', 'label2', 'label3', 'label4', 'label5'), 1),
             (jcp.LABEL, 'label1', 9), 
             (jcp.GOTO, 'label5', 10), 
             (jcp.LABEL, 'label2', 11), 
-            (jcp.INVOKE, '$r17', 'println', ['"Hello 1"'], None, 13), 
+            (jcp.INVOKE, '$r17', 'println', ('"Hello 1"', ), None, 13), 
             (jcp.GOTO, 'label5', 14), 
             (jcp.LABEL, 'label3', 15), 
-            (jcp.INVOKE, '$r17', 'println', ['"Hello 2"'], None, 17), 
+            (jcp.INVOKE, '$r17', 'println', ('"Hello 2"', ), None, 17), 
             (jcp.GOTO, 'label5', 18), 
             (jcp.LABEL, 'label4', 19),
-            (jcp.INVOKE, '$r17', 'println', ['"Hello 3"'], None, 21), 
+            (jcp.INVOKE, '$r17', 'println', ('"Hello 3"', ), None, 21), 
             (jcp.LABEL, 'label5', 22), 
             (jcp.RETURN, 23)
         ])

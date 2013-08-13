@@ -53,7 +53,7 @@ class JimpParserTest(unittest.TestCase):
         class_data = class_tbl["Hello"]
         self.assertEqual(class_data.base_name, "java.lang.Object")
         for msig, m in class_data.methods.iteritems():
-            self.assertIn(msig, [jp.MethodSig("void", "<init>", ()), jp.MethodSig("void", "main", ("java.lang.String[]",))])
+            self.assertIn(msig, [jp.MethodSig(None, "<init>", ()), jp.MethodSig(None, "main", ("java.lang.String[]", ))])
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

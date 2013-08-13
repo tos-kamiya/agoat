@@ -132,7 +132,10 @@ def parse_jimp_lines(lines,
             linenum += 1  # skip method begin line
             p =  gd["params"]
             params = p.split(", ") if p else []
-            curmtd = curcls.gen_method(MethodSig(gd["return_value"], gd["method_name"], tuple(params)))
+            retv = gd["return_value"]
+            if retv == "void":
+                retv = None
+            curmtd = curcls.gen_method(MethodSig(retv, gd["method_name"], tuple(params)))
             decl_splitter_appeared = False
             continue
         m = _PAT_METHOD_DEF_END.match(L)

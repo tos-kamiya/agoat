@@ -48,7 +48,7 @@ def parse_args(s):
             else:
                 items.append(s)
                 s = ''
-    return items
+    return tuple(items)
 
 SPECIALINVOKE = "specialinvoke"
 INVOKE = "invoke"
@@ -101,7 +101,7 @@ def parse_jimp_code(linenum, lines):
                         break
                     destination_labels.append(gd["label"])
                     i += 1; L = lines[i]
-                inss.append((SWITCH, destination_labels, linenum))
+                inss.append((SWITCH, tuple(destination_labels), linenum))
                 continue  # while i
             gd = togd(_PAT_SPECIALINVOKE.match(L) or _PAT_SPECIALINVOKE_WO_RETURN.match(L))
             if gd:
