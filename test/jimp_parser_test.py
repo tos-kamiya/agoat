@@ -37,13 +37,13 @@ public class Hello extends java.lang.Object
 """
 
 class JimpParserTest(unittest.TestCase):
-    def testMethodSig(self):
+    def test_method_sig(self):
         msig = jp.MethodSig("int", "hoge", ())
         self.assertEqual(msig.retv, "int")
         self.assertEqual(msig.name, "hoge")
         self.assertEqual(msig.params, ())
         
-    def testHelloString(self):
+    def test_hello_string(self):
         class_tbl = jp.parse_jimp_lines(helloJimpText.splitlines())
         self.assertIn("Hello", class_tbl)
         class_data = class_tbl["Hello"]
