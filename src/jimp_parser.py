@@ -143,12 +143,16 @@ def parse_jimp_lines(lines,
             assert curcode
             parse_jimp_method_code(curmtd, linenum - len(curcode), curcode)
             curmtd = None
+            curcode = None
             continue
 
         if not L:
             decl_splitter_appeared = True
             if curmtd:
-                curcode = []
+                if not curcode:  # it is the first empty line in the method body?
+                    curcode = []
+                else:
+                    curcode.append(L)
             continue
 
         if curmtd:
