@@ -5,16 +5,17 @@ import re
 _IDENTIFIER = "[\w.$]+"
 _TYPE = r"([\w.$]|\[|\])+"
 _METHOD_NAME = r"([\w<>]|%[0-9A-F]{2})+"
+_LEFT = r"%s(\[%s\])?" % (_IDENTIFIER, _IDENTIFIER)
 
 _PAT_BIND = re.compile(r"^\s*%s\s*:=\s*@?%s\s*;$" % (_IDENTIFIER, _IDENTIFIER))
-_PAT_NEWARRAY = re.compile(r"^\s*%s\s*=\s*newarray\s+.*;$" % _IDENTIFIER)
-_PAT_NEW = re.compile(r"^\s*%s\s*=\s*new\s+.*;$" % _IDENTIFIER)
-_PAT_SOME_ASSIGN = re.compile(r"^\s+%s\s*=.*;$" % _IDENTIFIER)
+_PAT_NEWARRAY = re.compile(r"^\s*%s\s*=\s*newarray\s+.*;$" % _LEFT)
+_PAT_NEW = re.compile(r"^\s*%s\s*=\s*new\s+.*;$" % _LEFT)
+_PAT_SOME_ASSIGN = re.compile(r"^\s+%s\s*=.*;$" % _LEFT)
 _PAT_RETURN = re.compile(r"^\s*return.*;$")
 _PAT_THROW = re.compile(r"^\s*throw.*;$")
-_PAT_SPECIALINVOKE = re.compile(r"^\s*(?P<left>%s)\s*=\s*specialinvoke\s+%s[.](?P<method_name>%s)[(](?P<args>[^)]*)[)]\s*;$" % (_IDENTIFIER, _IDENTIFIER, _METHOD_NAME))
+_PAT_SPECIALINVOKE = re.compile(r"^\s*(?P<left>%s)\s*=\s*specialinvoke\s+%s[.](?P<method_name>%s)[(](?P<args>[^)]*)[)]\s*;$" % (_LEFT, _IDENTIFIER, _METHOD_NAME))
 _PAT_SPECIALINVOKE_WO_RETURN = re.compile(r"^\s*specialinvoke\s+%s[.](?P<method_name>%s)[(](?P<args>[^)]*)[)]\s*;$" % (_IDENTIFIER, _METHOD_NAME))
-_PAT_INVOKE = re.compile(r"^\s*(?P<left>%s)\s*=\s*(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>[^)]*)[)]\s*;$" % (_IDENTIFIER, _IDENTIFIER, _METHOD_NAME))
+_PAT_INVOKE = re.compile(r"^\s*(?P<left>%s)\s*=\s*(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>[^)]*)[)]\s*;$" % (_LEFT, _IDENTIFIER, _METHOD_NAME))
 _PAT_INVOKE_WO_RETURN = re.compile(r"^\s*(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>[^)]*)[)]\s*;$" % (_IDENTIFIER, _METHOD_NAME))
 _PAT_IF_GOTO = re.compile(r"^\s*if\s+.*goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
 _PAT_GOTO = re.compile(r"^\s*goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
@@ -71,7 +72,9 @@ def parse_jimp_code(linenum, lines):
     while i < len_lines:
         linenum = linenum0 + i
         L = lines[i]
-        if _PAT_BIND.match(L) or _PAT_NEWARRAY.match(L) or _PAT_NEW.match(L) or _PAT_CATCH.match(L):
+        if not L:
+            i += 1
+        elif _PAT_BIND.match(L) or _PAT_NEWARRAY.match(L) or _PAT_NEW.match(L) or _PAT_CATCH.match(L):
             i += 1
         elif _PAT_RETURN.match(L):
             inss.append((RETURN, linenum))
@@ -121,5 +124,5 @@ def parse_jimp_code(linenum, lines):
                 i += 1
                 pass
             else:
-                raise InvalidCode("line %d: invalid syntax" % (linenum + i))
+                raise InvalidCode("line %d: invalid syntax" % linenum)
     return inss
