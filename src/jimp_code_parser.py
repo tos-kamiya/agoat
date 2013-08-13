@@ -66,23 +66,25 @@ def parse_jimp_code(linenum, lines):
     bpats = (_PAT_IF_GOTO, IFGOTO), (_PAT_GOTO, GOTO), (_PAT_LABEL, LABEL)
     inss = []
     len_lines = len(lines)
+    linenum0 = linenum
     i = 0
     while i < len_lines:
+        linenum = linenum0 + i
         L = lines[i]
         if _PAT_BIND.match(L) or _PAT_NEWARRAY.match(L) or _PAT_NEW.match(L) or _PAT_CATCH.match(L):
             i += 1
         elif _PAT_RETURN.match(L):
-            inss.append((RETURN,))
+            inss.append((RETURN, linenum))
             i += 1
         elif _PAT_THROW.match(L):
-            inss.append((THROW,))
+            inss.append((THROW, linenum))
             i += 1
         else:
             found = False
             for p, cmd in bpats:
                 gd = togd(p.match(L))
                 if gd:
-                    inss.append((cmd, gd["label"]))
+                    inss.append((cmd, gd["label"], linenum))
                     i += 1
                     found = True
                     break  # for p, cmd
@@ -99,19 +101,20 @@ def parse_jimp_code(linenum, lines):
                         break
                     destination_labels.append(gd["label"])
                     i += 1; L = lines[i]
+                inss.append((SWITCH, destination_labels, linenum))
                 continue  # while i
             gd = togd(_PAT_SPECIALINVOKE.match(L) or _PAT_SPECIALINVOKE_WO_RETURN.match(L))
             if gd:
                 retv = gd["left"] if "left" in gd else None
                 argt = parse_args(gd["args"])
-                inss.append((SPECIALINVOKE, None, gd["method_name"], argt, retv))
+                inss.append((SPECIALINVOKE, None, gd["method_name"], argt, retv, linenum))
                 i += 1
                 continue  # while i
             gd = togd(_PAT_INVOKE.match(L) or _PAT_INVOKE_WO_RETURN.match(L))
             if gd:
                 retv = gd["left"] if "left" in gd else None
                 argt = parse_args(gd["args"])
-                inss.append((INVOKE, gd["receiver"], gd["method_name"], argt, retv))
+                inss.append((INVOKE, gd["receiver"], gd["method_name"], argt, retv, linenum))
                 i += 1
                 continue  # while i
             if _PAT_SOME_ASSIGN.match(L):
