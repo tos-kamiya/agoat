@@ -36,6 +36,9 @@ public class Hello extends java.lang.Object
 }
 """
 
+def stub_store_jimp_method_code(mtd, linenum, lines):
+    mtd.code = (linenum, lines)
+
 class JimpParserTest(unittest.TestCase):
     def test_method_sig(self):
         msig = jp.MethodSig("int", "hoge", ())
@@ -44,7 +47,8 @@ class JimpParserTest(unittest.TestCase):
         self.assertEqual(msig.params, ())
         
     def test_hello_string(self):
-        class_tbl = jp.parse_jimp_lines(helloJimpText.splitlines())
+        class_tbl = jp.parse_jimp_lines(helloJimpText.splitlines(), 
+                parse_jimp_method_code=stub_store_jimp_method_code)
         self.assertIn("Hello", class_tbl)
         class_data = class_tbl["Hello"]
         self.assertEqual(class_data.base_name, "java.lang.Object")

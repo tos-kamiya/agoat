@@ -1,0 +1,74 @@
+public class Throwing extends java.lang.Object
+{
+
+    public void <init>()
+    {
+        Throwing r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        return;
+    }
+
+    public static void main(java.lang.String[])
+    {
+        java.lang.String[] r0;
+        java.io.File $r1, r2;
+        java.io.PrintWriter r3, $r7;
+        java.io.FileWriter $r4;
+        java.io.IOException r5, $r9;
+        java.lang.Throwable r6, $r11;
+        java.io.BufferedWriter $r8;
+        java.io.PrintStream $r10;
+
+        r0 := @parameter0;
+        $r1 = new java.io.File;
+        specialinvoke $r1.<init>("somefile.txt");
+        r2 = $r1;
+        r3 = null;
+
+     label0:
+        $r7 = new java.io.PrintWriter;
+        $r8 = new java.io.BufferedWriter;
+        $r4 = new java.io.FileWriter;
+        specialinvoke $r4.<init>(r2);
+        specialinvoke $r8.<init>($r4);
+        specialinvoke $r7.<init>($r8);
+        r3 = $r7;
+        r3.println("done!");
+
+     label1:
+        r3.close();
+        goto label8;
+
+     label2:
+        $r9 := @caughtexception;
+
+     label3:
+        r5 = $r9;
+        $r10 = java.lang.System.err;
+        $r10.println("error");
+
+     label4:
+        r3.close();
+        goto label8;
+
+     label5:
+        $r11 := @caughtexception;
+
+     label6:
+        r6 = $r11;
+
+     label7:
+        r3.close();
+        throw r6;
+
+     label8:
+        return;
+
+        catch java.io.IOException from label0 to label1 with label2;
+        catch java.lang.Throwable from label0 to label1 with label5;
+        catch java.lang.Throwable from label3 to label4 with label5;
+        catch java.lang.Throwable from label6 to label7 with label5;
+    }
+}

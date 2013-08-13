@@ -1,0 +1,65 @@
+public class Calculations extends java.lang.Object
+{
+
+    public void <init>()
+    {
+        Calculations r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        return;
+    }
+
+    public static void main(java.lang.String[])
+    {
+        java.lang.String[] r0;
+        int[] r1, r2;
+        int i0, $i1, i2, $i3, $i4, $i5, $i6, $i7, $i8, $i9, $i10, $i11;
+        java.io.PrintStream $r3;
+        java.lang.StringBuilder $r4, $r5, $r6;
+        java.lang.String $r7;
+
+        r0 := @parameter0;
+        r1 = newarray (int)[10];
+        r2 = newarray (int)[11];
+        i0 = 0;
+
+     label0:
+        $i1 = lengthof r1;
+        if i0 >= $i1 goto label1;
+
+        r1[i0] = 1;
+        i0 = i0 + 1;
+        goto label0;
+
+     label1:
+        r2[0] = 0;
+        i2 = 1;
+
+     label2:
+        $i3 = lengthof r2;
+        if i2 >= $i3 goto label3;
+
+        $i4 = i2 - 1;
+        $i5 = r2[$i4];
+        $i6 = i2 - 1;
+        $i7 = r1[$i6];
+        $i8 = $i5 + $i7;
+        r2[i2] = $i8;
+        i2 = i2 + 1;
+        goto label2;
+
+     label3:
+        $r3 = java.lang.System.out;
+        $r4 = new java.lang.StringBuilder;
+        specialinvoke $r4.<init>();
+        $r5 = $r4.append("b\'s last is: ");
+        $i9 = lengthof r2;
+        $i10 = $i9 - 1;
+        $i11 = r2[$i10];
+        $r6 = $r5.append($i11);
+        $r7 = $r6.toString();
+        $r3.println($r7);
+        return;
+    }
+}

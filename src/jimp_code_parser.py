@@ -22,6 +22,7 @@ _PAT_LABEL = re.compile(r"^\s*(?P<label>%s):$" % _IDENTIFIER)
 _PAT_TABLESWITCH = re.compile(r"^\s*tableswitch[(].*$")
 _PAT_CASE = re.compile(r"^\s*case\s+[^:]+:\s+goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
 _PAT_DEFAULT = re.compile(r"^\s*default:\s+goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
+_PAT_CATCH = re.compile(r"^\s*catch\s+.*;$")
 
 _PAT_STRING_LITERAL = re.compile(r'^"([^\"]|\.)*?"' + '|' + r"^'([^\"]|\.)*?'")
 
@@ -68,7 +69,7 @@ def parse_jimp_code(linenum, lines):
     i = 0
     while i < len_lines:
         L = lines[i]
-        if _PAT_BIND.match(L) or _PAT_NEWARRAY.match(L) or _PAT_NEW.match(L):
+        if _PAT_BIND.match(L) or _PAT_NEWARRAY.match(L) or _PAT_NEW.match(L) or _PAT_CATCH.match(L):
             i += 1
         elif _PAT_RETURN.match(L):
             inss.append((RETURN,))

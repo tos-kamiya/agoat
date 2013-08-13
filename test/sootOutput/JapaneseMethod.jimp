@@ -1,0 +1,20 @@
+public class JapaneseMethod extends java.lang.Object
+{
+
+    public void <init>()
+    {
+        JapaneseMethod r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        return;
+    }
+
+    public java.lang.String get時刻()
+    {
+        JapaneseMethod r0;
+
+        r0 := @this;
+        return "14\u664253\u5206";
+    }
+}

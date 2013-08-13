@@ -1,0 +1,33 @@
+public class Interf extends java.lang.Object implements Greeting
+{
+
+    public void <init>()
+    {
+        Interf r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        return;
+    }
+
+    public java.lang.String message()
+    {
+        Interf r0;
+
+        r0 := @this;
+        return "Hello";
+    }
+
+    public static void main(java.lang.String[])
+    {
+        java.lang.String[] r0;
+        Interf $r1, r2;
+
+        r0 := @parameter0;
+        $r1 = new Interf;
+        specialinvoke $r1.<init>();
+        r2 = $r1;
+        r2.message();
+        return;
+    }
+}

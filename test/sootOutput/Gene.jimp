@@ -1,0 +1,44 @@
+public class Gene extends java.lang.Object
+{
+
+    public void <init>()
+    {
+        Gene r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        return;
+    }
+
+    public static void main(java.lang.String[])
+    {
+        java.lang.String[] r0;
+        java.util.HashMap $r1, r2;
+        java.lang.Integer $r3, $r5, $r14;
+        java.io.PrintStream $r7;
+        java.lang.StringBuilder $r8, $r9, $r11;
+        java.lang.Object $r10, $r13;
+        java.lang.String $r12;
+
+        r0 := @parameter0;
+        $r1 = new java.util.HashMap;
+        specialinvoke $r1.<init>();
+        r2 = $r1;
+        $r3 = java.lang.Integer.valueOf(1);
+        r2.put("One", $r3);
+        $r5 = java.lang.Integer.valueOf(2);
+        r2.put("Two", $r5);
+        $r7 = java.lang.System.out;
+        $r8 = new java.lang.StringBuilder;
+        specialinvoke $r8.<init>();
+        $r9 = $r8.append("h[\"One\"] = ");
+        $r10 = r2.get("One");
+        $r11 = $r9.append($r10);
+        $r12 = $r11.toString();
+        $r7.println($r12);
+        $r13 = r2.get("Two");
+        $r14 = (java.lang.Integer) $r13;
+        $r14.intValue();
+        return;
+    }
+}

@@ -1,0 +1,20 @@
+public class Inherit extends Base
+{
+
+    public void <init>()
+    {
+        Inherit r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        return;
+    }
+
+    public int getValue()
+    {
+        Inherit r0;
+
+        r0 := @this;
+        return 2;
+    }
+}

@@ -1,0 +1,20 @@
+class Base extends java.lang.Object
+{
+
+    void <init>()
+    {
+        Base r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        return;
+    }
+
+    public int getValue()
+    {
+        Base r0;
+
+        r0 := @this;
+        return 1;
+    }
+}

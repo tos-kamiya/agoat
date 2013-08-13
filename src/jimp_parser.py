@@ -5,6 +5,7 @@ import sys
 from collections import namedtuple
 
 from _utilities import readline_iter
+from jimp_code_parser import parse_jimp_code
 
 _IDENTIFIER = "[\w.$]+"
 _TYPE = r"([\w.$]|\[|\])+"
@@ -12,13 +13,20 @@ _METHOD_NAME = r"([\w<>]|%[0-9A-F]{2})+"
 
 _PAT_DECL = re.compile(r"^\s+" +
         r"((public|private|final|static|synchronized)\s+)*" +
-        r"(?P<typ>%s\s+)" % _TYPE +
-        r"(?P<names>%s|, )" % _IDENTIFIER + 
+        r"(?P<typ>%s)\s+" % _TYPE +
+        r"(?P<names>(%s|, )+)" % _IDENTIFIER + 
         r";" +
         r"$")
 
+_PAT_INTERFACE_DEF_HEAD = re.compile(r"^" + 
+        r"((public|private|final)\s*)?" + 
+        r"interface\s+(?P<interf_name>%s)" % _IDENTIFIER + 
+        r".*$")
+# _PAT_INTERFACE_DEF_BEGIN = re.compile("^" + "{" + "$")
+_PAT_INTERFACE_DEF_END = re.compile("^" + "}" + "$")
+
 _PAT_CLASS_DEF_HEAD = re.compile(r"^" + 
-        r"(public|private|final)\s*" + 
+        r"((public|private|final)\s*)?" + 
         r"class\s+(?P<class_name>%s)" % _IDENTIFIER + 
         r"(\s+extends\s+(?P<base_name>%s))" % _IDENTIFIER +
         r"(\s+implements\s+.*)?" + 
@@ -37,6 +45,9 @@ _PAT_METHOD_DEF_HEAD = re.compile(r"^\s+" +
 _PAT_METHOD_DEF_END = re.compile(r"^\s+" + r"}" + r"$")
 
 MethodSig = namedtuple("MethodSig", "retv name params")
+
+class InvalidText(ValueError):
+    pass
 
 class MethodData(object):
     def __init__(self, method_sig, scope_class):
@@ -76,15 +87,15 @@ def togd(m):
 
 def parse_jimp_field_decl(entity, linenum, line):
     gd = togd(_PAT_DECL.match(line))
-    assert gd
+    if not gd:
+        raise InvalidText("line %d: invalid field decl" % linenum)
     names = gd["names"].split(", ")
     typ = gd["typ"]
     for name in names:
         entity.fields[name] = typ
 
 def store_jimp_method_code(mtd, linenum, lines):
-    mtd.code = (linenum, lines)
-    #print parse_jimp_code(linenum, lines)
+    mtd.code = parse_jimp_code(linenum, lines)
 
 def parse_jimp_lines(lines, 
         parse_jimp_class_field_decl=parse_jimp_field_decl, 
@@ -98,13 +109,16 @@ def parse_jimp_lines(lines,
     curcode = None
     decl_splitter_appeared = False
     len_lines = len(lines)
-    i = 0
-    while i < len_lines:
-        L = lines[i]; i += 1
+    linenum = 0
+    while linenum < len_lines:
+        L = lines[linenum]; linenum += 1
         L = L.rstrip()
+        if _PAT_INTERFACE_DEF_HEAD.match(L):
+            return class_data_talbe
+
         gd = togd(_PAT_CLASS_DEF_HEAD.match(L))
         if gd:
-            i += 1  # skip class begin line
+            linenum += 1  # skip class begin line
             curcls = ClassData(gd["class_name"], gd["base_name"])
             class_data_talbe[curcls.class_name] = curcls
             decl_splitter_appeared = False
@@ -115,7 +129,7 @@ def parse_jimp_lines(lines,
             continue
         gd = togd(_PAT_METHOD_DEF_HEAD.match(L))
         if gd:
-            i += 1  # skip method begin line
+            linenum += 1  # skip method begin line
             p =  gd["params"]
             params = p.split(", ") if p else []
             curmtd = curcls.gen_method(MethodSig(gd["return_value"], gd["method_name"], tuple(params)))
@@ -124,11 +138,10 @@ def parse_jimp_lines(lines,
         m = _PAT_METHOD_DEF_END.match(L)
         if m:
             assert curcode
-            parse_jimp_method_code(curmtd, i - len(curcode), curcode)
+            parse_jimp_method_code(curmtd, linenum - len(curcode), curcode)
             curmtd = None
             continue
 
-        assert not re.match(r"\s*[{}]", L)
         if not L:
             decl_splitter_appeared = True
             if curmtd:
@@ -137,23 +150,23 @@ def parse_jimp_lines(lines,
 
         if curmtd:
             if not decl_splitter_appeared:
-                parse_jimp_method_local_decl(curmtd, i, L)
+                parse_jimp_method_local_decl(curmtd, linenum, L)
             else:
                 curcode.append(L)
         elif curcls:
             if not decl_splitter_appeared:
-                parse_jimp_class_field_decl(curmtd, i, L)
+                parse_jimp_class_field_decl(curmtd, linenum, L)
             else:
-                assert False
+                raise InvalidText("line %d: invalid line" % linenum)
         else:
-            assert False
+            raise InvalidText("line %d: invalid line" % linenum)
     return class_data_talbe
 
-def main(argv):
+def main(argv, out=sys.stdout):
     filename = argv[1]
     lines = list(readline_iter(filename))
     parse_jimp = parse_jimp_lines(lines)
-    print parse_jimp
+    out.write("%s\n" % repr(parse_jimp))
 
 if __name__ == '__main__':
     main(sys.argv)
