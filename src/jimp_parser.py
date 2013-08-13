@@ -8,11 +8,12 @@ from _utilities import readline_iter
 
 _IDENTIFIER = "[\w.$]+"
 _TYPE = r"([\w.$]|\[|\])+"
+_METHOD_NAME = r"([\w<>]|%[0-9A-F]{2})+"
 
 _PAT_DECL = re.compile(r"^\s+" +
         r"((public|private|final|static|synchronized)\s+)*" +
         r"(?P<typ>%s\s+)" % _TYPE +
-        r"(?P<name>%s)" % _IDENTIFIER + 
+        r"(?P<names>%s|, )" % _IDENTIFIER + 
         r";" +
         r"$")
 
@@ -28,7 +29,7 @@ _PAT_CLASS_DEF_END = re.compile("^" + "}" + "$")
 _PAT_METHOD_DEF_HEAD = re.compile(r"^\s+" + 
         r"((public|private|final|static|synchronized|strictfp)\s+)*" +
         r"(?P<return_value>%s)" % _TYPE +
-        r"\s+(?P<method_name>([\w<>]|%[0-9A-F]{2})+)" +
+        r"\s+(?P<method_name>%s)" % _METHOD_NAME +
         r"[(](?P<params>(%s|, )*)[)]" % _TYPE +
         r"(\s+throws\s+.+)?"
         r"$")
@@ -76,10 +77,14 @@ def togd(m):
 def parse_jimp_field_decl(entity, linenum, line):
     gd = togd(_PAT_DECL.match(line))
     assert gd
-    entity.fields[gd["name"]] = gd["typ"]
+    names = gd["names"].split(", ")
+    typ = gd["typ"]
+    for name in names:
+        entity.fields[name] = typ
 
 def store_jimp_method_code(mtd, linenum, lines):
     mtd.code = (linenum, lines)
+    #print parse_jimp_code(linenum, lines)
 
 def parse_jimp_lines(lines, 
         parse_jimp_class_field_decl=parse_jimp_field_decl, 
