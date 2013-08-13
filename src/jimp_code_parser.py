@@ -16,9 +16,9 @@ _PAT_SPECIALINVOKE = re.compile(r"^\s*(?P<left>%s)\s*=\s*specialinvoke\s+%s[.](?
 _PAT_SPECIALINVOKE_WO_RETURN = re.compile(r"^\s*specialinvoke\s+%s[.](?P<method_name>%s)[(](?P<args>[^)]*)[)]\s*;$" % (_IDENTIFIER, _METHOD_NAME))
 _PAT_INVOKE = re.compile(r"^\s*(?P<left>%s)\s*=\s*(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>[^)]*)[)]\s*;$" % (_IDENTIFIER, _IDENTIFIER, _METHOD_NAME))
 _PAT_INVOKE_WO_RETURN = re.compile(r"^\s*(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>[^)]*)[)]\s*;$" % (_IDENTIFIER, _METHOD_NAME))
-_PAT_IF_GOTO = re.compile(r"\s*if\s+.*goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
-_PAT_GOTO = re.compile(r"\s*goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
-_PAT_LABEL = re.compile(r"\s*(?P<label>%s):$" % _IDENTIFIER)
+_PAT_IF_GOTO = re.compile(r"^\s*if\s+.*goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
+_PAT_GOTO = re.compile(r"^\s*goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
+_PAT_LABEL = re.compile(r"^\s*(?P<label>%s):$" % _IDENTIFIER)
 
 _PAT_STRING_LITERAL = re.compile(r'^"([^\"]|\.)*?"' + '|' + r"^'([^\"]|\.)*?'")
 
@@ -59,6 +59,7 @@ class InvalidCode(ValueError):
     pass
 
 def parse_jimp_code(linenum, lines):
+    bpats = (_PAT_IF_GOTO, IFGOTO), (_PAT_GOTO, GOTO), (_PAT_LABEL, LABEL)
     inss = []
     len_lines = len(lines)
     i = 0
@@ -73,6 +74,16 @@ def parse_jimp_code(linenum, lines):
             inss.append((THROW,))
             i += 1
         else:
+            found = False
+            for p, cmd in bpats:
+                gd = togd(p.match(L))
+                if gd:
+                    inss.append((cmd, gd["label"]))
+                    i += 1
+                    found = True
+                    break  # for p, cmd
+            if found:
+                continue
             gd = togd(_PAT_SPECIALINVOKE.match(L) or _PAT_SPECIALINVOKE_WO_RETURN.match(L))
             if gd:
                 retv = gd["left"] if "left" in gd else None
