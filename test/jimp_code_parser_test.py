@@ -103,8 +103,7 @@ class JimpCodeParserTest(unittest.TestCase):
      label5:
         return;
 """.split("\n"))
-        c = jcp.parse_jimp_code(1, lines)
-        self.assertSequenceEqual(c, [
+        expected = [
             (jcp.SWITCH, ('label1', 'label2', 'label3', 'label4', 'label5'), 1),
             (jcp.LABEL, 'label1', 9), 
             (jcp.GOTO, 'label5', 10), 
@@ -118,8 +117,14 @@ class JimpCodeParserTest(unittest.TestCase):
             (jcp.INVOKE, '$r17', 'println', ('"Hello 3"', ), None, 21), 
             (jcp.LABEL, 'label5', 22), 
             (jcp.RETURN, 23)
-        ])
+        ]
+        c = jcp.parse_jimp_code(1, lines)
+        self.assertSequenceEqual(c, expected)
 
+        offset = 102
+        c = jcp.parse_jimp_code(1 + offset, lines)
+        self.assertSequenceEqual(c, [ins[:-1] + (ins[-1] + offset,) for ins in expected])
+        
         fn = "Switch.jimp"
         c = jcp.parse_jimp_code(1, lines, fn)
         self.assert_having_filename(c, fn)
