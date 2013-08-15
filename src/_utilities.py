@@ -23,7 +23,7 @@ def readline_iter(filename):
             yield L
 
 def sort_uniq(lst):
-    lst.sort()
+    lst = sorted(lst)
     if len(lst) <= 1:
         return lst
 
