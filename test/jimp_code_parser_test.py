@@ -9,6 +9,11 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 import jimp_code_parser as jcp
 
 class JimpCodeParserTest(unittest.TestCase):
+    def assert_having_filename(self, c, filename):
+        for ins in c:
+            loc = ins[-1]
+            self.assertEqual(loc[0], filename)
+
     def test_special_invoke(self):
         lines = filter(None, r"""
         r0 := @this;
@@ -20,6 +25,10 @@ class JimpCodeParserTest(unittest.TestCase):
             (jcp.SPECIALINVOKE, None, '<init>', (), None, 2), 
             (jcp.RETURN, 3)
         ])
+
+        fn = "SpecialInvoke.jimp"
+        c = jcp.parse_jimp_code(1, lines, fn)
+        self.assert_having_filename(c, fn)
 
     def test_invoke(self):
         lines = filter(None, r"""
@@ -34,6 +43,10 @@ class JimpCodeParserTest(unittest.TestCase):
             (jcp.INVOKE, '$r1', 'format', ('"Hello\\n"', '$r2'), None, 4), 
             (jcp.RETURN, 5)
         ])
+
+        fn = "Invoke.jimp"
+        c = jcp.parse_jimp_code(1, lines, fn)
+        self.assert_having_filename(c, fn)
 
     def test_if_goto(self):
         lines = filter(None, r"""
@@ -59,6 +72,11 @@ class JimpCodeParserTest(unittest.TestCase):
             (jcp.RETURN, 10)
         ])
     
+
+        fn = "IfGoto.jimp"
+        c = jcp.parse_jimp_code(1, lines, fn)
+        self.assert_having_filename(c, fn)
+
     def test_switch(self):
         lines = filter(None, r"""
         tableswitch($i1)
@@ -101,6 +119,10 @@ class JimpCodeParserTest(unittest.TestCase):
             (jcp.LABEL, 'label5', 22), 
             (jcp.RETURN, 23)
         ])
+
+        fn = "Switch.jimp"
+        c = jcp.parse_jimp_code(1, lines, fn)
+        self.assert_having_filename(c, fn)
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

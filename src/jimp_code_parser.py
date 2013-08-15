@@ -63,7 +63,11 @@ LABEL = "label"
 class InvalidCode(ValueError):
     pass
 
-def parse_jimp_code(linenum, lines):
+def parse_jimp_code(linenum, lines, filename=None):
+    if filename is not None:
+        def loc(linenum): return (filename, linenum)
+    else:
+        def loc(linenum): return linenum
     bpats = (_PAT_IF_GOTO, IFGOTO), (_PAT_GOTO, GOTO), (_PAT_LABEL, LABEL)
     inss = []
     len_lines = len(lines)
@@ -77,17 +81,17 @@ def parse_jimp_code(linenum, lines):
         elif _PAT_BIND.match(L) or _PAT_NEWARRAY.match(L) or _PAT_NEW.match(L) or _PAT_CATCH.match(L):
             i += 1
         elif _PAT_RETURN.match(L):
-            inss.append((RETURN, linenum))
+            inss.append((RETURN, loc(linenum)))
             i += 1
         elif _PAT_THROW.match(L):
-            inss.append((THROW, linenum))
+            inss.append((THROW, loc(linenum)))
             i += 1
         else:
             found = False
             for p, cmd in bpats:
                 gd = togd(p.match(L))
                 if gd:
-                    inss.append((cmd, gd["label"], linenum))
+                    inss.append((cmd, gd["label"], loc(linenum)))
                     i += 1
                     found = True
                     break  # for p, cmd
@@ -104,25 +108,28 @@ def parse_jimp_code(linenum, lines):
                         break
                     destination_labels.append(gd["label"])
                     i += 1; L = lines[i]
-                inss.append((SWITCH, tuple(destination_labels), linenum))
+                inss.append((SWITCH, tuple(destination_labels), loc(linenum)))
                 continue  # while i
             gd = togd(_PAT_SPECIALINVOKE.match(L) or _PAT_SPECIALINVOKE_WO_RETURN.match(L))
             if gd:
                 retv = gd["left"] if "left" in gd else None
                 argt = parse_args(gd["args"])
-                inss.append((SPECIALINVOKE, None, gd["method_name"], argt, retv, linenum))
+                inss.append((SPECIALINVOKE, None, gd["method_name"], argt, retv, loc(linenum)))
                 i += 1
                 continue  # while i
             gd = togd(_PAT_INVOKE.match(L) or _PAT_INVOKE_WO_RETURN.match(L))
             if gd:
                 retv = gd["left"] if "left" in gd else None
                 argt = parse_args(gd["args"])
-                inss.append((INVOKE, gd["receiver"], gd["method_name"], argt, retv, linenum))
+                inss.append((INVOKE, gd["receiver"], gd["method_name"], argt, retv, loc(linenum)))
                 i += 1
                 continue  # while i
             if _PAT_SOME_ASSIGN.match(L):
                 i += 1
                 pass
             else:
-                raise InvalidCode("line %d: invalid syntax" % linenum)
+                if filename:
+                    raise InvalidCode("file %s, line %d: invalid syntax" % (filename, linenum))
+                else:
+                    raise InvalidCode("line %d: invalid syntax" % linenum)
     return inss
