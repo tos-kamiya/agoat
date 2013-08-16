@@ -13,6 +13,12 @@ def normalize_tree(node):
     t = [t0]
     for item in node[1:]:
         oi = normalize_tree(item)
+        if oi == [ORDERED_OR]:
+            if t0 == ORDERED_AND:
+                t = oi[:]
+                break  # for item
+            else:
+                continue  # for item
         if oi[0] == t0:
             t.extend(oi[1:])
         else:
@@ -21,10 +27,7 @@ def normalize_tree(node):
         st = [t0]
         st.extend(sort_uniq(t[1:]))
         t = st
-    lent = len(t)
-    if lent == 1:
-        return [ORDERED_AND]
-    elif lent == 2:
+    if len(t) == 2:
         return t[1]
     return t
 
