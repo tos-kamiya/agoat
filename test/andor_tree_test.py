@@ -53,6 +53,10 @@ class AndOrTreeTest(unittest.TestCase):
         self.normalize_testing([at.ORDERED_OR, 'a', [at.ORDERED_AND]], SameAsInput)
         self.normalize_testing([at.ORDERED_OR, 'a', [at.ORDERED_OR]], 'a')
 
+    def test_normalize_tree_item_order_in_or_node(self):
+        self.normalize_testing([at.ORDERED_OR, 'a', [at.ORDERED_AND]], SameAsInput)
+        self.normalize_testing([at.ORDERED_OR, [at.ORDERED_AND], 'a'], [at.ORDERED_OR, 'a', [at.ORDERED_AND]])
+
     def test_normalize_tree_of_various_item_type(self):
         for item in ('a', 1, None, (), [], (1,), [1]):
             self.normalize_testing([at.ORDERED_AND, item, [at.ORDERED_AND]], item)
