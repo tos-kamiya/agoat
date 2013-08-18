@@ -15,7 +15,7 @@ class JimpCodeTransformerTest(unittest.TestCase):
     def test_paths_to_ordred_andor_tree_simple(self):
         paths = map(str_to_char_list, ["123", "12"])
         tree = jct.paths_to_ordred_andor_tree(paths)
-        expected = [jct.ORDERED_AND, '1', '2', [jct.ORDERED_OR, [jct.ORDERED_AND], '3']]
+        expected = [jct.ORDERED_AND, '1', '2', [jct.ORDERED_OR, '3', [jct.ORDERED_AND]]]
         self.assertEqual(tree, expected)
 
     def test_paths_to_ordred_andor_tree_empty(self):
@@ -31,13 +31,13 @@ class JimpCodeTransformerTest(unittest.TestCase):
     def test_paths_to_ordred_andor_tree_simple2(self):
         paths = map(str_to_char_list, ["123", "13"])
         tree = jct.paths_to_ordred_andor_tree(paths)
-        expected = [jct.ORDERED_AND, '1', [jct.ORDERED_OR, [jct.ORDERED_AND], '2'], '3']
+        expected = [jct.ORDERED_AND, '1', [jct.ORDERED_OR, '2', [jct.ORDERED_AND]], '3']
         self.assertEqual(tree, expected)
 
     def test_paths_to_ordred_andor_tree_complex(self):
         paths = map(str_to_char_list, ["12345", "135", "123a5"])
         tree = jct.paths_to_ordred_andor_tree(paths)
-        expected = [jct.ORDERED_AND, '1', [jct.ORDERED_OR, [jct.ORDERED_AND, '2', '3', [jct.ORDERED_OR, '4', 'a']], '3'], '5']
+        expected = [jct.ORDERED_AND, '1', [jct.ORDERED_OR, '3', [jct.ORDERED_AND, '2', '3', [jct.ORDERED_OR, '4', 'a']]], '5']
         self.assertEqual(tree, expected)
 
 if __name__ == "__main__":
