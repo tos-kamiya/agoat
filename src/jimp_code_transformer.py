@@ -197,9 +197,9 @@ def main(argv, out=sys.stdout):
 #             out.write("  path %d:\n" % pi)
 #             for ins in path:
 #                 out.write("    %s\n" % repr(ins))
-        aot = paths_to_ordred_andxor_tree(paths)
+        axt = paths_to_ordred_andxor_tree(paths)
         out.write("%s, %s:\n" % (clz, method_sig))
-        out.write("%s\n" % repr(aot))
+        out.write("%s\n" % repr(axt))
 
 if __name__ == '__main__':
     main(sys.argv)
