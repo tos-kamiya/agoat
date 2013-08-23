@@ -47,10 +47,9 @@ class JimpParserTest(unittest.TestCase):
         self.assertEqual(msig.params, ())
         
     def test_hello_string(self):
-        class_tbl = jp.parse_jimp_lines(helloJimpText.splitlines(), 
+        class_name, class_data = jp.parse_jimp_lines(helloJimpText.splitlines(), 
                 parse_jimp_method_code=stub_store_jimp_method_code)
-        self.assertIn("Hello", class_tbl)
-        class_data = class_tbl["Hello"]
+        self.assertEqual(class_name, "Hello")
         self.assertEqual(class_data.base_name, "java.lang.Object")
         for msig, m in class_data.methods.iteritems():
             self.assertIn(msig, [jp.MethodSig(None, "<init>", ()), jp.MethodSig(None, "main", ("java.lang.String[]", ))])
