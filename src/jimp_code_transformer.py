@@ -176,35 +176,30 @@ def paths_to_ordred_andxor_tree(paths):
 
     return normalize_tree(t)
 
-def extract_class_hierarchy(class_table):
-    # class_table  # str -> ClassData
-    class_to_descendants = {}  # str -> [str]
-    for clz, class_data in class_table.iteritems():
-        if class_data.base_name:
-            class_to_descendants.set_default(class_data.base_name, []).append(clz)
-    return class_to_descendants
-
 def main(argv, out=sys.stdout):
     filename = argv[1]
     out.write("file: %s\n" % filename)
     lines = list(jp.readline_iter(filename))
-    class_data_table = jp.parse_jimp_lines(lines)
+    r = jp.parse_jimp_lines(lines)
+    if r is None:
+        out.write("contains no class\n")
+        return
     
-    for clz, cd in class_data_table.iteritems():
-        for method_sig, md in cd.methods.iteritems():
-            inss = resolve_type(md.code, md, cd)
-#             out.write("%s, %s:\n" % (clz, method_sig))
-#             for ins in inss:
-#                 out.write("  %s\n" % repr(ins))
-            paths = convert_to_execution_paths(inss)
-#             out.write("%s, %s:\n" % (clz, method_sig))
-#             for pi, path in enumerate(paths):
-#                 out.write("  path %d:\n" % pi)
-#                 for ins in path:
-#                     out.write("    %s\n" % repr(ins))
-            aot = paths_to_ordred_andxor_tree(paths)
-            out.write("%s, %s:\n" % (clz, method_sig))
-            out.write("%s\n" % repr(aot))
+    clz, cd = r
+    for method_sig, md in cd.methods.iteritems():
+        inss = resolve_type(md.code, md, cd)
+#         out.write("%s, %s:\n" % (clz, method_sig))
+#         for ins in inss:
+#             out.write("  %s\n" % repr(ins))
+        paths = convert_to_execution_paths(inss)
+#         out.write("%s, %s:\n" % (clz, method_sig))
+#         for pi, path in enumerate(paths):
+#             out.write("  path %d:\n" % pi)
+#             for ins in path:
+#                 out.write("    %s\n" % repr(ins))
+        aot = paths_to_ordred_andxor_tree(paths)
+        out.write("%s, %s:\n" % (clz, method_sig))
+        out.write("%s\n" % repr(aot))
 
 if __name__ == '__main__':
     main(sys.argv)

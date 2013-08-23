@@ -102,7 +102,8 @@ def parse_jimp_lines(lines,
         parse_jimp_method_local_decl=parse_jimp_field_decl,
         parse_jimp_method_code=store_jimp_method_code):
     
-    class_data_talbe = {}  # name -> classData
+    class_name = None
+    class_data = None
 
     curcls = None
     curmtd = None
@@ -114,13 +115,14 @@ def parse_jimp_lines(lines,
         L = lines[linenum]; linenum += 1
         L = L.rstrip()
         if _PAT_INTERFACE_DEF_HEAD.match(L):
-            return class_data_talbe
+            return None
 
         gd = togd(_PAT_CLASS_DEF_HEAD.match(L))
         if gd:
+            assert class_name is None
             linenum += 1  # skip class begin line
-            curcls = ClassData(gd["class_name"], gd["base_name"])
-            class_data_talbe[curcls.class_name] = curcls
+            class_name = gd["class_name"]
+            class_data = curcls = ClassData(class_name, gd["base_name"])
             decl_splitter_appeared = False
             continue
         m = _PAT_CLASS_DEF_END.match(L)
@@ -167,7 +169,7 @@ def parse_jimp_lines(lines,
                 raise InvalidText("line %d: invalid line" % linenum)
         else:
             raise InvalidText("line %d: invalid line" % linenum)
-    return class_data_talbe
+    return class_name, class_data
 
 def main(argv, out=sys.stdout):
     filename = argv[1]
