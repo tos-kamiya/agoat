@@ -176,6 +176,14 @@ def paths_to_ordred_andxor_tree(paths):
 
     return normalize_tree(t)
 
+def replace_method_code_with_axt_in_class_table(class_table):
+    for cd in class_table.itervalues():
+        for md in cd.methods.itervalues():
+            inss = resolve_type(md.code, md, cd)
+            paths = convert_to_execution_paths(inss)
+            axt = paths_to_ordred_andxor_tree(paths)
+            md.code = axt
+
 def main(argv, out=sys.stdout):
     filename = argv[1]
     out.write("file: %s\n" % filename)

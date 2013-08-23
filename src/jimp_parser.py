@@ -1,5 +1,6 @@
 #coding: utf-8
 
+import os
 import re
 import sys
 from collections import namedtuple
@@ -170,6 +171,18 @@ def parse_jimp_lines(lines,
         else:
             raise InvalidText("line %d: invalid line" % linenum)
     return class_name, class_data
+
+def read_class_table_from_dir(dirname):
+    files = os.listdir(dirname)
+    class_table = {}
+    for f in files:
+        if f.endswith(".jimp"):
+            p = os.path.join(dirname, f)
+            lines = list(readline_iter(p))
+            r = parse_jimp_lines(lines)
+            if r is not None:
+                class_table[r[0]] = r[1]
+    return class_table
 
 def main(argv, out=sys.stdout):
     filename = argv[1]
