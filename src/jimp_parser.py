@@ -9,40 +9,54 @@ from _utilities import readline_iter
 from _jimp_code_parser import parse_jimp_code
 from _jimp_code_parser import SPECIALINVOKE, INVOKE, RETURN, THROW, IFGOTO, GOTO, SWITCH, LABEL
 
-_IDENTIFIER = "[\w.$]+"
-_TYPE = r"([\w.$]|\[|\])+"
-_METHOD_NAME = r"([\w<>]|%[0-9A-F]{2})+"
+_IDENTIFIER = r"([\w.$]+|'\w+')"
+_CLASS = r'class\s+"[\w/$]+"'
+_TYPE = r"(([\w.$]|\[|\])+)"
+_METHOD_NAME = r"(([\w<>]|%[0-9A-F]{2})+|access[$]\d+)"
+_ATTR = r"(abstract|public|private|protected|final|static|synchronized|strictfp|transient|volatile)"
+
+def is_decl_line(L):
+    L = L.strip()
+    if not (L and L.endswith(";")):
+        return False
+    i = L.find(" ");
+    if i < 0:
+        return False
+    f0 = L[:i]
+    if f0 in ("if", "goto", "class", "interface", "return", "throw", "catch", "case"):
+        return False
+    f = L.find
+    return f("(") < 0 and f("=") < 0 and f("{") < 0 and f("}") < 0 and f(":") < 0
 
 _PAT_DECL = re.compile(r"^\s+" +
-        r"((public|private|final|static|synchronized)\s+)*" +
-        r"(?P<typ>%s)\s+" % _TYPE +
+        r"(%s\s+)*" % _ATTR +
+        r"(enum\s+)?(?P<typ>%s)\s+" % _TYPE +
         r"(?P<names>(%s|, )+)" % _IDENTIFIER + 
         r";" +
         r"$")
 
 _PAT_INTERFACE_DEF_HEAD = re.compile(r"^" + 
-        r"((public|private|final)\s*)?" + 
-        r"interface\s+(?P<interf_name>%s)" % _IDENTIFIER + 
+        r"(%s\s+)*" % _ATTR +
+        r"(annotation\s+)?interface\s+(?P<interf_name>%s)" % _IDENTIFIER + 
         r".*$")
 # _PAT_INTERFACE_DEF_BEGIN = re.compile("^" + "{" + "$")
 _PAT_INTERFACE_DEF_END = re.compile("^" + "}" + "$")
 
 _PAT_CLASS_DEF_HEAD = re.compile(r"^" + 
-        r"((public|private|final)\s*)?" + 
-        r"class\s+(?P<class_name>%s)" % _IDENTIFIER + 
+        r"(%s\s+)*" % _ATTR +
+        r"(enum\s+)?class\s+(?P<class_name>%s)" % _IDENTIFIER + 
         r"(\s+extends\s+(?P<base_name>%s))" % _IDENTIFIER +
-        r"(\s+implements\s+.*)?" + 
+        r"(\s+implements\s+(?P<interf_names>(%s|, )+))?" % _IDENTIFIER + 
         r"$")
 # _PAT_CLASS_DEF_BEGIN = re.compile("^" + "{" + "$")
 _PAT_CLASS_DEF_END = re.compile("^" + "}" + "$")
 
 _PAT_METHOD_DEF_HEAD = re.compile(r"^\s+" + 
-        r"((public|private|final|static|synchronized|strictfp)\s+)*" +
+        r"(%s\s+)*" % _ATTR +
         r"(?P<return_value>%s)" % _TYPE +
         r"\s+(?P<method_name>%s)" % _METHOD_NAME +
         r"[(](?P<params>(%s|, )*)[)]" % _TYPE +
-        r"(\s+throws\s+.+)?"
-        r"$")
+        r"(\s+throws\s+.+)?")
 # _PAT_METHOD_DEF_BEGIN = re.compile(r"^\s+" + r"{" + r"$")
 _PAT_METHOD_DEF_END = re.compile(r"^\s+" + r"}" + r"$")
 
@@ -62,9 +76,10 @@ class MethodData(object):
         return "MethodData(%s, %s, *)" % (repr(self.method_sig), repr(self.scope_class))
 
 class ClassData(object):
-    def __init__(self, class_name, base_name):
+    def __init__(self, class_name, base_name, interf_names=None):
         self.class_name = class_name
         self.base_name = base_name
+        self.interf_names = interf_names
         self.fields = {}  # name -> str
         self.methods = {}  # MethodSig -> MethodData
 
@@ -90,6 +105,7 @@ def togd(m):
 def parse_jimp_field_decl(entity, linenum, line):
     gd = togd(_PAT_DECL.match(line))
     if not gd:
+        assert False
         raise InvalidText("line %d: invalid field decl" % linenum)
     names = gd["names"].split(", ")
     typ = gd["typ"]
@@ -110,12 +126,18 @@ def parse_jimp_lines(lines,
     curcls = None
     curmtd = None
     curcode = None
-    decl_splitter_appeared = False
     len_lines = len(lines)
+    prev_linenum = -1
     linenum = 0
     while linenum < len_lines:
+        assert prev_linenum < linenum
+        prev_linenum = linenum
         L = lines[linenum]; linenum += 1
         L = L.rstrip()
+        # sys.stderr.write("L=%s\n" % L)  # debug
+        if not L:
+            continue
+
         if _PAT_INTERFACE_DEF_HEAD.match(L):
             return None
 
@@ -124,8 +146,9 @@ def parse_jimp_lines(lines,
             assert class_name is None
             linenum += 1  # skip class begin line
             class_name = gd["class_name"]
-            class_data = curcls = ClassData(class_name, gd["base_name"])
-            decl_splitter_appeared = False
+            t = gd["interf_names"]
+            interf_names = t.split(", ") if t else None
+            class_data = curcls = ClassData(class_name, gd["base_name"], interf_names)
             continue
         m = _PAT_CLASS_DEF_END.match(L)
         if m:
@@ -140,50 +163,40 @@ def parse_jimp_lines(lines,
             if retv == "void":
                 retv = None
             curmtd = curcls.gen_method(MethodSig(retv, gd["method_name"], tuple(params)))
-            decl_splitter_appeared = False
+            curcode = []
             continue
         m = _PAT_METHOD_DEF_END.match(L)
         if m:
             assert curcode
             parse_jimp_method_code(curmtd, linenum - len(curcode), curcode)
             curmtd = None
-            curcode = None
-            continue
-
-        if not L:
-            decl_splitter_appeared = True
-            if curmtd:
-                if not curcode:  # it is the first empty line in the method body?
-                    curcode = []
-                else:
-                    curcode.append(L)
+            curcode = []
             continue
 
         if curmtd:
-            if not decl_splitter_appeared:
+            if is_decl_line(L):
                 parse_jimp_method_local_decl(curmtd, linenum, L)
             else:
                 curcode.append(L)
         elif curcls:
-            if not decl_splitter_appeared:
-                parse_jimp_class_field_decl(curmtd, linenum, L)
+            if is_decl_line(L):
+                assert curcls is not None
+                parse_jimp_class_field_decl(curcls, linenum, L)
             else:
                 raise InvalidText("line %d: invalid line" % linenum)
         else:
             raise InvalidText("line %d: invalid line" % linenum)
     return class_name, class_data
 
-def read_class_table_from_dir(dirname):
-    files = os.listdir(dirname)
-    class_table = {}
+def read_class_table_from_dir_iter(dirname):
+    files = sorted(os.listdir(dirname))
     for f in files:
         if f.endswith(".jimp"):
             p = os.path.join(dirname, f)
             lines = list(readline_iter(p))
             r = parse_jimp_lines(lines)
             if r is not None:
-                class_table[r[0]] = r[1]
-    return class_table
+                yield r
 
 def main(argv, out=sys.stdout):
     filename = argv[1]

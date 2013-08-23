@@ -8,7 +8,7 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..'
 
 import jimp_parser as jp
 
-helloJimpText = """
+helloJimpText = r"""
 public class Hello extends java.lang.Object
 {
 

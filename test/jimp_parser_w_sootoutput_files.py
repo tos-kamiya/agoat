@@ -16,7 +16,7 @@ class JimpParserWSootOutputFilesTest(unittest.TestCase):
         for root, dirs, files in os.walk(data_dir):
             for f in files:
                 if f.endswith(".jimp"):
-                    sys.stderr.write("> parsig %s\n" % f)
+                    sys.stderr.write("> parsing %s\n" % f)
                     out = StringIO()
                     p = os.path.join(root, f)
                     jp.main(["jimp_parser", p], out=out)

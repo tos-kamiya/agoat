@@ -22,7 +22,7 @@ class JimpCodeParserTest(unittest.TestCase):
 """.split("\n"))
         c = jcp.parse_jimp_code(1, lines)
         self.assertSequenceEqual(c, [
-            (jcp.SPECIALINVOKE, None, '<init>', (), None, 2), 
+            (jcp.SPECIALINVOKE, 'r0', '<init>', (), None, 2), 
             (jcp.RETURN, 3)
         ])
 

@@ -24,7 +24,9 @@ def resolve_type(inss, method_data, class_data):
     def resolve(name):
         if name is None:
             return None
-        if name in ("true", "false"):
+        if name.startswith("class "):
+            return 'java.lang.Class'
+        elif name in ("true", "false"):
             return 'boolean'
         elif name.startswith("'"):
             return "char"

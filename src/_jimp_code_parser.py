@@ -2,9 +2,8 @@
 
 import re
 
-_IDENTIFIER = "[\w.$]+"
-_TYPE = r"([\w.$]|\[|\])+"
-_METHOD_NAME = r"([\w<>]|%[0-9A-F]{2})+"
+_IDENTIFIER = r"([\w.$]+|'\w+')"
+_METHOD_NAME = r"(([\w<>]|%[0-9A-F]{2})+|access[$]\d+)"
 _LEFT = r"%s(\[%s\])?" % (_IDENTIFIER, _IDENTIFIER)
 
 _PAT_BIND = re.compile(r"^\s*%s\s*:=\s*@?%s\s*;$" % (_IDENTIFIER, _IDENTIFIER))
@@ -13,14 +12,14 @@ _PAT_NEW = re.compile(r"^\s*%s\s*=\s*new\s+.*;$" % _LEFT)
 _PAT_SOME_ASSIGN = re.compile(r"^\s+%s\s*=.*;$" % _LEFT)
 _PAT_RETURN = re.compile(r"^\s*return.*;$")
 _PAT_THROW = re.compile(r"^\s*throw.*;$")
-_PAT_SPECIALINVOKE = re.compile(r"^\s*(?P<left>%s)\s*=\s*specialinvoke\s+%s[.](?P<method_name>%s)[(](?P<args>[^)]*)[)]\s*;$" % (_LEFT, _IDENTIFIER, _METHOD_NAME))
-_PAT_SPECIALINVOKE_WO_RETURN = re.compile(r"^\s*specialinvoke\s+%s[.](?P<method_name>%s)[(](?P<args>[^)]*)[)]\s*;$" % (_IDENTIFIER, _METHOD_NAME))
-_PAT_INVOKE = re.compile(r"^\s*(?P<left>%s)\s*=\s*(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>[^)]*)[)]\s*;$" % (_LEFT, _IDENTIFIER, _METHOD_NAME))
-_PAT_INVOKE_WO_RETURN = re.compile(r"^\s*(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>[^)]*)[)]\s*;$" % (_IDENTIFIER, _METHOD_NAME))
+_PAT_SPECIALINVOKE = re.compile(r"^\s*(?P<left>%s)\s*=\s*specialinvoke\s+(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>.*)[)]\s*;$" % (_LEFT, _IDENTIFIER, _METHOD_NAME))
+_PAT_SPECIALINVOKE_WO_RETURN = re.compile(r"^\s*specialinvoke\s+(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>.*)[)]\s*;$" % (_IDENTIFIER, _METHOD_NAME))
+_PAT_INVOKE = re.compile(r"^\s*(?P<left>%s)\s*=\s*(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>.*)[)]\s*;$" % (_LEFT, _IDENTIFIER, _METHOD_NAME))
+_PAT_INVOKE_WO_RETURN = re.compile(r"^\s*(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>.*)[)]\s*;$" % (_IDENTIFIER, _METHOD_NAME))
 _PAT_IF_GOTO = re.compile(r"^\s*if\s+.*goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
 _PAT_GOTO = re.compile(r"^\s*goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
 _PAT_LABEL = re.compile(r"^\s*(?P<label>%s):$" % _IDENTIFIER)
-_PAT_TABLESWITCH = re.compile(r"^\s*tableswitch[(].*$")
+_PAT_SWITCH = re.compile(r"^\s*(table|lookup)switch[(].*$")
 _PAT_CASE = re.compile(r"^\s*case\s+[^:]+:\s+goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
 _PAT_DEFAULT = re.compile(r"^\s*default:\s+goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
 _PAT_CATCH = re.compile(r"^\s*catch\s+.*;$")
@@ -78,7 +77,13 @@ def parse_jimp_code(linenum, lines, filename=None):
         L = lines[i]
         if not L:
             i += 1
-        elif _PAT_BIND.match(L) or _PAT_NEWARRAY.match(L) or _PAT_NEW.match(L) or _PAT_CATCH.match(L):
+        elif _PAT_BIND.match(L):
+            i += 1
+        elif _PAT_NEWARRAY.match(L):
+            i += 1
+        elif _PAT_NEW.match(L):
+            i += 1
+        elif _PAT_CATCH.match(L):
             i += 1
         elif _PAT_RETURN.match(L):
             inss.append((RETURN, loc(linenum)))
@@ -97,7 +102,7 @@ def parse_jimp_code(linenum, lines, filename=None):
                     break  # for p, cmd
             if found:
                 continue  # while i
-            if _PAT_TABLESWITCH.match(L):
+            if _PAT_SWITCH.match(L):
                 destination_labels = []
                 i += 2; L = lines[i]
                 while True:
@@ -114,7 +119,7 @@ def parse_jimp_code(linenum, lines, filename=None):
             if gd:
                 retv = gd["left"] if "left" in gd else None
                 argt = parse_args(gd["args"])
-                inss.append((SPECIALINVOKE, None, gd["method_name"], argt, retv, loc(linenum)))
+                inss.append((SPECIALINVOKE, gd["receiver"], gd["method_name"], argt, retv, loc(linenum)))
                 i += 1
                 continue  # while i
             gd = togd(_PAT_INVOKE.match(L) or _PAT_INVOKE_WO_RETURN.match(L))
