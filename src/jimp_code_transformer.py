@@ -7,7 +7,7 @@ from _utilities import sort_uniq
 
 import jimp_parser as jp
 import jimp_code_parser as jcp
-from andor_tree import ORDERED_AND, ORDERED_OR, normalize_tree
+from andxor_tree import ORDERED_AND, ORDERED_XOR, normalize_tree
 
 # SPECIALINVOKE = "specialinvoke"
     #receiver, method_name, args, retv
@@ -82,7 +82,7 @@ def convert_to_execution_paths(inss):
                 return
             elif cmd == jcp.IFGOTO:
                 dest = ins[1]
-                path.append(ins)  # mark of branch/join
+                # path.append(ins)  # mark of branch/join
                 if dest not in visitedlabels:
                     branched_path = path[:]
                     paths.append(branched_path)
@@ -95,7 +95,7 @@ def convert_to_execution_paths(inss):
                 i = label2dest.get(dest)
                 continue
             elif cmd == jcp.SWITCH:
-                path.append(ins)  # mark of branch/join
+                # path.append(ins)  # mark of branch/join
                 for dest in ins[1]:
                     if dest not in visitedlabels:
                         branched_path = path[:]
@@ -112,7 +112,7 @@ def convert_to_execution_paths(inss):
 
     return sort_uniq(paths)
 
-def paths_to_ordred_andor_tree(paths):
+def paths_to_ordred_andxor_tree(paths):
     def get_prefix(paths):
         assert paths
         prefix = []
@@ -143,7 +143,7 @@ def paths_to_ordred_andor_tree(paths):
         lenp = len(p)
         (emptyG if lenp == 0 else \
             multipleG).append(p)
-    t = [ORDERED_OR]
+    t = [ORDERED_XOR]
     if emptyG:
         t.append([ORDERED_AND])
     multipleG = sort_uniq(multipleG)
@@ -160,7 +160,7 @@ def paths_to_ordred_andor_tree(paths):
                 pt.extend(prefix)
                 len_prefix = len(prefix)
                 tails = [p[len_prefix:] for p in g]
-                pt.append(paths_to_ordred_andor_tree(tails))
+                pt.append(paths_to_ordred_andxor_tree(tails))
     else:
         for g in postfix_division:
             if len(g) == 1:
@@ -171,12 +171,13 @@ def paths_to_ordred_andor_tree(paths):
                 heads = [p[:-len_postfix] for p in g]
                 pt = [ORDERED_AND]
                 t.append(pt)
-                pt.append(paths_to_ordred_andor_tree(heads))
+                pt.append(paths_to_ordred_andxor_tree(heads))
                 pt.extend(postfix)
 
     return normalize_tree(t)
 
 def extract_class_hierarchy(class_table):
+    # class_table  # str -> ClassData
     class_to_descendants = {}  # str -> [str]
     for clz, class_data in class_table.iteritems():
         if class_data.base_name:
@@ -196,11 +197,14 @@ def main(argv, out=sys.stdout):
 #             for ins in inss:
 #                 out.write("  %s\n" % repr(ins))
             paths = convert_to_execution_paths(inss)
+#             out.write("%s, %s:\n" % (clz, method_sig))
+#             for pi, path in enumerate(paths):
+#                 out.write("  path %d:\n" % pi)
+#                 for ins in path:
+#                     out.write("    %s\n" % repr(ins))
+            aot = paths_to_ordred_andxor_tree(paths)
             out.write("%s, %s:\n" % (clz, method_sig))
-            for pi, path in enumerate(paths):
-                out.write("  path %d:\n" % pi)
-                for ins in path:
-                    out.write("    %s\n" % repr(ins))
+            out.write("%s\n" % repr(aot))
 
 if __name__ == '__main__':
     main(sys.argv)
