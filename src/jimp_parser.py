@@ -6,7 +6,8 @@ import sys
 from collections import namedtuple
 
 from _utilities import readline_iter
-from jimp_code_parser import parse_jimp_code
+from _jimp_code_parser import parse_jimp_code
+from _jimp_code_parser import SPECIALINVOKE, INVOKE, RETURN, THROW, IFGOTO, GOTO, SWITCH, LABEL
 
 _IDENTIFIER = "[\w.$]+"
 _TYPE = r"([\w.$]|\[|\])+"

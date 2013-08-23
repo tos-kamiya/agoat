@@ -6,7 +6,7 @@ import sys
 import os.path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
-import jimp_code_parser as jcp
+import _jimp_code_parser as jcp
 
 class JimpCodeParserTest(unittest.TestCase):
     def assert_having_filename(self, c, filename):

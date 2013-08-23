@@ -6,7 +6,6 @@ from itertools import groupby
 from _utilities import sort_uniq
 
 import jimp_parser as jp
-import jimp_code_parser as jcp
 from andxor_tree import ORDERED_AND, ORDERED_XOR, normalize_tree
 
 # SPECIALINVOKE = "specialinvoke"
@@ -46,7 +45,7 @@ def resolve_type(inss, method_data, class_data):
     resolved_inss = []
     for ins in inss:
         cmd = ins[0]
-        if cmd in (jcp.SPECIALINVOKE, jcp.INVOKE):
+        if cmd in (jp.SPECIALINVOKE, jp.INVOKE):
             receiver, method_name, args, retv, linenum = ins[1:]
             rreceiver = resolve(receiver)
             rargs = tuple(map(resolve, args))
@@ -62,7 +61,7 @@ def convert_to_execution_paths(inss):
     len_inss = len(inss)
     label2dest = {}
     for i, ins in enumerate(inss):
-        if ins[0] == jcp.LABEL:
+        if ins[0] == jp.LABEL:
             label2dest[ins[1]] = i
 
     paths = []
@@ -75,26 +74,26 @@ def convert_to_execution_paths(inss):
         while i < len_inss:
             ins = inss[i]
             cmd = ins[0]
-            if cmd in (jcp.SPECIALINVOKE, jcp.INVOKE):
+            if cmd in (jp.SPECIALINVOKE, jp.INVOKE):
                 path.append(ins)
-            elif cmd in (jcp.RETURN, jcp.THROW):
+            elif cmd in (jp.RETURN, jp.THROW):
                 path.append(ins)
                 return
-            elif cmd == jcp.IFGOTO:
+            elif cmd == jp.IFGOTO:
                 dest = ins[1]
                 # path.append(ins)  # mark of branch/join
                 if dest not in visitedlabels:
                     branched_path = path[:]
                     paths.append(branched_path)
                     branches.append((label2dest.get(dest), branched_path, visitedlabels[:]))
-            elif cmd == jcp.GOTO:
+            elif cmd == jp.GOTO:
                 dest = ins[1]
                 if dest in visitedlabels:
                     return
                 visitedlabels.append(dest)
                 i = label2dest.get(dest)
                 continue
-            elif cmd == jcp.SWITCH:
+            elif cmd == jp.SWITCH:
                 # path.append(ins)  # mark of branch/join
                 for dest in ins[1]:
                     if dest not in visitedlabels:
@@ -102,7 +101,7 @@ def convert_to_execution_paths(inss):
                         paths.append(branched_path)
                         branches.append((label2dest.get(dest), branched_path, visitedlabels[:]))
                 return
-            elif cmd == jcp.LABEL:
+            elif cmd == jp.LABEL:
                 path.append(ins)  # mark of branch/join
             i += 1
     
