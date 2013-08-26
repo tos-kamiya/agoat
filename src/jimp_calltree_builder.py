@@ -1,5 +1,4 @@
 #coding: utf-8
-
 import os
 import sys
 
@@ -159,11 +158,12 @@ def find_entry_points(class_table):
                 entry_points.append((clz, msig))
     return entry_points
 
-def main(argv, out=sys.stdout):
+def main(argv, out=sys.stdout, logout=sys.stderr):
     dirname = argv[1]
     entry_point_class = argv[2] if len(argv) >= 3 else None
+    entry_point_method = argv[3] if len(argv) >= 4 else None
     
-    out.write("sootOutput-dir: %s\n" % dirname)
+    logout.write("> sootOutput-dir: %s\n" % dirname)
     class_table = {}
     for clz, cd in jp.read_class_table_from_dir_iter(dirname):
         # sys.stderr.write("> %s\n" % clz)
@@ -176,13 +176,33 @@ def main(argv, out=sys.stdout):
             out.write("  %s\n" % repr(ep))
         return
 
-    jct.replace_method_code_with_axt_in_class_table(class_table)
+    if entry_point_method:
+        entry_point_msig = None
+        for cd in class_table.itervalues():
+            if entry_point_msig:
+                break  # for cd
+            if cd.class_name == entry_point_class:
+                for md in cd.methods.itervalues():
+                    if entry_point_msig:
+                        break  # for md
+                    if md.method_sig.name == entry_point_method:
+                        entry_point_msig = md.method_sig
+    else:
+        entry_point_msig = jp.MethodSig(None, "main", ("java.lang.String[]",))
+    entry_point = (entry_point_class, entry_point_msig)
+    
+    logout.write("> build axt\n")
+    def progress_repo(clz, msig):
+        sys.stderr.write(">  %s %s\n" % (clz, msig))
+    jct.replace_method_code_with_axt_in_class_table(class_table, progress_repo)
 
-    entry_point = (entry_point_class, jp.MethodSig(None, "main", ("java.lang.String[]",)))
+    logout.write("> extract hierachy\n")
     class_to_descendants = extract_class_hierarchy(class_table)
+    logout.write("> reslove dispatch\n")
     class_to_methods = dict((claz, cd.methods.keys()) for claz, cd in class_table.iteritems())
     # class_to_methods  # str -> [MethodSig]
     recv_method_to_defs = resolve_dispatch(class_to_methods, class_to_descendants)
+    logout.write("> find recursive\n")
     methods_ircc = find_methods_involved_in_recursive_call_chain(class_table, recv_method_to_defs, entry_point)
     out.write("methods involved in recursive chain:\n")
     for mtd in methods_ircc:
