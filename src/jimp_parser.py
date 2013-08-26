@@ -186,6 +186,12 @@ def parse_jimp_lines(lines,
                 raise InvalidText("line %d: invalid line" % linenum)
         else:
             raise InvalidText("line %d: invalid line" % linenum)
+    
+    # remove the methods that is declared but does not have body
+    empty_methods = [msig for msig, md in class_data.methods.iteritems() if md.code is None]
+    for msig in empty_methods:
+        del class_data.methods[msig]
+
     return class_name, class_data
 
 def read_class_table_from_dir_iter(dirname):
