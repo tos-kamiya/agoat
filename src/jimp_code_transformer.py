@@ -70,7 +70,7 @@ def resolve_type(inss, method_data, class_data):
         cmd = ins[0]
         if cmd in (jp.SPECIALINVOKE, jp.INVOKE):
             receiver, method_name, args, retv, linenum = ins[1:]
-            rreceiver = resolve(receiver)
+            rreceiver = resolve(receiver) or receiver
             rargs = tuple(map(resolve, args))
             rretv = resolve(retv)
             sig = method_sig_intern(jp.MethodSig(rretv, method_name, rargs))
