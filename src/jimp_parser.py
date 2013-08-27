@@ -12,8 +12,8 @@ from _jimp_code_parser import SPECIALINVOKE, INVOKE, RETURN, THROW, IFGOTO, GOTO
 _IDENTIFIER = r"([\w.$]+|'\w+')"
 _CLASS = r'class\s+"[\w/$]+"'
 _TYPE = r"(([\w.$]|\[|\])+)"
-_METHOD_NAME = r"(([\w<>]|%[0-9A-F]{2})+|access[$]\d+)"
-_ATTR = r"(abstract|public|private|protected|final|static|synchronized|strictfp|transient|volatile)"
+_METHOD_NAME = r"(([\w<>]|%[0-9A-F]{2})+|access[$]\d+|class[$])"
+_ATTR = r"(abstract|public|private|protected|final|static|synchronized|strictfp|transient|volatile|native)"
 
 def is_decl_line(L):
     L = L.strip()
