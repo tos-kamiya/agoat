@@ -164,7 +164,7 @@ def find_entry_points(class_table):
 
 CALL = "call"
 
-def make_andxor_call_tree(entry_point, class_table, recv_method_to_defs, methods_ircc):
+def build_call_andxor_tree(entry_point, class_table, recv_method_to_defs, methods_ircc):
     # class_table  # str -> ClassData
     # recv_method_to_defs  # (str, MethodSig) -> [str]
     # entry_point  # (str, MethodSig)
@@ -244,6 +244,20 @@ def make_andxor_call_tree(entry_point, class_table, recv_method_to_defs, methods
 
     return dig_dispatch(entry_point, None, None, special_invoke=False)
 
+def extract_call_andxor_tree(class_table, entry_point):
+    class_to_descendants = extract_class_hierarchy(class_table)
+    class_to_methods = dict((claz, cd.methods.keys()) for claz, cd in class_table.iteritems())
+    # class_to_methods  # str -> [MethodSig]
+    recv_method_to_defs = resolve_dispatch(class_to_methods, class_to_descendants)
+
+    methods_ircc = find_methods_involved_in_recursive_call_chain(class_table, recv_method_to_defs, entry_point)
+    # out.write("methods involved in recursive chain:\n")
+    # for mtd in methods_ircc:
+    #     out.write("  %s\n" % repr(mtd))
+
+    call_tree = build_call_andxor_tree(entry_point, class_table, recv_method_to_defs, methods_ircc)
+    return call_tree
+
 def main(argv, out=sys.stdout, logout=sys.stderr):
     dirname = argv[1]
     entry_point_class = argv[2] if len(argv) >= 3 else None
@@ -297,13 +311,10 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
     #     out.write("  %s\n" % repr(mtd))
 
     logout and logout.write("> build call and-xor tree\n")
-    call_tree = make_andxor_call_tree(entry_point, class_table, recv_method_to_defs, methods_ircc)
+    call_tree = build_call_andxor_tree(entry_point, class_table, recv_method_to_defs, methods_ircc)
     out.write("call and-xor tree:\n")
     pp = pprint.PrettyPrinter(indent=4, stream=out)
     pp.pprint(call_tree)
-
-    #summary_table = {}   # object id -> (clz, MethodSig)
-    #extract_summaries_in_methods(class_table, )
 
 if __name__ == '__main__':
     main(sys.argv)
