@@ -257,9 +257,9 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
 
     if not entry_point_class:
         entry_points = find_entry_points(class_table)
-        out.write("entry points:\n")
-        for ep in entry_points:
-            out.write("  %s\n" % repr(ep))
+        out.write("entry point classes:\n")
+        for ep in sorted(entry_points):
+            out.write("  %s\n" % ep[0])
         return
 
     if entry_point_method:
