@@ -42,9 +42,9 @@ def stub_store_jimp_method_code(mtd, linenum, lines):
 class JimpParserTest(unittest.TestCase):
     def test_method_sig(self):
         msig = jp.MethodSig("int", "hoge", ())
-        self.assertEqual(msig.retv, "int")
-        self.assertEqual(msig.name, "hoge")
-        self.assertEqual(msig.params, ())
+        self.assertEqual(jp.methodsig_retv(msig), "int")
+        self.assertEqual(jp.methodsig_name(msig), "hoge")
+        self.assertEqual(jp.methodsig_params(msig), ())
         
     def test_hello_string(self):
         class_name, class_data = jp.parse_jimp_lines(helloJimpText.splitlines(), 

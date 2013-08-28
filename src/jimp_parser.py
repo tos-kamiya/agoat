@@ -7,7 +7,7 @@ from collections import namedtuple
 
 from _utilities import readline_iter
 from _jimp_code_parser import parse_jimp_code
-from _jimp_code_parser import SPECIALINVOKE, INVOKE, RETURN, THROW, IFGOTO, GOTO, SWITCH, LABEL
+from _jimp_code_parser import SPECIALINVOKE, INVOKE, RETURN, THROW, IFGOTO, GOTO, SWITCH, LABEL  # re-export
 
 _IDENTIFIER = r"([\w.$]+|'\w+')"
 _CLASS = r'class\s+"[\w/$]+"'
@@ -60,7 +60,34 @@ _PAT_METHOD_DEF_HEAD = re.compile(r"^\s+" +
 # _PAT_METHOD_DEF_BEGIN = re.compile(r"^\s+" + r"{" + r"$")
 _PAT_METHOD_DEF_END = re.compile(r"^\s+" + r"}" + r"$")
 
-MethodSig = namedtuple("MethodSig", "retv name params")
+def _none_to_void(t): return t if t is not None else 'void'
+def _void_to_none(t): return t if t is not 'void' else None
+
+if False:
+    MethodSig = namedtuple('MethodSig', 'retv name params')
+
+    def methodsig_retv(msig):
+        return msig.retv
+    
+    def methodsig_name(msig):
+        return msig.name
+    
+    def methodsig_params(msig):
+        return msig.params
+else:
+    def MethodSig(retv, name, params):
+        items = [_none_to_void(retv), name]
+        items.extend(map(_none_to_void, params))
+        return '\t'.join(items)
+    
+    def methodsig_retv(msig):
+        return _void_to_none(msig.split('\t')[0])
+    
+    def methodsig_name(msig):
+        return _void_to_none(msig.split('\t')[1])
+    
+    def methodsig_params(msig):
+        return tuple(_void_to_none(t) for t in msig.split('\t')[2:])
 
 class InvalidText(ValueError):
     pass

@@ -25,13 +25,17 @@ from andxor_tree import ORDERED_AND, ORDERED_XOR, normalize_tree
 # SWITCH = "switch"
 # LABEL = "label"
 
-MethodSigInternTable = dict()
-def method_sig_intern(msig):
-    v = MethodSigInternTable.get(msig)
-    if v:
-        return v
-    MethodSigInternTable[msig] = msig
-    return msig
+if False:
+    MethodSigInternTable = dict()
+    def method_sig_intern(msig):
+        v = MethodSigInternTable.get(msig)
+        if v:
+            return v
+        MethodSigInternTable[msig] = msig
+        return msig
+else:
+    def method_sig_intern(msig):
+        return intern(msig)
 
 def resolve_type(inss, method_data, class_data):
     if inss is None:
