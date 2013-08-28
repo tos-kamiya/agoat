@@ -155,10 +155,11 @@ def find_methods_involved_in_recursive_call_chain(class_table, recv_method_to_de
 
 def find_entry_points(class_table):
     # class_table  # str -> ClassData
+    main_msig = jp.MethodSig(None, "main", ("java.lang.String[]",))
     entry_points = []
     for clz, class_data in class_table.iteritems():
         for msig, method_data in class_data.methods.iteritems():
-            if msig.retv is None and msig.name == "main" and msig.params == ("java.lang.String[]",):
+            if msig == main_msig:
                 entry_points.append((clz, msig))
     return entry_points
 
