@@ -5,7 +5,7 @@ import pprint
 
 import andxor_tree as at
 import jimp_parser as jp
-import jimp_code_transformer as jct
+import jimp_code_body_to_tree_elem as jcbte
 
 def extract_class_hierarchy(class_table, include_indirect_decendants=True):
     # class_table  # str -> ClassData
@@ -108,7 +108,7 @@ def find_methods_involved_in_recursive_call_chain(class_table, recv_method_to_de
                     assert False
             elif isinstance(node, list):
                 assert node
-                assert node[0] in (jct.ORDERED_AND, jct.ORDERED_XOR)
+                assert node[0] in (jcbte.ORDERED_AND, jcbte.ORDERED_XOR)
                 for item in node[1:]:
                     dig_node(item, callee, stack)
         finally:
@@ -175,7 +175,7 @@ def build_call_andxor_tree(entry_point, class_table, recv_method_to_defs, method
         if isinstance(axt, list):
             assert axt
             axt0 = axt[0]
-            if axt0 in (at.ORDERED_AND, at.ORDERED_XOR, jct.BLOCK):
+            if axt0 in (at.ORDERED_AND, at.ORDERED_XOR, jcbte.BLOCK):
                 n = [axt0]
                 for item in axt[1:]:
                     v = dig_node(item, recursive_context, clz_msig)
@@ -227,7 +227,7 @@ def build_call_andxor_tree(entry_point, class_table, recv_method_to_defs, method
                     ctx = called_method if recursive_context is None and called_method in methods_ircc else recursive_context
                     cn = called_to_node_table.get((cd.class_name, md.method_sig, ctx))
                     if cn is None:
-                        cn = [CALL, (jp.INVOKE, called_method, loc_info)]
+                        cn = [CALL, recursive_context, (jp.INVOKE, called_method, loc_info)]
                         v = dig_node(md.code, ctx, called_method)
                         if v:
                             cn.append(v)
@@ -294,7 +294,7 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
     logout and logout.write("> build axt\n")
     def progress_repo(clz, msig):
         sys.stderr.write(">   processing: %s %s\n" % (clz, msig))
-    jct.replace_method_code_with_axt_in_class_table(class_table, progress_repo)
+    jcbte.replace_method_code_with_axt_in_class_table(class_table, progress_repo)
 
     logout and logout.write("> extract hierachy\n")
     class_to_descendants = extract_class_hierarchy(class_table)
@@ -311,6 +311,7 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
 
     logout and logout.write("> build call and-xor tree\n")
     call_tree = build_call_andxor_tree(entry_point, class_table, recv_method_to_defs, methods_ircc)
+
     out.write("call and-xor tree:\n")
     pp = pprint.PrettyPrinter(indent=4, stream=out)
     pp.pprint(call_tree)
