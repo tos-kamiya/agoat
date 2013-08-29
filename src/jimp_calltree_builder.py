@@ -228,7 +228,10 @@ def build_call_andxor_tree(entry_point, class_table, recv_method_to_defs, method
                     cn = called_to_node_table.get((cd.class_name, md.method_sig, ctx))
                     if cn is None:
                         cn = [CALL, recursive_context, (jp.INVOKE, called_method, loc_info)]
-                        v = dig_node(md.code, ctx, called_method)
+                        if md.code != jcbte.NOTREE:
+                            v = dig_node(md.code, ctx, called_method)
+                        else:
+                            v = None
                         if v:
                             cn.append(v)
                         called_to_node_table[(cd.class_name, md.method_sig, ctx)] = cn
@@ -292,9 +295,15 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
     logout and logout.write("> entry point is: %s %s\n" % entry_point)
 
     logout and logout.write("> build axt\n")
-    def progress_repo(clz, msig):
-        sys.stderr.write(">   processing: %s %s\n" % (clz, msig))
-    jcbte.replace_method_code_with_axt_in_class_table(class_table, progress_repo)
+    def progress_repo(current=None, canceled_becaseof_branches=None):
+        if current:
+            clz, msig = current
+            sys.stderr.write(">   processing: %s %s\n" % (clz, msig))
+        if canceled_becaseof_branches:
+            clz, msig, branches = canceled_becaseof_branches
+            sys.stderr.write(">   canceled: %s %s (branches=%d)\n" % (clz, msig, branches))
+    jcbte.replace_method_code_with_axt_in_class_table(class_table, 
+            branches_atmost=50, progress_repo=progress_repo)
 
     logout and logout.write("> extract hierachy\n")
     class_to_descendants = extract_class_hierarchy(class_table)

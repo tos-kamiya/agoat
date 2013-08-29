@@ -22,6 +22,7 @@ from andxor_tree import ORDERED_AND, ORDERED_XOR, normalize_tree
 
 # RETURN = "return"
 # THROW = "throw"
+
 # IFGOTO = "ifgoto"
 # GOTO = "goto"
 # SWITCH = "switch"
@@ -87,6 +88,30 @@ def resolve_type(inss, method_data, class_data):
             resolved_inss.append(ins)
     
     return resolved_inss
+
+def remove_redundant_gotos(inss):
+    reduced = []
+    for i, ins in enumerate(inss):
+        cmd = ins[0]
+        if cmd in (jp.IFGOTO, jp.GOTO):
+            if reduced and reduced[-1][:2] == ins[:2]:
+                continue
+            else:
+                reduced.append(ins)
+        elif cmd == jp.SWITCH:
+            dests = ins[1]
+            dest_set = set()
+            rds = []
+            for d in dests:
+                if d not in dest_set:
+                    rds.append(d)
+                    dest_set.add(d)
+            rins = [jp.SWITCH, rds]
+            rins.extend(ins[2:])
+            reduced.append(tuple(rins))
+        else:
+            reduced.append(ins)
+    return reduced
 
 BLOCK = 'block'
 
@@ -183,6 +208,8 @@ def make_nested_blocks(bis):
                         destlabel2count[exit_label] += 1
                         continue
                     dest_index = label2dest.get(dest)
+                    if dest_index is None:
+                        assert False
                     destlabel2count[dest] += 1
                     if dest_index + 2 < len_bis and \
                             bis[dest_index + 1][0] in (jp.GOTO, jp.LABEL) and (exit_label is None or bis[dest_index + 1][1] == exit_label):
@@ -249,6 +276,16 @@ def make_nested_blocks(bis):
             break  # while True
         bis = nb
     return bis
+
+def count_branches(inss):
+    c = 0
+    for i, ins in enumerate(inss):
+        cmd = ins[0]
+        if cmd in (jp.RETURN, jp.THROW, jp.IFGOTO, jp.GOTO):
+            c += 1
+        elif cmd == jp.SWITCH:
+            c += len(ins[1])
+    return c
 
 # def optimize_gotos_in_seq(inss):
 #     label2dest = {}
@@ -319,6 +356,12 @@ def list_flatten_iter_except_for_block(L):
     else:
         yield L
 
+def copy_counter(c):
+    d = Counter()
+    for k, v in c.iteritems():
+        d[k] = v
+    return d
+
 def convert_to_execution_paths(inss):
     if inss and inss[0] == 'BLOCK':
         return inss
@@ -332,7 +375,7 @@ def convert_to_execution_paths(inss):
     paths = []
     path = []
     branches = []
-    branches.append((0, path, []))
+    branches.append((0, path, Counter()))
      
     def nesting_dup(L):
         if len(L) == 1:
@@ -340,53 +383,60 @@ def convert_to_execution_paths(inss):
         else:
             return [L]
     def dig(i, path, visitedlabels):
-        try:
-            while i < len_inss:
-                ins = inss[i]
-                cmd = ins[0]
-                if cmd == BLOCK:
+        prev_i = i - 1
+        while i < len_inss:
+            assert i != prev_i
+            prev_i = i
+            ins = inss[i]
+            cmd = ins[0]
+            if cmd == BLOCK:
+                path.append(ins)
+            elif cmd in (jp.SPECIALINVOKE, jp.INVOKE):
+                is_repetitive = path and path[-1][:-1] == ins[:-1]
+                # cmd, receiver, method_name, args, retv, linenum = ins
+                if not is_repetitive:
                     path.append(ins)
-                elif cmd in (jp.SPECIALINVOKE, jp.INVOKE):
-                    is_repetitive = path and path[-1][:-1] == ins[:-1]
-                    # cmd, receiver, method_name, args, retv, linenum = ins
-                    if not is_repetitive:
-                        path.append(ins)
-                        assert len(path) <= len_inss
-                elif cmd in (jp.RETURN, jp.THROW):
-                    path.append(ins)
-                    return
-                elif cmd == jp.IFGOTO:
-                    dest = ins[1]
-                    # path.append(ins)  # mark of branch/join
+                    assert len(path) <= len_inss
+            elif cmd in (jp.RETURN, jp.THROW):
+                path.append(ins)
+                paths.append(path)
+                return
+            elif cmd == jp.IFGOTO:
+                dest = ins[1]
+                # path.append(ins)  # mark of branch/join
+                if dest not in visitedlabels:
+                    branched_path = nesting_dup(path)
+                    path = nesting_dup(path)
+                    branched_visitedlabels = copy_counter(visitedlabels)
+                    branches.append((label2dest.get(dest), branched_path, branched_visitedlabels))
+            elif cmd == jp.GOTO:
+                dest = ins[1]
+                dest_index = label2dest.get(dest)
+                if dest_index < i:
+                    c = visitedlabels[dest]
+                    if c >= 2:
+                        return
+                    visitedlabels[dest] += 1
+                    i = dest_index + 1
+                else:
+                    i = dest_index
+                continue
+            elif cmd == jp.SWITCH:
+                # path.append(ins)  # mark of branch/join
+                for dest in ins[1]:
                     if dest not in visitedlabels:
                         branched_path = nesting_dup(path)
-                        path = nesting_dup(path)
-                        branches.append((label2dest.get(dest), branched_path, visitedlabels[:]))
-                elif cmd == jp.GOTO:
-                    dest = ins[1]
-                    if dest in visitedlabels:
-                        return
-                    visitedlabels.append(dest)
-                    i = label2dest.get(dest)
-                    continue
-                elif cmd == jp.SWITCH:
-                    # path.append(ins)  # mark of branch/join
-                    for dest in ins[1]:
-                        if dest not in visitedlabels:
-                            branched_path = nesting_dup(path)
-                            branches.append((label2dest.get(dest), branched_path, visitedlabels[:]))
+                        branched_visitedlabels = copy_counter(visitedlabels)
+                        branches.append((label2dest.get(dest), branched_path, branched_visitedlabels))
+                return
+            elif cmd == jp.LABEL:
+                if ins[1] in visitedlabels:
                     return
-                elif cmd == jp.LABEL:
-                    if ins[1] in visitedlabels:
-                        return
-                    visitedlabels.append(ins[1])
-                    path.append(ins)  # mark of branch/join
-                else:
-                    assert False
-                i += 1
-        finally:
-            if path:
-                paths.append(path)
+                visitedlabels[ins[1]] += 1
+                path.append(ins)  # mark of branch/join
+            else:
+                assert False
+            i += 1
      
     while branches:
         b = branches.pop()
@@ -480,18 +530,27 @@ def expand_blocks(node):
     else:
         return node
 
-def replace_method_code_with_axt_in_class_table(class_table, progress_repo=None):
+NOTREE = 'notree'
+
+def replace_method_code_with_axt_in_class_table(class_table, 
+        branches_atmost=None, progress_repo=None):
     for cd in class_table.itervalues():
         for md in cd.methods.itervalues():
-            progress_repo and progress_repo(cd.class_name, md.method_sig)
+            progress_repo and progress_repo(current=(cd.class_name, md.method_sig))
             inss = resolve_type(md.code, md, cd)
+            inss = remove_redundant_gotos(inss)
             bis = make_basic_blocks(inss)
             nbis = make_nested_blocks(bis)
-            paths = convert_to_execution_paths(nbis)
-            axt = paths_to_ordred_andxor_tree(paths)
-            axt = expand_blocks(axt)
-            axt = normalize_tree(axt)
-            md.code = axt
+            nbranch = count_branches(nbis)
+            if branches_atmost is not None and nbranch > branches_atmost:
+                progress_repo and progress_repo(canceled_becaseof_branches=(cd.class_name, md.method_sig, nbranch))
+                md.code = [NOTREE, md.code]
+            else:
+                paths = convert_to_execution_paths(nbis)
+                axt = paths_to_ordred_andxor_tree(paths)
+                axt = expand_blocks(axt)
+                axt = normalize_tree(axt)
+                md.code = axt
 
 def main(argv, out=sys.stdout):
     filename = argv[1]
@@ -513,8 +572,11 @@ def main(argv, out=sys.stdout):
 #         out.write("%s, %s:\n" % (clz, method_sig))
 #         for ins in inss:
 #             out.write("  %s\n" % repr(ins))
+        inss = remove_redundant_gotos(inss)
         bis = make_basic_blocks(inss)
         nbis = make_nested_blocks(bis)
+        nbranch = count_branches(nbis)
+        out.write("branches: %d\n" % nbranch)
         paths = convert_to_execution_paths(nbis)
         axt = paths_to_ordred_andxor_tree(paths)
         axt = expand_blocks(axt)
