@@ -8,7 +8,7 @@ except:
 import sys
 from itertools import groupby
 
-from _utilities import sort_uniq
+from _utilities import sort_uniq, list_flatten_iter
 
 import jimp_parser as jp
 from andxor_tree import ORDERED_AND, ORDERED_XOR, normalize_tree
@@ -104,6 +104,63 @@ def convert_to_block_instruction_seq(inss):
             assert False
     return bis
 
+def optimize_gotos_in_seq(inss):
+    label2dest = {}
+    for i, ins in enumerate(inss):
+        if ins[0] == jp.LABEL:
+            label2dest[ins[1]] = i
+             
+    def get_final_dest(label, visited_labels=set()):
+        dest_label_index = label2dest.get(label)
+        assert dest_label_index is not None
+        dest_index = dest_label_index + 1
+        ins = inss[dest_index]
+        while ins[0] == jp.LABEL:
+            lbl = ins[1]
+            if lbl in visited_labels:
+                break  # while
+            label = label
+            dest_index += 1
+            ins = inss[dest_index]
+        if ins[0]  == jp.GOTO:
+            return get_final_dest(ins[1], visited_labels)
+        return label
+     
+    def get_next_label(index):
+        label = None
+        dest_index = index + 1
+        ins = inss[dest_index]
+        while inss[dest_index][0] == jp.LABEL:
+            label = ins[1]
+            dest_index += 1
+        ins = inss[dest_index]
+        if ins[0] == jp.GOTO:
+            return get_final_dest(ins[1])
+        return label
+ 
+    oinss = []
+    for i, ins in enumerate(inss):
+        cmd = ins[0]
+        if cmd == jp.IFGOTO:
+            dest = ins[1]
+            fdest = get_final_dest(dest)
+            fdest2 = get_next_label(i)
+            if fdest2 == fdest:
+                oinss.append((jp.GOTO, fdest))
+            else:
+                oinss.append((jp.IFGOTO, fdest))
+        elif cmd == jp.SWITCH:
+            dests = ins[1]
+            fdests = [get_final_dest(d) for d in dests]
+            fdests = sort_uniq(fdests)
+            if len(fdests) == 1:
+                oinss.append((jp.GOTO, fdests[0]))
+            else:
+                oinss.append((jp.SWITCH, fdests))
+        else:
+            oinss.append(ins)
+    return oinss
+
 def convert_to_execution_paths(inss):
     len_inss = len(inss)
     label2dest = {}
@@ -113,10 +170,14 @@ def convert_to_execution_paths(inss):
 
     paths = []
     path = []
-    paths.append(path)
     branches = []
     branches.append((0, path, []))
     
+    def nesting_dup(L):
+        if len(L) == 1:
+            return [L[0]]
+        else:
+            return [L]
     def dig(i, path, visitedlabels):
         while i < len_inss:
             ins = inss[i]
@@ -131,13 +192,14 @@ def convert_to_execution_paths(inss):
                     assert len(path) <= len_inss
             elif cmd in (jp.RETURN, jp.THROW):
                 path.append(ins)
+                paths.append(path)
                 return
             elif cmd == jp.IFGOTO:
                 dest = ins[1]
                 # path.append(ins)  # mark of branch/join
                 if dest not in visitedlabels:
-                    branched_path = path[:]
-                    paths.append(branched_path)
+                    branched_path = nesting_dup(path)
+                    path = nesting_dup(path)
                     branches.append((label2dest.get(dest), branched_path, visitedlabels[:] + [dest]))
             elif cmd == jp.GOTO:
                 dest = ins[1]
@@ -150,8 +212,7 @@ def convert_to_execution_paths(inss):
                 # path.append(ins)  # mark of branch/join
                 for dest in ins[1]:
                     if dest not in visitedlabels:
-                        branched_path = path[:]
-                        paths.append(branched_path)
+                        branched_path = nesting_dup(path)
                         branches.append((label2dest.get(dest), branched_path, visitedlabels[:] + [dest]))
                 return
             elif cmd == jp.LABEL:
@@ -160,12 +221,18 @@ def convert_to_execution_paths(inss):
             else:
                 assert False
             i += 1
+        paths.append(path)
     
     while branches:
         b = branches.pop()
         dig(*b)
 
-    return sort_uniq(paths)
+    #  len_paths = len(paths)  # debug
+    paths = sort_uniq(paths, key=lambda p: sum(map(hash, list_flatten_iter(p))))
+    #  sys.stderr.write("removed path: %d\n" % (len_paths - len(paths)))  #debug
+    paths = [list(list_flatten_iter(p)) for p in paths]
+    paths.sort()
+    return paths
 
 def paths_to_ordred_andxor_tree(paths):
     def get_prefix(paths):
@@ -236,7 +303,9 @@ def replace_method_code_with_axt_in_class_table(class_table, progress_repo=None)
         for md in cd.methods.itervalues():
             progress_repo and progress_repo(cd.class_name, md.method_sig)
             inss = resolve_type(md.code, md, cd)
-            paths = convert_to_execution_paths(inss)
+            bis = convert_to_block_instruction_seq(inss)
+            obis = optimize_gotos_in_seq(bis)
+            paths = convert_to_execution_paths(obis)
             axt = paths_to_ordred_andxor_tree(paths)
             md.code = axt
 
@@ -256,7 +325,8 @@ def main(argv, out=sys.stdout):
 #         for ins in inss:
 #             out.write("  %s\n" % repr(ins))
         bis = convert_to_block_instruction_seq(inss)
-        paths = convert_to_execution_paths(bis)
+        obis = optimize_gotos_in_seq(bis)
+        paths = convert_to_execution_paths(obis)
 #         out.write("%s, %s:\n" % (clz, method_sig))
 #         for pi, path in enumerate(paths):
 #             out.write("  path %d:\n" % pi)

@@ -22,8 +22,11 @@ def readline_iter(filename):
             L = urllib2.quote(L, safe=ASCII_SYMBOLS_EXCEPT_FOR_PERCENT)
             yield L
 
-def sort_uniq(lst):
-    lst = sorted(lst)
+def sort_uniq(lst, key=None):
+    if key:
+        lst = sorted(lst, key=key)
+    else:
+        lst = sorted(lst)
     if len(lst) <= 1:
         return lst
 
@@ -35,3 +38,11 @@ def auto_pop(lst):
     original_length = len(lst)
     yield
     lst[:] = lst[:original_length]
+
+def list_flatten_iter(L):
+    if isinstance(L, list):
+        for li in L:
+            for e in list_flatten_iter(li):
+                yield e
+    else:
+        yield L
