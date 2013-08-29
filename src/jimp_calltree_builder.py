@@ -1,7 +1,5 @@
 #coding: utf-8
 
-from collections import namedtuple
-import os
 import sys
 import pprint
 

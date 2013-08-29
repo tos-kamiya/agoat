@@ -10,7 +10,7 @@ from itertools import groupby
 from collections import Counter
 import pprint
 
-from _utilities import sort_uniq, list_flatten_iter
+from _utilities import sort_uniq
 
 import jimp_parser as jp
 from andxor_tree import ORDERED_AND, ORDERED_XOR, normalize_tree
