@@ -1,0 +1,111 @@
+public class Loops extends java.lang.Object
+{
+
+    public void <init>()
+    {
+        Loops r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        return;
+    }
+
+    public static void whileLoop()
+    {
+        int i0;
+        java.io.PrintStream $r0;
+
+        i0 = 1;
+
+     label0:
+        if i0 >= 10 goto label1;
+
+        $r0 = java.lang.System.out;
+        $r0.println(i0);
+        i0 = i0 * 2;
+        goto label0;
+
+     label1:
+        return;
+    }
+
+    public static void forIntLoop()
+    {
+        int i0;
+        java.io.PrintStream $r0;
+
+        i0 = 0;
+
+     label0:
+        if i0 >= 10 goto label1;
+
+        $r0 = java.lang.System.out;
+        $r0.println(i0);
+        i0 = i0 + 1;
+        goto label0;
+
+     label1:
+        return;
+    }
+
+    public static void forArrayIterator()
+    {
+        int[] r0, r1, $r2;
+        int i0, i1, i2;
+        java.io.PrintStream $r3;
+
+        $r2 = newarray (int)[6];
+        $r2[0] = 0;
+        $r2[1] = 1;
+        $r2[2] = 2;
+        $r2[3] = 3;
+        $r2[4] = 4;
+        $r2[5] = 5;
+        r0 = $r2;
+        r1 = r0;
+        i0 = lengthof r1;
+        i1 = 0;
+
+     label0:
+        if i1 >= i0 goto label1;
+
+        i2 = r1[i1];
+        $r3 = java.lang.System.out;
+        $r3.println(i2);
+        i1 = i1 + 1;
+        goto label0;
+
+     label1:
+        return;
+    }
+
+    public static void forListIterator()
+    {
+        java.util.ArrayList $r0, r1;
+        java.util.Iterator r2;
+        int i0;
+        boolean $z0;
+        java.lang.Object $r3;
+        java.lang.Integer $r4;
+        java.io.PrintStream $r5;
+
+        $r0 = new java.util.ArrayList;
+        specialinvoke $r0.<init>();
+        r1 = $r0;
+        r2 = r1.iterator();
+
+     label0:
+        $z0 = r2.hasNext();
+        if $z0 == 0 goto label1;
+
+        $r3 = r2.next();
+        $r4 = (java.lang.Integer) $r3;
+        i0 = $r4.intValue();
+        $r5 = java.lang.System.out;
+        $r5.println(i0);
+        goto label0;
+
+     label1:
+        return;
+    }
+}

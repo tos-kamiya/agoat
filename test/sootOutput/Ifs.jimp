@@ -1,0 +1,71 @@
+public class Ifs extends java.lang.Object
+{
+
+    public void <init>()
+    {
+        Ifs r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        return;
+    }
+
+    public void ift(int)
+    {
+        Ifs r0;
+        int i0;
+        java.io.PrintStream $r1;
+
+        r0 := @this;
+        i0 := @parameter0;
+        if i0 != 1 goto label0;
+
+        $r1 = java.lang.System.out;
+        $r1.println("1");
+
+     label0:
+        return;
+    }
+
+    public void ife(int)
+    {
+        Ifs r0;
+        int i0;
+        java.io.PrintStream $r1;
+
+        r0 := @this;
+        i0 := @parameter0;
+        if i0 != 1 goto label0;
+
+        goto label1;
+
+     label0:
+        $r1 = java.lang.System.out;
+        $r1.println("not 1");
+
+     label1:
+        return;
+    }
+
+    public void ifte(int)
+    {
+        Ifs r0;
+        int i0;
+        java.io.PrintStream $r1, $r2;
+
+        r0 := @this;
+        i0 := @parameter0;
+        if i0 != 1 goto label0;
+
+        $r1 = java.lang.System.out;
+        $r1.println("1");
+        goto label1;
+
+     label0:
+        $r2 = java.lang.System.out;
+        $r2.println("not 1");
+
+     label1:
+        return;
+    }
+}

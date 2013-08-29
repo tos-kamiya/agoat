@@ -2,8 +2,6 @@
 
 import re
 
-from _utilities import sort_uniq
-
 _IDENTIFIER = r"([\w.$]+|'\w+')"
 _METHOD_NAME = r"(([\w<>]|%[0-9A-F]{2})+|access[$]\d+)"
 _LEFT = r"%s(\[%s\])?" % (_IDENTIFIER, _IDENTIFIER)
@@ -115,7 +113,7 @@ def parse_jimp_code(linenum, lines, filename=None):
                         break
                     destination_labels.append(gd["label"])
                     i += 1; L = lines[i]
-                inss.append((SWITCH, tuple(sort_uniq(destination_labels)), loc(linenum)))
+                inss.append((SWITCH, tuple(destination_labels), loc(linenum)))
                 continue  # while i
             gd = togd(_PAT_SPECIALINVOKE.match(L) or _PAT_SPECIALINVOKE_WO_RETURN.match(L))
             if gd:
