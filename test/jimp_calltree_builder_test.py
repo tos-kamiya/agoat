@@ -14,11 +14,13 @@ class ClassDataStubOnlyBase(object):
         self.base_name = base_name
 
 class ClassDataStubOnlyMethods(object):
-    def __init__(self, methods):
+    def __init__(self, class_name, methods):
+        self.class_name = class_name
         self.methods = methods
 
 class MethodDataStubOnlyCode(object):
-    def __init__(self, code):
+    def __init__(self, method_sig, code):
+        self.method_sig = method_sig
         self.code = code
 
 class JimpCalltreeBuilderTest(unittest.TestCase):
@@ -40,7 +42,7 @@ class JimpCalltreeBuilderTest(unittest.TestCase):
     def test_resolve_dispatch_noinheritance(self):
         class_to_methods = { 'A': ['a', 'b'], 'M': ['m', 'n'], 'P': ['p', 'q'] }
         class_to_descendants = {}
-        recv_method_to_defs = jcb.resolve_dispatch(class_to_methods, class_to_descendants)
+        recv_method_to_defs = jcb.make_dispatch_table(class_to_methods, class_to_descendants)
         self.assertEqual(recv_method_to_defs, {
             ('A', 'a'): ['A'], ('A', 'b'): ['A'], 
             ('M', 'm'): ['M'], ('M', 'n'): ['M'], 
@@ -50,7 +52,7 @@ class JimpCalltreeBuilderTest(unittest.TestCase):
     def test_resolve_dispatch_nooverride(self):
         class_to_methods = { 'A': ['a', 'b'], 'M': ['m', 'n'], 'P': ['p', 'q'] }
         class_to_descendants = { 'A': set(['M', 'P']) }
-        recv_method_to_defs = jcb.resolve_dispatch(class_to_methods, class_to_descendants)
+        recv_method_to_defs = jcb.make_dispatch_table(class_to_methods, class_to_descendants)
         self.assertEqual(recv_method_to_defs, {
             ('A', 'a'): ['A'], ('A', 'b'): ['A'], 
             ('M', 'm'): ['M'], ('M', 'n'): ['M'], 
@@ -60,7 +62,7 @@ class JimpCalltreeBuilderTest(unittest.TestCase):
     def test_resolve_dispatch_inheritance_override(self):
         class_to_methods = { 'A': ['a', 'b'], 'M': ['b', 'n'], 'P': ['b', 'q'] }
         class_to_descendants = { 'A': set(['M', 'P']) }
-        recv_method_to_defs = jcb.resolve_dispatch(class_to_methods, class_to_descendants)
+        recv_method_to_defs = jcb.make_dispatch_table(class_to_methods, class_to_descendants)
         self.assertEqual(recv_method_to_defs, {
             ('A', 'a'): ['A'], ('A', 'b'): ['A', 'M', 'P'], 
             ('M', 'b'): ['M'], ('M', 'n'): ['M'], 
@@ -68,7 +70,7 @@ class JimpCalltreeBuilderTest(unittest.TestCase):
         })
 
         class_to_descendants = { 'A': set(['M', 'P']), 'M': set(['P']) }
-        recv_method_to_defs = jcb.resolve_dispatch(class_to_methods, class_to_descendants)
+        recv_method_to_defs = jcb.make_dispatch_table(class_to_methods, class_to_descendants)
         self.assertEqual(recv_method_to_defs, {
             ('A', 'a'): ['A'], ('A', 'b'): ['A', 'M', 'P'], 
             ('M', 'b'): ['M', 'P'], ('M', 'n'): ['M'], 
@@ -77,13 +79,13 @@ class JimpCalltreeBuilderTest(unittest.TestCase):
 
     def test_find_methods_involved_in_recursive_call_chain_direct(self):
         class_table = {
-            'A': ClassDataStubOnlyMethods({ 
-                'main': MethodDataStubOnlyCode([
+            'A': ClassDataStubOnlyMethods('A', { 
+                'main': MethodDataStubOnlyCode('main', [
                     (jp.INVOKE, 'B', 'b')
                 ])
             }),
-            'B': ClassDataStubOnlyMethods({ 
-                'b': MethodDataStubOnlyCode([
+            'B': ClassDataStubOnlyMethods('B', { 
+                'b': MethodDataStubOnlyCode('b', [
                     (jp.INVOKE, 'B', 'b')
                 ])
             }),
@@ -92,28 +94,29 @@ class JimpCalltreeBuilderTest(unittest.TestCase):
             ('A', 'main'): ['A'],
             ('B', 'b'): ['B'],
         }
+        resolver = jcb.make_method_call_resolver(class_table, recv_method_to_defs)
         entry_point = ('A', 'main')
-        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(class_table, recv_method_to_defs, entry_point, 
+        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(resolver, entry_point, 
                 include_direct_recursive_calls=True)
         self.assertEqual(methods_ircc, [('B', 'b')])
-        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(class_table, recv_method_to_defs, entry_point, 
+        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(resolver, entry_point, 
                 include_direct_recursive_calls=False)
         self.assertEqual(methods_ircc, [])
 
     def test_find_methods_involved_in_recursive_call_chain_indirect(self):
         class_table = {
-            'A': ClassDataStubOnlyMethods({ 
-                'main': MethodDataStubOnlyCode([
+            'A': ClassDataStubOnlyMethods('A', { 
+                'main': MethodDataStubOnlyCode('main', [
                     (jp.INVOKE, 'B', 'b')
                 ])
             }),
-            'B': ClassDataStubOnlyMethods({ 
-                'b': MethodDataStubOnlyCode([
+            'B': ClassDataStubOnlyMethods('B', { 
+                'b': MethodDataStubOnlyCode('b', [
                     (jp.INVOKE, 'C', 'c')
                 ])
             }),
-            'C': ClassDataStubOnlyMethods({ 
-                'c': MethodDataStubOnlyCode([
+            'C': ClassDataStubOnlyMethods('C', { 
+                'c': MethodDataStubOnlyCode('c', [
                     (jp.INVOKE, 'B', 'b')
                 ])
             }),
@@ -123,11 +126,12 @@ class JimpCalltreeBuilderTest(unittest.TestCase):
             ('B', 'b'): ['B'],
             ('C', 'c'): ['C'],
         }
+        resolver = jcb.make_method_call_resolver(class_table, recv_method_to_defs)
         entry_point = ('A', 'main')
-        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(class_table, recv_method_to_defs, entry_point, 
+        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(resolver, entry_point, 
                 include_direct_recursive_calls=True)
         self.assertEqual(methods_ircc, [('B', 'b'), ('C', 'c')])
-        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(class_table, recv_method_to_defs, entry_point, 
+        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(resolver, entry_point, 
                 include_direct_recursive_calls=False)
         self.assertEqual(methods_ircc, [('B', 'b'), ('C', 'c')])
     

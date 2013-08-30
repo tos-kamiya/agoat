@@ -39,7 +39,7 @@ def extract_class_hierarchy(class_table, include_indirect_decendants=True):
 #                 iterface_to_classes.setdefault(i, []).add(clz)
 #     return iterface_to_classes
 
-def resolve_dispatch(class_to_methods, class_to_descendants, iterface_to_classes=None):
+def make_dispatch_table(class_to_methods, class_to_descendants, iterface_to_classes=None):
     # class_to_descendants  # str -> set of str
     # class_to_methods  # str -> [MethodSig]
     # interface_to_classes  # str -> set of str
@@ -62,6 +62,21 @@ def resolve_dispatch(class_to_methods, class_to_descendants, iterface_to_classes
         cs.sort()
     return recv_method_to_defs
 
+def make_method_call_resolver(class_table, recv_method_to_defs):
+    def resolver(recv_msig, static_method=False):
+        resolved = []
+        recv, msig = recv_msig 
+        cands = [recv] if static_method else recv_method_to_defs.get(recv_msig, [])
+        for clz in cands:
+            cd = class_table.get(clz)
+            if cd:
+                md = cd.methods.get(msig)
+                if md:
+                    c_m = cd.class_name, md.method_sig
+                    resolved.append((c_m, md))
+        return resolved
+    return resolver
+
 # def generate_call_andor_tree(class_table, method_table, recv_method_to_defs, entry_point):
 #     # class_table  # str -> ClassData
 #     # method_table  # (str, MethodSig) -> axt
@@ -69,7 +84,7 @@ def resolve_dispatch(class_to_methods, class_to_descendants, iterface_to_classes
 #     # entry_point  # (str, MethodSig)
 #     pass
 
-def find_methods_involved_in_recursive_call_chain(class_table, recv_method_to_defs, entry_point,
+def find_methods_involved_in_recursive_call_chain(resolver, entry_point,
         include_direct_recursive_calls=False):
     # class_table  # str -> ClassData
     # recv_method_to_defs  # (str, MethodSig) -> [str]
@@ -79,9 +94,11 @@ def find_methods_involved_in_recursive_call_chain(class_table, recv_method_to_de
     methods_ircc = set()  # set of (str, MethodSig) # methods involved in recursive call chain
 
     clz0, mtd0 = entry_point
-    cd = class_table.get(clz0)
-    md = cd.methods.get(mtd0) if cd else None
-    axt = md.code if md else None
+    e = resolver(entry_point, static_method=True)
+    if not e:
+        raise ValueError("entry_point not found")
+    c_m0, md0 = e[0]
+    axt = md0.code if md0 else None
     if axt is None:
         raise ValueError("entry_point not found")
 
@@ -92,17 +109,23 @@ def find_methods_involved_in_recursive_call_chain(class_table, recv_method_to_de
                 assert node
                 cmd = node[0]
                 if cmd == jp.SPECIALINVOKE:
-                    rc_mtd = receiver_class, mtd = node[1], node[2]
+                    receiver_class, mtd = node[1], node[2]
+                    rc_mtd = (receiver_class, mtd)
                     if not include_direct_recursive_calls and rc_mtd == stack[-1]:
                         return
-                    dig_call(receiver_class, mtd, stack)
+                    r = resolver(rc_mtd, static_method=True)
+                    if r:
+                        assert len(r) == 1
+                        _, md = r[0]
+                        dig_call(rc_mtd, md, stack)
                 elif cmd == jp.INVOKE:
-                    receiver, mtd = node[1], node[2]
-                    for receiver_class in recv_method_to_defs.get((receiver, mtd), []):
-                        rc_mtd = (receiver_class, mtd)
-                        if not include_direct_recursive_calls and rc_mtd == stack[-1]:
-                            return
-                        dig_call(receiver_class, mtd, stack)
+                    receiver_class, mtd = node[1], node[2]
+                    rc_mtd = (receiver_class, mtd)
+                    if not include_direct_recursive_calls and rc_mtd == stack[-1]:
+                        return
+                    r = resolver(rc_mtd)
+                    for rc_mtd, md in r:
+                        dig_call(rc_mtd, md, stack)
                 else:
                     # sys.stderr.write("node = %s\n" % repr(node))
                     assert False
@@ -115,37 +138,30 @@ def find_methods_involved_in_recursive_call_chain(class_table, recv_method_to_de
             if len(stack) > len_stack0:
                 stack[:] = stack[len_stack0:]
 
-    def dig_call(clz, mtd, stack):
+    def dig_call(rc_mtd, md, stack):
         len_stack0 = len(stack)
         try:
-            cd = class_table.get(clz)
-            if not cd:
-                return
-            md = cd.methods.get(mtd)
-            if not md:
-                return
             axt = md.code
             if not axt:
                 return
-            callee = (clz, mtd)
             try:
-                i = stack.index(callee)
+                i = stack.index(rc_mtd)
                 methods_ircc.update(stack[i:])
                 return
             except:
                 pass
-            if callee in methods_searched:
+            if rc_mtd in methods_searched:
                 return
-            methods_searched.add(callee)
-            stack.append(callee)
+            methods_searched.add(rc_mtd)
+            stack.append(rc_mtd)
             node = axt[0]
-            dig_node(node, callee, stack)
+            dig_node(node, rc_mtd, stack)
         finally:
             if len(stack) > len_stack0:
                 stack[:] = stack[len_stack0:]
     
     stack_sentinel = None
-    dig_call(clz0, mtd0, [stack_sentinel])
+    dig_call(c_m0, md0, [stack_sentinel])
     
     s = list(methods_ircc)
     s.sort()
@@ -156,14 +172,14 @@ def find_entry_points(class_table):
     main_msig = jp.MethodSig(None, "main", ("java.lang.String[]",))
     entry_points = []
     for clz, class_data in class_table.iteritems():
-        for msig, method_data in class_data.methods.iteritems():
+        for msig, md in class_data.methods.iteritems():
             if msig == main_msig:
                 entry_points.append((clz, msig))
     return entry_points
 
 CALL = "call"
 
-def build_call_andxor_tree(entry_point, class_table, recv_method_to_defs, methods_ircc):
+def build_call_andxor_tree(entry_point, resolver, methods_ircc):
     # class_table  # str -> ClassData
     # recv_method_to_defs  # (str, MethodSig) -> [str]
     # entry_point  # (str, MethodSig)
@@ -211,31 +227,26 @@ def build_call_andxor_tree(entry_point, class_table, recv_method_to_defs, method
             return v
         else:
             return None
-        
+
     def dig_dispatch(recv_msig, recursive_context, loc_info, special_invoke=False):
-        recv, msig = recv_msig
-        cands = [recv] if special_invoke else recv_method_to_defs.get(recv_msig, [])
-        if not cands:
+        cand_methods = resolver(recv_msig, static_method=special_invoke)
+        if not cand_methods:
             return None
         dispatch_node = [at.ORDERED_XOR]
-        for clz in cands:
-            cd = class_table.get(clz)
-            if cd:
-                md = cd.methods.get(msig)
-                if md:
-                    called_method = cd.class_name, md.method_sig
-                    ctx = called_method if recursive_context is None and called_method in methods_ircc else recursive_context
-                    cn = called_to_node_table.get((cd.class_name, md.method_sig, ctx))
-                    if cn is None:
-                        cn = [CALL, recursive_context, (jp.INVOKE, called_method, loc_info)]
-                        if md.code != jcbte.NOTREE:
-                            v = dig_node(md.code, ctx, called_method)
-                        else:
-                            v = None
-                        if v:
-                            cn.append(v)
-                        called_to_node_table[(cd.class_name, md.method_sig, ctx)] = cn
-                    dispatch_node.append(cn)
+        for called_method, md in cand_methods:
+            ctx = called_method if recursive_context is None and called_method in methods_ircc else recursive_context
+            node_label = (called_method[0], called_method[1], ctx)
+            cn = called_to_node_table.get(node_label)
+            if cn is None:
+                cn = [CALL, recursive_context, (jp.INVOKE, called_method, loc_info)]
+                if md.code != jcbte.NOTREE:
+                    v = dig_node(md.code, ctx, called_method)
+                else:
+                    v = None
+                if v:
+                    cn.append(v)
+                called_to_node_table[node_label] = cn
+            dispatch_node.append(cn)
         len_dispatch_node = len(dispatch_node)
         if len_dispatch_node == 1:
             return None
@@ -250,7 +261,7 @@ def extract_call_andxor_tree(class_table, entry_point):
     class_to_descendants = extract_class_hierarchy(class_table)
     class_to_methods = dict((claz, cd.methods.keys()) for claz, cd in class_table.iteritems())
     # class_to_methods  # str -> [MethodSig]
-    recv_method_to_defs = resolve_dispatch(class_to_methods, class_to_descendants)
+    recv_method_to_defs = make_dispatch_table(class_to_methods, class_to_descendants)
 
     methods_ircc = find_methods_involved_in_recursive_call_chain(class_table, recv_method_to_defs, entry_point)
     # out.write("methods involved in recursive chain:\n")
@@ -310,16 +321,17 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
     logout and logout.write("> reslove dispatch\n")
     class_to_methods = dict((claz, cd.methods.keys()) for claz, cd in class_table.iteritems())
     # class_to_methods  # str -> [MethodSig]
-    recv_method_to_defs = resolve_dispatch(class_to_methods, class_to_descendants)
+    recv_method_to_defs = make_dispatch_table(class_to_methods, class_to_descendants)
 
     logout and logout.write("> find recursive\n")
-    methods_ircc = find_methods_involved_in_recursive_call_chain(class_table, recv_method_to_defs, entry_point)
+    resolver = make_method_call_resolver(class_table, recv_method_to_defs)
+    methods_ircc = find_methods_involved_in_recursive_call_chain(resolver, entry_point)
     # out.write("methods involved in recursive chain:\n")
     # for mtd in methods_ircc:
     #     out.write("  %s\n" % repr(mtd))
 
     logout and logout.write("> build call and-xor tree\n")
-    call_tree = build_call_andxor_tree(entry_point, class_table, recv_method_to_defs, methods_ircc)
+    call_tree = build_call_andxor_tree(entry_point, resolver, methods_ircc)
 
     out.write("call and-xor tree:\n")
     pp = pprint.PrettyPrinter(indent=4, stream=out)
