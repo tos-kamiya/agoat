@@ -6,7 +6,7 @@ import sys
 import os.path
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
-from jimp_parser import INVOKE
+import jimp_parser as jp
 import jimp_calltree_builder as jcb
 
 class ClassDataStubOnlyBase(object):
@@ -79,12 +79,12 @@ class JimpCalltreeBuilderTest(unittest.TestCase):
         class_table = {
             'A': ClassDataStubOnlyMethods({ 
                 'main': MethodDataStubOnlyCode([
-                    (INVOKE, 'B', 'b')
+                    (jp.INVOKE, 'B', 'b')
                 ])
             }),
             'B': ClassDataStubOnlyMethods({ 
                 'b': MethodDataStubOnlyCode([
-                    (INVOKE, 'B', 'b')
+                    (jp.INVOKE, 'B', 'b')
                 ])
             }),
         }
@@ -104,17 +104,17 @@ class JimpCalltreeBuilderTest(unittest.TestCase):
         class_table = {
             'A': ClassDataStubOnlyMethods({ 
                 'main': MethodDataStubOnlyCode([
-                    (INVOKE, 'B', 'b')
+                    (jp.INVOKE, 'B', 'b')
                 ])
             }),
             'B': ClassDataStubOnlyMethods({ 
                 'b': MethodDataStubOnlyCode([
-                    (INVOKE, 'C', 'c')
+                    (jp.INVOKE, 'C', 'c')
                 ])
             }),
             'C': ClassDataStubOnlyMethods({ 
                 'c': MethodDataStubOnlyCode([
-                    (INVOKE, 'B', 'b')
+                    (jp.INVOKE, 'B', 'b')
                 ])
             }),
         }
@@ -130,7 +130,7 @@ class JimpCalltreeBuilderTest(unittest.TestCase):
         methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(class_table, recv_method_to_defs, entry_point, 
                 include_direct_recursive_calls=False)
         self.assertEqual(methods_ircc, [('B', 'b'), ('C', 'c')])
-
+    
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
