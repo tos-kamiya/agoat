@@ -212,20 +212,22 @@ def convert_to_execution_paths(inss):
     paths.sort()
     return paths
 
-def paths_to_ordred_andxor_tree(paths):
-    if not paths:
-        return [ORDERED_AND]
-    t = [ORDERED_XOR]
-    for p in paths:
-        pt = [ORDERED_AND]
-        for i in p:
-            if i and i[0] == BOX:
-                pt.append(paths_to_ordred_andxor_tree(i[1:]))
-            else:
-                assert isinstance(i, tuple) or i and i[0] == BLOCK
-                pt.append(i)
-        t.append(pt)
-    return normalize_tree(t)
+def paths_to_ordred_andxor_tree(paths, item_types=tuple):
+    def ptoat_i(paths):
+        if not paths:
+            return [ORDERED_AND]
+        t = [ORDERED_XOR]
+        for p in paths:
+            pt = [ORDERED_AND]
+            for i in p:
+                if i and i[0] == BOX:
+                    pt.append(ptoat_i(i[1:]))
+                else:
+                    assert isinstance(i, item_types) or i and i[0] == BLOCK
+                    pt.append(i)
+            t.append(pt)
+        return normalize_tree(t)
+    return ptoat_i(paths)
 
 # def paths_to_ordred_andxor_tree(paths):
 #     def get_prefix(paths):
