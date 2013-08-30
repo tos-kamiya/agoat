@@ -1,0 +1,51 @@
+public class ComplexCondition extends java.lang.Object
+{
+
+    public void <init>()
+    {
+        ComplexCondition r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        return;
+    }
+
+    public static void main(java.lang.String[])
+    {
+        java.lang.String[] r0;
+        int $i0, $i1;
+        java.lang.String $r1, $r2;
+        boolean $z0, $z1;
+        java.io.PrintStream $r3, $r4, $r5;
+
+        r0 := @parameter0;
+        $i0 = lengthof r0;
+        if $i0 != 1 goto label1;
+
+        $r1 = r0[0];
+        $z0 = $r1.equals("-h");
+        if $z0 != 0 goto label0;
+
+        $r2 = r0[0];
+        $z1 = $r2.equals("--help");
+        if $z1 == 0 goto label1;
+
+     label0:
+        $r3 = java.lang.System.out;
+        $r3.println("usage: ComplexCondition [-h|--help]");
+        java.lang.System.exit(1);
+
+     label1:
+        $i1 = lengthof r0;
+        if $i1 <= 0 goto label2;
+
+        $r4 = java.lang.System.err;
+        $r4.println("too many command-line arguments!");
+        java.lang.System.exit(1);
+
+     label2:
+        $r5 = java.lang.System.out;
+        $r5.println("Done!");
+        return;
+    }
+}

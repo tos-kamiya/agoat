@@ -140,6 +140,86 @@ class JimpCodeTransformerTest(unittest.TestCase):
         paths = jcbte.convert_to_execution_paths(inss)
         paths.sort()
         self.assertSequenceEqual(paths, expected_paths)
+        
+    def test_make_boxs_nested_loop(self):
+        inss = [
+            (jp.LABEL, 'label0'),
+            (jp.IFGOTO, 'label4'),
+            (jp.LABEL, 'label1'),
+            (jp.IFGOTO, 'label3'),
+            (jp.IFGOTO, 'label2'),
+            (jp.INVOKE, 'format'),
+            (jp.GOTO, 'label1'),
+            (jp.LABEL, 'label2'),
+            (jp.GOTO, 'label1'),
+            (jp.LABEL, 'label3'),
+            (jp.GOTO, 'label0'),
+            (jp.LABEL, 'label4'),
+            (jp.RETURN,)
+        ]
+        expected_boxes = [
+            [jcbte.BOX, 
+                (jp.LABEL, 'label0'), 
+                (jp.IFGOTO, 'label4'), 
+                [jcbte.BOX, 
+                    (jp.LABEL, 'label1'), 
+                    (jp.IFGOTO, 'label3'), 
+                    (jp.IFGOTO, 'label2'), 
+                    (jp.INVOKE, 'format'), 
+                    (jp.GOTO, 'label1'), 
+                    (jp.LABEL, 'label2'), 
+                    (jp.GOTO, 'label1'), 
+                    (jp.LABEL, 'label3')
+                ], 
+                (jp.GOTO, 'label0'), 
+                (jp.LABEL, 'label4')
+            ], 
+            (jp.RETURN,)
+        ]
+        boxed_inss = jcbte.make_boxes(inss)
+        self.assertEqual(boxed_inss, expected_boxes)
+
+    def test_make_boxs_if_statements(self):
+        inss = [
+            (jp.IFGOTO, 'label1'),
+            (jp.INVOKE, 'equals'),
+            (jp.IFGOTO, 'label0'),
+            (jp.INVOKE, 'equals'),
+            (jp.IFGOTO, 'label1'),
+            (jp.LABEL, 'label0'),
+            (jp.INVOKE, 'println'),
+            (jp.INVOKE, 'exit'),
+            (jp.LABEL, 'label1'),
+            (jp.IFGOTO, 'label2'),
+            (jp.INVOKE, 'println'),
+            (jp.INVOKE, 'exit'),
+            (jp.LABEL, 'label2'),
+            (jp.INVOKE, 'println'),
+            (jp.RETURN,)
+        ]
+        expected_boxes = [
+            [jcbte.BOX, 
+                (jp.IFGOTO, 'label1'), 
+                (jp.INVOKE, 'equals'), 
+                (jp.IFGOTO, 'label0'), 
+                (jp.INVOKE, 'equals'), 
+                (jp.IFGOTO, 'label1'), 
+                (jp.LABEL, 'label0'), 
+                (jp.INVOKE, 'println'), 
+                (jp.INVOKE, 'exit'), 
+                (jp.LABEL, 'label1')
+            ], 
+            [jcbte.BOX, 
+                (jp.IFGOTO, 'label2'), 
+                (jp.INVOKE, 'println'), 
+                (jp.INVOKE, 'exit'), 
+                (jp.LABEL, 'label2')
+            ], 
+            (jp.INVOKE, 'println'), 
+            (jp.RETURN,)
+        ]
+        boxed_inss = jcbte.make_boxes(inss)
+        self.assertEqual(boxed_inss, expected_boxes)
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

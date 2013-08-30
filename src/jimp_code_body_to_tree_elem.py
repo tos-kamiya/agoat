@@ -6,8 +6,7 @@ except:
     pass
 
 import sys
-from itertools import groupby
-from collections import Counter
+from collections import Counter, defaultdict
 import pprint
 
 from _utilities import sort_uniq
@@ -90,6 +89,68 @@ def resolve_type(inss, method_data, class_data):
     
     return resolved_inss
 
+BOX = 'box'
+
+def make_boxes(inss):
+    label2dest = {}
+    for i, ins in enumerate(inss):
+        if ins[0] == jp.LABEL:
+            label2dest[ins[1]] = i
+
+    escape_edges = defaultdict(list)
+    for i, ins in enumerate(inss):
+        if ins[0] in (jp.GOTO, jp.IFGOTO):
+            src, dest = i, label2dest[ins[1]]
+            escape_edges[dest].append(src)
+            escape_edges[src].append(dest)
+        elif ins[0] == jp.SWITCH:
+            src = i
+            for d in ins[1]:
+                dest = label2dest[d]
+                escape_edges[dest].append(src)
+                escape_edges[src].append(dest)
+    for v in escape_edges.itervalues():
+        v[:] = sort_uniq(v)
+    
+    boxed_inss = []
+    len_inss = len(inss)
+    i = 0
+    while i < len_inss:
+        escaping_prev = False
+        nexti = None
+        for j in range(i + 1, len_inss):
+            # [i..j) is  a candidate of box
+            escaping_post = False
+            for index in range(i, j):
+                escapes = escape_edges[index]
+                for e in escapes:
+                    if e < i:
+                        escaping_prev = True
+                        break  # for e
+                    elif e >= j:
+                        escaping_post = True
+                        break  # for e
+                if escaping_prev or escaping_post:
+                    break  # for index
+            if escaping_prev:
+                break  # for j
+            elif not escaping_post and (i, j) != (0, len_inss):
+                inner_boxes = inss[i:j]
+                inner_boxes = make_boxes(inner_boxes)
+                if len(inner_boxes) == 1:
+                    boxed_inss.append(inner_boxes[0])
+                else:
+                    box = [BOX]
+                    box.extend(inner_boxes)
+                    boxed_inss.append(box)
+                nexti = j
+                break  # for j
+        if nexti is None:  # not found any box
+            boxed_inss.append(inss[i])
+            nexti = i + 1
+        i = nexti
+    return boxed_inss
+
 BLOCK = 'block'
 
 def make_basic_blocks(inss):
@@ -106,6 +167,10 @@ def make_basic_blocks(inss):
                 bis.append(cur_block)
                 cur_block = None
             bis.append(ins)
+        elif cmd == BOX:
+            b = [BOX]
+            b.extend(make_basic_blocks(ins[1:]))
+            bis.append(b)
         else:
             assert False
     if cur_block is not None:
@@ -127,6 +192,14 @@ def make_nested_blocks(bis):
         lbl0, ifgoto1, goto2, lbl3 = lbl0[1], ifgoto1[1], goto2[1], lbl3[1]
         if lbl0 == goto2 and label2targetcount.get(lbl0) == 1 and lbl3 == ifgoto1 and label2targetcount.get(lbl3) == 1:
             return True
+    
+    def recurse_if_box(item):
+        if item and item[0] == BOX:
+            b = [BOX]
+            b.extend(make_nested_blocks(item[1:]))
+            return b
+        else:
+            return item
 
     while True:
         new_box_found = False
@@ -150,101 +223,107 @@ def make_nested_blocks(bis):
                     new_box_found = True
             if not eat and i + 5 < len_bis:
                 ss = bis[i:i + 5]
-                if ss[2][0] == BLOCK and is_loop_pattern(ss[0], ss[1], ss[3], ss[4]):
-                    nb.append(ss[2])
+                if ss[2][0] in (BLOCK, BOX) and is_loop_pattern(ss[0], ss[1], ss[3], ss[4]):
+                    nb.append(recurse_if_box(ss[2]))
                     i += 5
                     eat = True
                     new_box_found = True
             if not eat and i + 5 < len_bis:
                 ss = bis[i:i + 5]
-                if ss[1][0] == BLOCK and is_loop_pattern(ss[0], ss[2], ss[3], ss[4]):
-                    nb.append(ss[1])
+                if ss[1][0] in (BLOCK, BOX) and is_loop_pattern(ss[0], ss[2], ss[3], ss[4]):
+                    nb.append(recurse_if_box(ss[1]))
                     i += 5
                     eat = True
                     new_box_found = True
             if not eat and i + 6 < len_bis:
                 ss = bis[i:i + 6]
-                if ss[1][0] == BLOCK and ss[3][0] == BLOCK and is_loop_pattern(ss[0], ss[2], ss[4], ss[5]):
-                    merged_block = [BLOCK]
-                    merged_block.extend(ss[1])
-                    merged_block.extend(ss[3])
-                    nb.append(merged_block)
+                if ss[1][0] in (BLOCK, BOX) and ss[3][0] in (BLOCK, BOX) and is_loop_pattern(ss[0], ss[2], ss[4], ss[5]):
+                    if ss[1][0] == BLOCK and ss[3][0] == BLOCK:
+                        merged_block = [BLOCK]
+                        merged_block.extend(ss[1])
+                        merged_block.extend(ss[3])
+                        nb.append(merged_block)
+                    else:
+                        b = [BOX]
+                        b.appnd(recurse_if_box(ss[1]))
+                        b.appnd(recurse_if_box(ss[3]))
+                        nb.append(b)
                     i += 6
                     eat = True
                     new_box_found = True
-            
-            # swtich-case patterns
-            if not eat and bis[i][0] == jp.SWITCH:
-                merged_block = [ORDERED_XOR]
-                matching_pattern = True
-                exit_label = None
-                destlabel2count = Counter()
-                for dest in bis[i][1]:
-                    if exit_label is not None and dest == exit_label:  # in case of default: case
-                        merged_block.append([ORDERED_AND])
-                        destlabel2count[exit_label] += 1
-                        continue
-                    dest_index = label2dest.get(dest)
-                    if dest_index is None:
-                        assert False
-                    destlabel2count[dest] += 1
-                    if dest_index + 2 < len_bis and \
-                            bis[dest_index + 1][0] in (jp.GOTO, jp.LABEL) and (exit_label is None or bis[dest_index + 1][1] == exit_label):
-                        exit_label = bis[dest_index + 1][1]
-                        if bis[dest_index + 1][0] == jp.GOTO:
-                            destlabel2count[exit_label] += 1
-                    elif dest_index + 3 < len_bis and \
-                            bis[dest_index + 1][0] == BLOCK and \
-                            bis[dest_index + 2][0] in (jp.GOTO, jp.LABEL) and (exit_label is None or bis[dest_index + 2][1] == exit_label):
-                        exit_label = bis[dest_index + 2][1]
-                        if bis[dest_index + 2][0] == jp.GOTO:
-                            destlabel2count[exit_label] += 1
-                        merged_block.append(bis[dest_index + 1])
-                    else:
-                        matching_pattern = False
-                        break  # for dest
-                if matching_pattern and exit_label is not None:
-                    jump_from_outer = False
-                    for l, c in destlabel2count.iteritems():
-                        if label2targetcount.get(l) != c:
-                            jump_from_outer = True
-                            break  # for l, c
-                    nexti = label2dest.get(exit_label) + 1
-                    unconsumed_label_inside = any((ins[0] == jp.LABEL and ins[0] not in destlabel2count) \
-                            for ins in bis[i:nexti])
-                    if not jump_from_outer and not unconsumed_label_inside:
-                        if len(merged_block) == 2:
-                            merged_block = merged_block[1]
-                        nb.append([BLOCK, merged_block])
-                        assert nexti > i
-                        i = nexti
-                        eat = True
-                        new_box_found = True
-            
-            # if patterns
-            if not eat and i + 3 < len_bis and \
-                    [ins[0] for ins in bis[i:i + 3]] == [jp.IFGOTO, BLOCK, jp.LABEL] and \
-                    bis[i][1] == bis[i + 2][1] and label2targetcount.get(bis[i + 2][1]) == 1:
-                nb.append([BLOCK, [ORDERED_XOR, bis[i + 1], [ORDERED_AND]]])
-                i += 3
-                eat = True
-                new_box_found = True
-            if not eat and i + 5 < len_bis and \
-                    [ins[0] for ins in bis[i:i + 5]] == [jp.IFGOTO, jp.GOTO, jp.LABEL, BLOCK, jp.LABEL] and \
-                    bis[i][1] == bis[i + 2][1] and label2targetcount.get(bis[i + 2][1]) == 1 and \
-                    bis[i + 1][1] == bis[i + 4][1] and label2targetcount.get(bis[i + 4][1]) == 1: 
-                nb.append([BLOCK, [ORDERED_XOR, bis[i + 3], [ORDERED_AND]]])
-                i += 5
-                eat = True
-                new_box_found = True
-            if not eat and i + 6 < len_bis and \
-                    [ins[0] for ins in bis[i:i + 6]] == [jp.IFGOTO, BLOCK, jp.GOTO, jp.LABEL, BLOCK, jp.LABEL] and \
-                    bis[i][1] == bis[i + 3][1] and label2targetcount.get(bis[i + 3][1]) == 1 and \
-                    bis[i + 2][1] == bis[i + 5][1] and label2targetcount.get(bis[i + 5][1]) == 1: 
-                nb.append([BLOCK, [ORDERED_XOR, bis[i + 1], bis[i + 4]]])
-                i += 6
-                eat = True
-                new_box_found = True
+#             
+#             # swtich-case patterns
+#             if not eat and bis[i][0] == jp.SWITCH:
+#                 merged_block = [ORDERED_XOR]
+#                 matching_pattern = True
+#                 exit_label = None
+#                 destlabel2count = Counter()
+#                 for dest in bis[i][1]:
+#                     if exit_label is not None and dest == exit_label:  # in case of default: case
+#                         merged_block.append([ORDERED_AND])
+#                         destlabel2count[exit_label] += 1
+#                         continue
+#                     dest_index = label2dest.get(dest)
+#                     if dest_index is None:
+#                         assert False
+#                     destlabel2count[dest] += 1
+#                     if dest_index + 2 < len_bis and \
+#                             bis[dest_index + 1][0] in (jp.GOTO, jp.LABEL) and (exit_label is None or bis[dest_index + 1][1] == exit_label):
+#                         exit_label = bis[dest_index + 1][1]
+#                         if bis[dest_index + 1][0] == jp.GOTO:
+#                             destlabel2count[exit_label] += 1
+#                     elif dest_index + 3 < len_bis and \
+#                             bis[dest_index + 1][0] == BLOCK and \
+#                             bis[dest_index + 2][0] in (jp.GOTO, jp.LABEL) and (exit_label is None or bis[dest_index + 2][1] == exit_label):
+#                         exit_label = bis[dest_index + 2][1]
+#                         if bis[dest_index + 2][0] == jp.GOTO:
+#                             destlabel2count[exit_label] += 1
+#                         merged_block.append(bis[dest_index + 1])
+#                     else:
+#                         matching_pattern = False
+#                         break  # for dest
+#                 if matching_pattern and exit_label is not None:
+#                     jump_from_outer = False
+#                     for l, c in destlabel2count.iteritems():
+#                         if label2targetcount.get(l) != c:
+#                             jump_from_outer = True
+#                             break  # for l, c
+#                     nexti = label2dest.get(exit_label) + 1
+#                     unconsumed_label_inside = any((ins[0] == jp.LABEL and ins[0] not in destlabel2count) \
+#                             for ins in bis[i:nexti])
+#                     if not jump_from_outer and not unconsumed_label_inside:
+#                         if len(merged_block) == 2:
+#                             merged_block = merged_block[1]
+#                         nb.append([BLOCK, merged_block])
+#                         assert nexti > i
+#                         i = nexti
+#                         eat = True
+#                         new_box_found = True
+#             
+#             # if patterns
+#             if not eat and i + 3 < len_bis and \
+#                     [ins[0] for ins in bis[i:i + 3]] == [jp.IFGOTO, BLOCK, jp.LABEL] and \
+#                     bis[i][1] == bis[i + 2][1] and label2targetcount.get(bis[i + 2][1]) == 1:
+#                 nb.append([BLOCK, [ORDERED_XOR, bis[i + 1], [ORDERED_AND]]])
+#                 i += 3
+#                 eat = True
+#                 new_box_found = True
+#             if not eat and i + 5 < len_bis and \
+#                     [ins[0] for ins in bis[i:i + 5]] == [jp.IFGOTO, jp.GOTO, jp.LABEL, BLOCK, jp.LABEL] and \
+#                     bis[i][1] == bis[i + 2][1] and label2targetcount.get(bis[i + 2][1]) == 1 and \
+#                     bis[i + 1][1] == bis[i + 4][1] and label2targetcount.get(bis[i + 4][1]) == 1: 
+#                 nb.append([BLOCK, [ORDERED_XOR, bis[i + 3], [ORDERED_AND]]])
+#                 i += 5
+#                 eat = True
+#                 new_box_found = True
+#             if not eat and i + 6 < len_bis and \
+#                     [ins[0] for ins in bis[i:i + 6]] == [jp.IFGOTO, BLOCK, jp.GOTO, jp.LABEL, BLOCK, jp.LABEL] and \
+#                     bis[i][1] == bis[i + 3][1] and label2targetcount.get(bis[i + 3][1]) == 1 and \
+#                     bis[i + 2][1] == bis[i + 5][1] and label2targetcount.get(bis[i + 5][1]) == 1: 
+#                 nb.append([BLOCK, [ORDERED_XOR, bis[i + 1], bis[i + 4]]])
+#                 i += 6
+#                 eat = True
+#                 new_box_found = True
             
             if not eat:
                 nb.append(bis[i])
@@ -264,67 +343,11 @@ def count_branches(inss):
             c += len(ins[1])
     return c
 
-# def optimize_gotos_in_seq(inss):
-#     label2dest = {}
-#     for i, ins in enumerate(inss):
-#         if ins[0] == jp.LABEL:
-#             label2dest[ins[1]] = i
-#              
-#     def get_final_dest(label, visited_labels=set()):
-#         dest_label_index = label2dest.get(label)
-#         assert dest_label_index is not None
-#         dest_index = dest_label_index + 1
-#         ins = inss[dest_index]
-#         while ins[0] == jp.LABEL:
-#             lbl = ins[1]
-#             if lbl in visited_labels:
-#                 break  # while
-#             label = label
-#             dest_index += 1
-#             ins = inss[dest_index]
-#         if ins[0]  == jp.GOTO:
-#             return get_final_dest(ins[1], visited_labels)
-#         return label
-#      
-#     def get_next_label(index):
-#         label = None
-#         dest_index = index + 1
-#         ins = inss[dest_index]
-#         while inss[dest_index][0] == jp.LABEL:
-#             label = ins[1]
-#             dest_index += 1
-#         ins = inss[dest_index]
-#         if ins[0] == jp.GOTO:
-#             return get_final_dest(ins[1])
-#         return label
-#  
-#     oinss = []
-#     for i, ins in enumerate(inss):
-#         cmd = ins[0]
-#         if cmd == jp.IFGOTO:
-#             dest = ins[1]
-#             fdest = get_final_dest(dest)
-#             fdest2 = get_next_label(i)
-#             if fdest2 == fdest:
-#                 oinss.append((jp.GOTO, fdest))
-#             else:
-#                 oinss.append((jp.IFGOTO, fdest))
-#         elif cmd == jp.SWITCH:
-#             dests = ins[1]
-#             fdests = [get_final_dest(d) for d in dests]
-#             fdests = sort_uniq(fdests)
-#             if len(fdests) == 1:
-#                 oinss.append((jp.GOTO, fdests[0]))
-#             else:
-#                 oinss.append((jp.SWITCH, fdests))
-#         else:
-#             oinss.append(ins)
-#     return oinss
-# 
-
 def list_flatten_iter_except_for_block(L):
     if isinstance(L, list):
         if L and L[0] == BLOCK:
+            yield L
+        elif L and L[0] == BOX:
             yield L
         else:
             for li in L:
@@ -340,7 +363,7 @@ def copy_counter(c):
     return d
 
 def convert_to_execution_paths(inss):
-    if inss and inss[0] == 'BLOCK':
+    if inss and inss[0] == BLOCK:
         return inss
 
     len_inss = len(inss)
@@ -370,6 +393,10 @@ def convert_to_execution_paths(inss):
             cmd = ins[0]
             if cmd == BLOCK:
                 path.append(ins)
+            elif cmd == BOX:
+                b = [BOX]
+                b.extend(convert_to_execution_paths(ins[1:]))
+                path.append(b)
             elif cmd in (jp.SPECIALINVOKE, jp.INVOKE):
                 is_repetitive = path and path[-1][:-1] == ins[:-1]
                 # cmd, receiver, method_name, args, retv, linenum = ins
@@ -416,6 +443,8 @@ def convert_to_execution_paths(inss):
             else:
                 assert False
             i += 1
+        if path:
+            paths.append(path)
      
     while branches:
         b = branches.pop()
@@ -427,68 +456,83 @@ def convert_to_execution_paths(inss):
     return paths
 
 def paths_to_ordred_andxor_tree(paths):
-    def get_prefix(paths):
-        assert paths
-        prefix = []
-        for items in zip(*paths):
-            c = items[0]
-            if any(i != c for i in items[1:]):
-                break
-            prefix.append(c)
-        return prefix
-    def get_postfix(paths):
-        assert paths
-        postfix = []
-        for items in zip(*map(reversed, paths)):
-            c = items[0]
-            if any(i != c for i in items[1:]):
-                break
-            postfix.append(c)
-        return list(reversed(postfix))
- 
-    if len(paths) == 0:
+    if not paths:
         return [ORDERED_AND]
- 
-    if len(paths) == 1:
-        return [ORDERED_AND] + paths[0]
- 
-    emptyG, multipleG = [], []
-    for p in paths:
-        lenp = len(p)
-        (emptyG if lenp == 0 else \
-            multipleG).append(p)
     t = [ORDERED_XOR]
-    if emptyG:
-        t.append([ORDERED_AND])
-    multipleG = sort_uniq(multipleG)
-    prefix_division = [list(g) for k, g in groupby(multipleG, key=lambda p: p[0])]
-    postfix_division = [list(g) for k, g in groupby(multipleG, key=lambda p: p[-1])]
-    if len(prefix_division) <= len(postfix_division):
-        for g in prefix_division:
-            if len(g) == 1:
-                t.append([ORDERED_AND] + g[0])
+    for p in paths:
+        pt = [ORDERED_AND]
+        for i in p:
+            if i and i[0] == BOX:
+                pt.append(paths_to_ordred_andxor_tree(i[1:]))
             else:
-                prefix = get_prefix(g)
-                pt = [ORDERED_AND]
-                t.append(pt)
-                pt.extend(prefix)
-                len_prefix = len(prefix)
-                tails = [p[len_prefix:] for p in g]
-                pt.append(paths_to_ordred_andxor_tree(tails))
-    else:
-        for g in postfix_division:
-            if len(g) == 1:
-                t.append([ORDERED_AND] + g[0])
-            else:
-                postfix = get_postfix(g)
-                len_postfix = len(postfix)
-                heads = [p[:-len_postfix] for p in g]
-                pt = [ORDERED_AND]
-                t.append(pt)
-                pt.append(paths_to_ordred_andxor_tree(heads))
-                pt.extend(postfix)
-
+                assert isinstance(i, tuple) or i and i[0] == BLOCK
+                pt.append(i)
+        t.append(pt)
     return normalize_tree(t)
+
+# def paths_to_ordred_andxor_tree(paths):
+#     def get_prefix(paths):
+#         assert paths
+#         prefix = []
+#         for items in zip(*paths):
+#             c = items[0]
+#             if any(i != c for i in items[1:]):
+#                 break
+#             prefix.append(c)
+#         return prefix
+#     def get_postfix(paths):
+#         assert paths
+#         postfix = []
+#         for items in zip(*map(reversed, paths)):
+#             c = items[0]
+#             if any(i != c for i in items[1:]):
+#                 break
+#             postfix.append(c)
+#         return list(reversed(postfix))
+#  
+#     if len(paths) == 0:
+#         return [ORDERED_AND]
+#  
+#     if len(paths) == 1:
+#         return [ORDERED_AND] + paths[0]
+#  
+#     emptyG, multipleG = [], []
+#     for p in paths:
+#         lenp = len(p)
+#         (emptyG if lenp == 0 else \
+#             multipleG).append(p)
+#     t = [ORDERED_XOR]
+#     if emptyG:
+#         t.append([ORDERED_AND])
+#     multipleG = sort_uniq(multipleG)
+#     prefix_division = [list(g) for k, g in groupby(multipleG, key=lambda p: p[0])]
+#     postfix_division = [list(g) for k, g in groupby(multipleG, key=lambda p: p[-1])]
+#     if len(prefix_division) <= len(postfix_division):
+#         for g in prefix_division:
+#             if len(g) == 1:
+#                 t.append([ORDERED_AND] + g[0])
+#             else:
+#                 prefix = get_prefix(g)
+#                 pt = [ORDERED_AND]
+#                 t.append(pt)
+#                 pt.extend(prefix)
+#                 len_prefix = len(prefix)
+#                 tails = [p[len_prefix:] for p in g]
+#                 pt.append(paths_to_ordred_andxor_tree(tails))
+#     else:
+#         for g in postfix_division:
+#             if len(g) == 1:
+#                 t.append([ORDERED_AND] + g[0])
+#             else:
+#                 postfix = get_postfix(g)
+#                 len_postfix = len(postfix)
+#                 heads = [p[:-len_postfix] for p in g]
+#                 pt = [ORDERED_AND]
+#                 t.append(pt)
+#                 pt.append(paths_to_ordred_andxor_tree(heads))
+#                 pt.extend(postfix)
+# 
+#     return normalize_tree(t)
 
 def expand_blocks(node):
     if not node:
@@ -518,6 +562,7 @@ def replace_method_code_with_axt_in_class_table(class_table,
             progress_repo and progress_repo(current=(cd.class_name, md.method_sig))
             inss = resolve_type(md.code, md, cd)
             bis = make_basic_blocks(inss)
+            bis = make_boxes(bis)
             nbis = make_nested_blocks(bis)
             obis = jco.optimize_ins_seq(nbis)
             nbranch = count_branches(obis)
@@ -552,6 +597,7 @@ def main(argv, out=sys.stdout):
 #         for ins in inss:
 #             out.write("  %s\n" % repr(ins))
         bis = make_basic_blocks(inss)
+        bis = make_boxes(bis)
         nbis = make_nested_blocks(bis)
         obis = jco.optimize_ins_seq(nbis)
         nbranch = count_branches(obis)
