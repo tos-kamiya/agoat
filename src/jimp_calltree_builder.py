@@ -287,7 +287,7 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
                 for md in cd.methods.itervalues():
                     if entry_point_msig:
                         break  # for md
-                    if md.method_sig.name == entry_point_method:
+                    if jp.methodsig_name(md.method_sig).find(entry_point_method) >= 0:
                         entry_point_msig = md.method_sig
     else:
         entry_point_msig = jp.MethodSig(None, "main", ("java.lang.String[]",))
