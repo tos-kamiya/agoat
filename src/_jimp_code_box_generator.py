@@ -9,22 +9,26 @@ import jimp_parser as jp
 BLOCK = 'block'  # BLOCK is a sequence of instructions, which does not any kind of branches (goto, etc)
 BOX = 'box'  # BOX is a sequence possibly including branches but without any incoming or outgoing branches to out of the box
 
-def make_boxes(inss):
-    label2dest = {}
+def get_label2index(inss):
+    label2index = {}
     for i, ins in enumerate(inss):
         if ins[0] == jp.LABEL:
-            label2dest[ins[1]] = i
+            label2index[ins[1]] = i
+    return label2index
+
+def make_boxes(inss):
+    label2index = get_label2index(inss)
 
     escape_edges = defaultdict(list)
     for i, ins in enumerate(inss):
         if ins[0] in (jp.GOTO, jp.IFGOTO):
-            src, dest = i, label2dest[ins[1]]
+            src, dest = i, label2index[ins[1]]
             escape_edges[dest].append(src)
             escape_edges[src].append(dest)
         elif ins[0] == jp.SWITCH:
             src = i
             for d in ins[1]:
-                dest = label2dest[d]
+                dest = label2index[d]
                 escape_edges[dest].append(src)
                 escape_edges[src].append(dest)
     for v in escape_edges.itervalues():
@@ -119,10 +123,7 @@ def make_nested_blocks(bis):
 
     while True:
         new_box_found = False
-        label2dest = {}
-        for i, ins in enumerate(bis):
-            if ins[0] == jp.LABEL:
-                label2dest[ins[1]] = i
+        label2index = get_label2index(bis)
 
         nb = []
         len_bis = len(bis)
@@ -179,7 +180,7 @@ def make_nested_blocks(bis):
 #                         merged_block.append([ORDERED_AND])
 #                         destlabel2count[exit_label] += 1
 #                         continue
-#                     dest_index = label2dest.get(dest)
+#                     dest_index = label2index.get(dest)
 #                     if dest_index is None:
 #                         assert False
 #                     destlabel2count[dest] += 1
@@ -204,7 +205,7 @@ def make_nested_blocks(bis):
 #                         if label2targetcount.get(l) != c:
 #                             jump_from_outer = True
 #                             break  # for l, c
-#                     nexti = label2dest.get(exit_label) + 1
+#                     nexti = label2index.get(exit_label) + 1
 #                     unconsumed_label_inside = any((ins[0] == jp.LABEL and ins[0] not in destlabel2count) \
 #                             for ins in bis[i:nexti])
 #                     if not jump_from_outer and not unconsumed_label_inside:

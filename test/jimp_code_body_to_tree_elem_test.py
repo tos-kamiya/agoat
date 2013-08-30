@@ -145,6 +145,33 @@ class JimpCodeBodyToTreeElemTest(unittest.TestCase):
         paths.sort()
         self.assertSequenceEqual(paths, expected_paths)
 
+    def test_get_max_branches_of_boxes(self):
+        inss = [
+            (jp.INVOKE, "println"),
+            (jp.LABEL, 'label0'),
+            (jp.INVOKE, "println"),
+            (jp.IFGOTO, 'label0')
+        ]
+        c = jcbte.get_max_branches_of_boxes(inss)
+
+        self.assertEqual(c, 1)
+        inss = [
+            (jp.INVOKE, "println"),
+            (jp.LABEL, 'label0'),
+            (jp.INVOKE, "println"),
+            [jcbte.BOX,
+                (jp.LABEL, 'label1'),
+                (jp.INVOKE, "println"),
+                (jp.IFGOTO, 'label1'),
+                (jp.LABEL, 'label2'),
+                (jp.INVOKE, "println"),
+                (jp.IFGOTO, 'label2')
+              ],
+            (jp.IFGOTO, 'label0')
+        ]
+        c = jcbte.get_max_branches_of_boxes(inss)
+        self.assertEqual(c, 2)
+
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()

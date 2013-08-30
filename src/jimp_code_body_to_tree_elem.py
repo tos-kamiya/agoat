@@ -13,7 +13,8 @@ from _utilities import sort_uniq
 import jimp_parser as jp
 import jimp_code_optimizer as jco
 from andxor_tree import ORDERED_AND, ORDERED_XOR, normalize_tree
-from _jimp_code_box_generator import BOX, BLOCK, make_block_and_box
+from _jimp_code_box_generator import BOX, BLOCK
+import _jimp_code_box_generator
 
 # SPECIALINVOKE = "specialinvoke"
     #receiver, method_name, args, retv
@@ -89,8 +90,7 @@ def resolve_type(inss, method_data, class_data):
     
     return resolved_inss
 
-
-def count_branches(inss):
+def get_max_branches_of_boxes(inss):
     c = 0
     for i, ins in enumerate(inss):
         cmd = ins[0]
@@ -98,7 +98,13 @@ def count_branches(inss):
             c += 1
         elif cmd == jp.SWITCH:
             c += len(ins[1])
-    return c
+    maxc = c
+    for i, ins in enumerate(inss):
+        cmd = ins[0]
+        if cmd == BOX:
+            subc = get_max_branches_of_boxes(ins[1:])
+            maxc = max(c, subc)
+    return maxc
 
 def list_flatten_iter_except_for_block(L):
     if isinstance(L, list):
@@ -113,21 +119,12 @@ def list_flatten_iter_except_for_block(L):
     else:
         yield L
 
-def copy_counter(c):
-    d = Counter()
-    for k, v in c.iteritems():
-        d[k] = v
-    return d
-
 def convert_to_execution_paths(inss):
     if inss and inss[0] == BLOCK:
         return inss
 
     len_inss = len(inss)
-    label2dest = {}
-    for i, ins in enumerate(inss):
-        if ins[0] == jp.LABEL:
-            label2dest[ins[1]] = i
+    label2index = _jimp_code_box_generator.get_label2index(inss)
  
     paths = []
     path = []
@@ -168,13 +165,11 @@ def convert_to_execution_paths(inss):
                 dest = ins[1]
                 # path.append(ins)  # mark of branch/join
                 if dest not in visitedlabels:
-                    branched_path = nesting_dup(path)
                     path = nesting_dup(path)
-                    branched_visitedlabels = copy_counter(visitedlabels)
-                    branches.append((label2dest[dest], branched_path, branched_visitedlabels))
+                    branches.append((label2index[dest], nesting_dup(path), visitedlabels.copy()))
             elif cmd == jp.GOTO:
                 dest = ins[1]
-                dest_index = label2dest.get(dest)
+                dest_index = label2index.get(dest)
                 if dest_index < i:
                     c = visitedlabels[dest]
                     if c >= 2:
@@ -188,9 +183,7 @@ def convert_to_execution_paths(inss):
                 # path.append(ins)  # mark of branch/join
                 for dest in ins[1]:
                     if dest not in visitedlabels:
-                        branched_path = nesting_dup(path)
-                        branched_visitedlabels = copy_counter(visitedlabels)
-                        branches.append((label2dest[dest], branched_path, branched_visitedlabels))
+                        branches.append((label2index[dest], nesting_dup(path), visitedlabels.copy()))
                 return
             elif cmd == jp.LABEL:
                 if ins[1] in visitedlabels:
@@ -212,7 +205,7 @@ def convert_to_execution_paths(inss):
     paths.sort()
     return paths
 
-def paths_to_ordred_andxor_tree(paths, item_types=tuple):
+def paths_to_ordred_andxor_tree(paths):
     def ptoat_i(paths):
         if not paths:
             return [ORDERED_AND]
@@ -220,10 +213,14 @@ def paths_to_ordred_andxor_tree(paths, item_types=tuple):
         for p in paths:
             pt = [ORDERED_AND]
             for i in p:
-                if i and i[0] == BOX:
-                    pt.append(ptoat_i(i[1:]))
+                if isinstance(i, list):
+                    assert i
+                    if i[0] == BOX:
+                        pt.append(ptoat_i(i[1:]))
+                    else:
+                        assert i[0] == BLOCK
+                        pt.append(i)
                 else:
-                    assert isinstance(i, item_types) or i and i[0] == BLOCK
                     pt.append(i)
             t.append(pt)
         return normalize_tree(t)
@@ -320,9 +317,9 @@ def replace_method_code_with_axt_in_class_table(class_table,
         for md in cd.methods.itervalues():
             progress_repo and progress_repo(current=(cd.class_name, md.method_sig))
             inss = resolve_type(md.code, md, cd)
-            bis = make_block_and_box(inss)
+            bis = _jimp_code_box_generator.make_block_and_box(inss)
             obis = jco.optimize_ins_seq(bis)
-            nbranch = count_branches(obis)
+            nbranch = get_max_branches_of_boxes(obis)
             if branches_atmost is not None and nbranch > branches_atmost:
                 progress_repo and progress_repo(canceled_becaseof_branches=(cd.class_name, md.method_sig, nbranch))
                 md.code = [NOTREE, md.code]
@@ -353,9 +350,9 @@ def main(argv, out=sys.stdout):
 #         out.write("%s, %s:\n" % (clz, method_sig))
 #         for ins in inss:
 #             out.write("  %s\n" % repr(ins))
-        bis = make_block_and_box(inss)
+        bis = _jimp_code_box_generator.make_block_and_box(inss)
         obis = jco.optimize_ins_seq(bis)
-        nbranch = count_branches(obis)
+        nbranch = get_max_branches_of_boxes(obis)
         out.write("branches: %d\n" % nbranch)
         paths = convert_to_execution_paths(obis)
         axt = paths_to_ordred_andxor_tree(paths)
