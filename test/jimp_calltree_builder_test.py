@@ -96,10 +96,10 @@ class JimpCalltreeBuilderTest(unittest.TestCase):
         }
         resolver = jcb.make_method_call_resolver(class_table, recv_method_to_defs)
         entry_point = ('A', 'main')
-        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(resolver, entry_point, 
+        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(entry_point, resolver,
                 include_direct_recursive_calls=True)
         self.assertEqual(methods_ircc, [('B', 'b')])
-        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(resolver, entry_point, 
+        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(entry_point, resolver,
                 include_direct_recursive_calls=False)
         self.assertEqual(methods_ircc, [])
 
@@ -128,10 +128,10 @@ class JimpCalltreeBuilderTest(unittest.TestCase):
         }
         resolver = jcb.make_method_call_resolver(class_table, recv_method_to_defs)
         entry_point = ('A', 'main')
-        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(resolver, entry_point, 
+        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(entry_point, resolver,
                 include_direct_recursive_calls=True)
         self.assertEqual(methods_ircc, [('B', 'b'), ('C', 'c')])
-        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(resolver, entry_point, 
+        methods_ircc = jcb.find_methods_involved_in_recursive_call_chain(entry_point, resolver,
                 include_direct_recursive_calls=False)
         self.assertEqual(methods_ircc, [('B', 'b'), ('C', 'c')])
     
