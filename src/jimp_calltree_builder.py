@@ -3,7 +3,7 @@
 import sys
 import pprint
 
-import andxor_tree as at
+import andor_tree as at
 import jimp_parser as jp
 import jimp_code_body_to_tree_elem as jcbte
 
@@ -81,7 +81,7 @@ def make_method_call_resolver(class_table, recv_method_to_defs):
 
 # def generate_call_andor_tree(class_table, method_table, recv_method_to_defs, entry_point):
 #     # class_table  # str -> ClassData
-#     # method_table  # (str, MethodSig) -> axt
+#     # method_table  # (str, MethodSig) -> aot
 #     # recv_method_to_defs  # (str, MethodSig) -> [str]
 #     # entry_point  # (str, MethodSig)
 #     pass
@@ -98,8 +98,8 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
     if not e:
         raise ValueError("entry_point not found")
     c_m0, md0 = e[0]
-    axt = md0.code if md0 else None
-    if axt is None:
+    aot = md0.code if md0 else None
+    if aot is None:
         raise ValueError("entry_point not found")
 
     def dig_node(node, callee, stack):
@@ -131,7 +131,7 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
                     assert False
             elif isinstance(node, list):
                 assert node
-                assert node[0] in (jcbte.ORDERED_AND, jcbte.ORDERED_XOR)
+                assert node[0] in (jcbte.ORDERED_AND, jcbte.ORDERED_OR)
                 for item in node[1:]:
                     dig_node(item, callee, stack)
         finally:
@@ -141,8 +141,8 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
     def dig_call(rc_mtd, md, stack):
         len_stack0 = len(stack)
         try:
-            axt = md.code
-            if not axt:
+            aot = md.code
+            if not aot:
                 return
             try:
                 i = stack.index(rc_mtd)
@@ -154,7 +154,7 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
                 return
             methods_searched.add(rc_mtd)
             stack.append(rc_mtd)
-            node = axt[0]
+            node = aot[0]
             dig_node(node, rc_mtd, stack)
         finally:
             if len(stack) > len_stack0:
@@ -179,17 +179,17 @@ def find_entry_points(class_table):
 
 CALL = "call"
 
-def build_call_andxor_tree(entry_point, resolver, methods_ircc):
+def build_call_andor_tree(entry_point, resolver, methods_ircc):
     # entry_point  # (str, MethodSig)
     # methods_ircc  # set of (str, MethodSig)
     
-    def dig_node(axt, recursive_context, clz_msig):
-        if isinstance(axt, list):
-            assert axt
-            axt0 = axt[0]
-            if axt0 in (at.ORDERED_AND, at.ORDERED_XOR, jcbte.BLOCK):
-                n = [axt0]
-                for item in axt[1:]:
+    def dig_node(aot, recursive_context, clz_msig):
+        if isinstance(aot, list):
+            assert aot
+            aot0 = aot[0]
+            if aot0 in (at.ORDERED_AND, at.ORDERED_OR, jcbte.BLOCK):
+                n = [aot0]
+                for item in aot[1:]:
                     v = dig_node(item, recursive_context, clz_msig)
                     if v is not None:
                         n.append(v)
@@ -198,28 +198,28 @@ def build_call_andxor_tree(entry_point, resolver, methods_ircc):
                 return n
             else:
                 assert False
-        elif isinstance(axt, tuple):
-            assert axt
-            cmd = axt[0]
+        elif isinstance(aot, tuple):
+            assert aot
+            cmd = aot[0]
             if cmd == jp.SPECIALINVOKE:
-                recv_msig = tuple(axt[1:3])
+                recv_msig = tuple(aot[1:3])
                 if recv_msig == clz_msig or recv_msig == recursive_context:
                     return None
-                loc_info = clz_msig, axt[3]
+                loc_info = clz_msig, aot[3]
                 v = dig_dispatch(recv_msig, recursive_context, loc_info, special_invoke=True)
             elif cmd == jp.INVOKE:
-                recv_msig = tuple(axt[1:3])
+                recv_msig = tuple(aot[1:3])
                 if recv_msig == clz_msig or recv_msig == recursive_context:
                     return None
-                loc_info = clz_msig, axt[3]
+                loc_info = clz_msig, aot[3]
                 v = dig_dispatch(recv_msig, recursive_context, loc_info)
             else:
                 return None
-                # loc_info = clz_msig, axt[-1]
-                # return tuple(list(axt[:-1]) + [loc_info])
+                # loc_info = clz_msig, aot[-1]
+                # return tuple(list(aot[:-1]) + [loc_info])
             if not v:
-                loc_info = clz_msig, axt[-1]
-                return tuple(list(axt[:-1]) + [loc_info])
+                loc_info = clz_msig, aot[-1]
+                return tuple(list(aot[:-1]) + [loc_info])
             return v
         else:
             return None
@@ -230,7 +230,7 @@ def build_call_andxor_tree(entry_point, resolver, methods_ircc):
         cand_methods = resolver(recv_msig, static_method=special_invoke)
         if not cand_methods:
             return None
-        dispatch_node = [at.ORDERED_XOR]
+        dispatch_node = [at.ORDERED_OR]
         for called_method, md in cand_methods:
             ctx = called_method if recursive_context is None and called_method in methods_ircc else recursive_context
             node_label = (called_method[0], called_method[1], ctx)
@@ -257,7 +257,7 @@ def build_call_andxor_tree(entry_point, resolver, methods_ircc):
 
     return dig_dispatch(entry_point, None, None, special_invoke=False)
 
-def extract_call_andxor_tree(class_table, entry_point):
+def extract_call_andor_tree(class_table, entry_point):
     class_to_descendants = extract_class_hierarchy(class_table)
     class_to_methods = dict((claz, cd.methods.keys()) for claz, cd in class_table.iteritems())
     # class_to_methods  # str -> [MethodSig]
@@ -269,7 +269,7 @@ def extract_call_andxor_tree(class_table, entry_point):
     # for mtd in methods_ircc:
     #     out.write("  %s\n" % repr(mtd))
 
-    call_tree = build_call_andxor_tree(entry_point, resolver, methods_ircc)
+    call_tree = build_call_andor_tree(entry_point, resolver, methods_ircc)
     return call_tree
 
 def main(argv, out=sys.stdout, logout=sys.stderr):
@@ -306,7 +306,7 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
     entry_point = (entry_point_class, entry_point_msig)
     logout and logout.write("> entry point is: %s %s\n" % entry_point)
 
-    logout and logout.write("> build axt\n")
+    logout and logout.write("> build aot\n")
     def progress_repo(current=None, canceled_becaseof_branches=None):
         if current:
             clz, msig = current
@@ -314,7 +314,7 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
         if canceled_becaseof_branches:
             clz, msig, branches = canceled_becaseof_branches
             sys.stderr.write(">   canceled: %s %s (branches=%d)\n" % (clz, msig, branches))
-    jcbte.replace_method_code_with_axt_in_class_table(class_table, 
+    jcbte.replace_method_code_with_aot_in_class_table(class_table, 
             branches_atmost=50, progress_repo=progress_repo)
 
     logout and logout.write("> extract hierachy\n")
@@ -331,10 +331,10 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
     # for mtd in methods_ircc:
     #     out.write("  %s\n" % repr(mtd))
 
-    logout and logout.write("> build call and-xor tree\n")
-    call_tree = build_call_andxor_tree(entry_point, resolver, methods_ircc)
+    logout and logout.write("> build call and-or tree\n")
+    call_tree = build_call_andor_tree(entry_point, resolver, methods_ircc)
 
-    out.write("call and-xor tree:\n")
+    out.write("call and-or tree:\n")
     pp = pprint.PrettyPrinter(indent=4, stream=out)
     pp.pprint(call_tree)
 

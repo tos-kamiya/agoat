@@ -171,7 +171,7 @@ def make_nested_blocks(bis):
 #             
 #             # swtich-case patterns
 #             if not eat and bis[i][0] == jp.SWITCH:
-#                 merged_block = [ORDERED_XOR]
+#                 merged_block = [ORDERED_OR]
 #                 matching_pattern = True
 #                 exit_label = None
 #                 destlabel2count = Counter()
@@ -221,7 +221,7 @@ def make_nested_blocks(bis):
 #             if not eat and i + 3 < len_bis and \
 #                     [ins[0] for ins in bis[i:i + 3]] == [jp.IFGOTO, BLOCK, jp.LABEL] and \
 #                     bis[i][1] == bis[i + 2][1] and label2targetcount.get(bis[i + 2][1]) == 1:
-#                 nb.append([BLOCK, [ORDERED_XOR, bis[i + 1], [ORDERED_AND]]])
+#                 nb.append([BLOCK, [ORDERED_OR, bis[i + 1], [ORDERED_AND]]])
 #                 i += 3
 #                 eat = True
 #                 new_box_found = True
@@ -229,7 +229,7 @@ def make_nested_blocks(bis):
 #                     [ins[0] for ins in bis[i:i + 5]] == [jp.IFGOTO, jp.GOTO, jp.LABEL, BLOCK, jp.LABEL] and \
 #                     bis[i][1] == bis[i + 2][1] and label2targetcount.get(bis[i + 2][1]) == 1 and \
 #                     bis[i + 1][1] == bis[i + 4][1] and label2targetcount.get(bis[i + 4][1]) == 1: 
-#                 nb.append([BLOCK, [ORDERED_XOR, bis[i + 3], [ORDERED_AND]]])
+#                 nb.append([BLOCK, [ORDERED_OR, bis[i + 3], [ORDERED_AND]]])
 #                 i += 5
 #                 eat = True
 #                 new_box_found = True
@@ -237,7 +237,7 @@ def make_nested_blocks(bis):
 #                     [ins[0] for ins in bis[i:i + 6]] == [jp.IFGOTO, BLOCK, jp.GOTO, jp.LABEL, BLOCK, jp.LABEL] and \
 #                     bis[i][1] == bis[i + 3][1] and label2targetcount.get(bis[i + 3][1]) == 1 and \
 #                     bis[i + 2][1] == bis[i + 5][1] and label2targetcount.get(bis[i + 5][1]) == 1: 
-#                 nb.append([BLOCK, [ORDERED_XOR, bis[i + 1], bis[i + 4]]])
+#                 nb.append([BLOCK, [ORDERED_OR, bis[i + 1], bis[i + 4]]])
 #                 i += 6
 #                 eat = True
 #                 new_box_found = True

@@ -2,24 +2,24 @@
 
 from _utilities import sort_uniq
 
-ORDERED_AND = "&"
-ORDERED_XOR = "|"
+ORDERED_AND = "&&"
+ORDERED_OR = "||"
 
 def normalize_tree(node):
-    if not(isinstance(node, list) and node and node[0] in (ORDERED_AND, ORDERED_XOR)):
+    if not(isinstance(node, list) and node and node[0] in (ORDERED_AND, ORDERED_OR)):
         return node
     t0 = node[0]
-    assert t0 in (ORDERED_AND, ORDERED_XOR)
-    if t0 == ORDERED_XOR:
+    assert t0 in (ORDERED_AND, ORDERED_OR)
+    if t0 == ORDERED_OR:
         items = []
         nodes = []
         for item in node[1:]:
             oi = normalize_tree(item)
-            if oi == [ORDERED_XOR]:
+            if oi == [ORDERED_OR]:
                 continue  # for item
             if isinstance(oi, list) and oi:
                 oi0 = oi[0]
-                if oi0 == ORDERED_XOR:
+                if oi0 == ORDERED_OR:
                     nodes.extend(oi[1:])
                 elif oi0 == ORDERED_AND:
                     nodes.append(oi)
@@ -34,7 +34,7 @@ def normalize_tree(node):
         t = [t0]
         for item in node[1:]:
             oi = normalize_tree(item)
-            if oi == [ORDERED_XOR]:
+            if oi == [ORDERED_OR]:
                 return oi[:]
             if isinstance(oi, list) and oi and oi[0] == ORDERED_AND:
                 t.extend(oi[1:])

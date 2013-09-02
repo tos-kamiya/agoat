@@ -14,34 +14,34 @@ def str_to_char_list(s):
 
 class JimpCodeBodyToTreeElemTest(unittest.TestCase):
 #
-# these test cases have been removed, because paths_to_ordred_andxor_tree function now
+# these test cases have been removed, because paths_to_ordred_andor_tree function now
 # changed its behaviour and not merge paths anymore.
 # 
 #     def test_paths_to_ordred_andor_tree_simple(self):
 #         paths = map(str_to_char_list, ["123", "12"])
-#         tree = jcbte.paths_to_ordred_andxor_tree(paths, item_types=str)
+#         tree = jcbte.paths_to_ordred_andor_tree(paths, item_types=str)
 #         expected = [jcbte.ORDERED_AND, '1', '2', [jcbte.ORDERED_XOR, '3', [jcbte.ORDERED_AND]]]
 #         self.assertEqual(tree, expected)
 # 
 #     def test_paths_to_ordred_andor_tree_empty(self):
 #         paths = []
-#         tree = jcbte.paths_to_ordred_andxor_tree(paths, item_types=str)
+#         tree = jcbte.paths_to_ordred_andor_tree(paths, item_types=str)
 #         self.assertEqual(tree, [jcbte.ORDERED_AND])
 # 
 #     def test_paths_to_ordred_andor_tree_single(self):
 #         paths = map(str_to_char_list, ["123"])
-#         tree = jcbte.paths_to_ordred_andxor_tree(paths, item_types=str)
+#         tree = jcbte.paths_to_ordred_andor_tree(paths, item_types=str)
 #         self.assertEqual(tree, [jcbte.ORDERED_AND, '1', '2', '3'])
 # 
 #     def test_paths_to_ordred_andor_tree_simple2(self):
 #         paths = map(str_to_char_list, ["123", "13"])
-#         tree = jcbte.paths_to_ordred_andxor_tree(paths, item_types=str)
+#         tree = jcbte.paths_to_ordred_andor_tree(paths, item_types=str)
 #         expected = [jcbte.ORDERED_AND, '1', [jcbte.ORDERED_XOR, '2', [jcbte.ORDERED_AND]], '3']
 #         self.assertEqual(tree, expected)
 # 
 #     def test_paths_to_ordred_andor_tree_complex(self):
 #         paths = map(str_to_char_list, ["12345", "135", "123a5"])
-#         tree = jcbte.paths_to_ordred_andxor_tree(paths, item_types=str)
+#         tree = jcbte.paths_to_ordred_andor_tree(paths, item_types=str)
 #         expected = [jcbte.ORDERED_AND, '1', [jcbte.ORDERED_XOR, '3', [jcbte.ORDERED_AND, '2', '3', [jcbte.ORDERED_XOR, '4', 'a']]], '5']
 #         self.assertEqual(tree, expected)
         

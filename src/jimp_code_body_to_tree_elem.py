@@ -12,7 +12,7 @@ from collections import Counter
 from _utilities import sort_uniq
 import jimp_parser as jp
 import jimp_code_optimizer as jco
-from andxor_tree import ORDERED_AND, ORDERED_XOR, normalize_tree
+from andor_tree import ORDERED_AND, ORDERED_OR, normalize_tree
 from _jimp_code_box_generator import BOX, BLOCK
 import _jimp_code_box_generator
 
@@ -205,11 +205,11 @@ def convert_to_execution_paths(inss):
     paths.sort()
     return paths
 
-def paths_to_ordred_andxor_tree(paths):
+def paths_to_ordred_andor_tree(paths):
     def ptoat_i(paths):
         if not paths:
             return [ORDERED_AND]
-        t = [ORDERED_XOR]
+        t = [ORDERED_OR]
         for p in paths:
             pt = [ORDERED_AND]
             for i in p:
@@ -226,7 +226,7 @@ def paths_to_ordred_andxor_tree(paths):
         return normalize_tree(t)
     return ptoat_i(paths)
 
-# def paths_to_ordred_andxor_tree(paths):
+# def paths_to_ordred_andor_tree(paths):
 #     def get_prefix(paths):
 #         assert paths
 #         prefix = []
@@ -257,7 +257,7 @@ def paths_to_ordred_andxor_tree(paths):
 #         lenp = len(p)
 #         (emptyG if lenp == 0 else \
 #             multipleG).append(p)
-#     t = [ORDERED_XOR]
+#     t = [ORDERED_OR]
 #     if emptyG:
 #         t.append([ORDERED_AND])
 #     multipleG = sort_uniq(multipleG)
@@ -274,7 +274,7 @@ def paths_to_ordred_andxor_tree(paths):
 #                 pt.extend(prefix)
 #                 len_prefix = len(prefix)
 #                 tails = [p[len_prefix:] for p in g]
-#                 pt.append(paths_to_ordred_andxor_tree(tails))
+#                 pt.append(paths_to_ordred_andor_tree(tails))
 #     else:
 #         for g in postfix_division:
 #             if len(g) == 1:
@@ -285,7 +285,7 @@ def paths_to_ordred_andxor_tree(paths):
 #                 heads = [p[:-len_postfix] for p in g]
 #                 pt = [ORDERED_AND]
 #                 t.append(pt)
-#                 pt.append(paths_to_ordred_andxor_tree(heads))
+#                 pt.append(paths_to_ordred_andor_tree(heads))
 #                 pt.extend(postfix)
 # 
 #     return normalize_tree(t)
@@ -301,7 +301,7 @@ def expand_blocks(node):
                 return subns[0]
             else:
                 return [ORDERED_AND] + subns
-        elif n0 in (ORDERED_AND, ORDERED_XOR):
+        elif n0 in (ORDERED_AND, ORDERED_OR):
             subns = [expand_blocks(subn) for subn in node[1:]]
             return [n0] + subns
         else:
@@ -311,7 +311,7 @@ def expand_blocks(node):
 
 NOTREE = 'notree'
 
-def replace_method_code_with_axt_in_class_table(class_table, 
+def replace_method_code_with_aot_in_class_table(class_table, 
         branches_atmost=None, progress_repo=None):
     for cd in class_table.itervalues():
         for md in cd.methods.itervalues():
@@ -325,10 +325,10 @@ def replace_method_code_with_axt_in_class_table(class_table,
                 md.code = [NOTREE, md.code]
             else:
                 paths = convert_to_execution_paths(obis)
-                axt = paths_to_ordred_andxor_tree(paths)
-                axt = expand_blocks(axt)
-                axt = normalize_tree(axt)
-                md.code = axt
+                aot = paths_to_ordred_andor_tree(paths)
+                aot = expand_blocks(aot)
+                aot = normalize_tree(aot)
+                md.code = aot
 
 def main(argv, out=sys.stdout):
     filename = argv[1]
@@ -355,12 +355,12 @@ def main(argv, out=sys.stdout):
         nbranch = get_max_branches_of_boxes(obis)
         out.write("branches: %d\n" % nbranch)
         paths = convert_to_execution_paths(obis)
-        axt = paths_to_ordred_andxor_tree(paths)
-        axt = expand_blocks(axt)
-        axt = normalize_tree(axt)
+        aot = paths_to_ordred_andor_tree(paths)
+        aot = expand_blocks(aot)
+        aot = normalize_tree(aot)
 
         pp = pprint.PrettyPrinter(indent=4, stream=out)
-        pp.pprint(axt)
+        pp.pprint(aot)
         sys.stdout.write("-----\n")
 
 if __name__ == '__main__':
