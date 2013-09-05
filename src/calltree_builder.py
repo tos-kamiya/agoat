@@ -1,15 +1,11 @@
 # coding: utf-8
 
-import json
 import sys
 
 import andor_tree as at
 import jimp_parser as jp
 import _jimp_code_body_to_tree_elem as jcbte
 from _jimp_code_body_to_tree_elem import NOTREE, inss_to_tree, inss_to_tree_in_class_table  # re-export
-
-LOCATION = 'location'
-
 
 def extract_class_hierarchy(class_table, include_indirect_decendants=True):
     # class_table  # str -> ClassData
@@ -215,20 +211,20 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc):
                 recv_msig = tuple(aot[1:3])
                 if recv_msig == clz_msig or recv_msig == recursive_context:
                     return None
-                loc_info = (LOCATION, clz_msig[0], clz_msig[1], aot[3])
-                v = dig_dispatch(recv_msig, recursive_context, loc_info, special_invoke=True)
+                loc_info = '\n'.join([clz_msig[0], clz_msig[1], "%d" % aot[3]])
+                v = dig_dispatch(cmd, recv_msig, recursive_context, loc_info)
             elif cmd == jp.INVOKE:
                 recv_msig = tuple(aot[1:3])
                 if recv_msig == clz_msig or recv_msig == recursive_context:
                     return None
-                loc_info = (LOCATION, clz_msig[0], clz_msig[1], aot[3])
-                v = dig_dispatch(recv_msig, recursive_context, loc_info)
+                loc_info = '\n'.join([clz_msig[0], clz_msig[1], "%d" % aot[3]])
+                v = dig_dispatch(cmd, recv_msig, recursive_context, loc_info)
             else:
                 return None
                 # loc_info = clz_msig, aot[-1]
                 # return tuple(list(aot[:-1]) + [loc_info])
             if not v:
-                loc_info = (LOCATION, clz_msig[0], clz_msig[1], aot[-1])
+                loc_info = '\n'.join([clz_msig[0], clz_msig[1], "%d" % aot[3]])
                 return tuple(list(aot[:-1]) + [loc_info])
             return v
         else:
@@ -236,26 +232,26 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc):
 
     call_node_memo = {}  # (str, MethodSig, recursive_context) -> node
 
-    def dig_dispatch(recv_msig, recursive_context, loc_info, special_invoke=False):
-        cand_methods = resolver(recv_msig, static_method=special_invoke)
+    def dig_dispatch(cmd, recv_msig, recursive_context, loc_info):
+        cand_methods = resolver(recv_msig, static_method=(cmd == jp.SPECIALINVOKE))
         if not cand_methods:
             return None
         dispatch_node = [at.ORDERED_OR]
-        for called_method, md in cand_methods:
-            ctx = called_method if recursive_context is None and called_method in methods_ircc else recursive_context
-            node_label = (called_method[0], called_method[1], ctx)
-            cn = call_node_memo.get(node_label)
-            if cn is None:
-                cn = [CALL, recursive_context, (jp.INVOKE, called_method, loc_info)]
+        for clz_method, md in cand_methods:
+            rc = recursive_context
+            if rc is None and clz_method in methods_ircc:
+                rc = clz_method
+            cn = [CALL, rc, (cmd, clz_method[0], clz_method[1], loc_info)]
+            node_label = (clz_method[0], clz_method[1], rc)
+            v = call_node_memo.get(node_label)
+            if v is None:
                 if md.code != jcbte.NOTREE:
-                    v = dig_node(md.code, ctx, called_method)
+                    v = dig_node(md.code, rc, clz_method)
                 else:
                     v = jcbte.NOTREE  # can't expand
-                cn.append(v)
-                call_node_memo[node_label] = cn
-                dispatch_node.append(cn)
-            else:
-                dispatch_node.append(cn)
+                call_node_memo[node_label] = v
+            cn.append(v)
+            dispatch_node.append(cn)
         len_dispatch_node = len(dispatch_node)
         if len_dispatch_node == 1:
             return None
@@ -264,7 +260,7 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc):
         else:
             return dispatch_node
 
-    return dig_dispatch(entry_point, None, None, special_invoke=False)
+    return dig_dispatch(jp.SPECIALINVOKE, entry_point, None, None)
 
 
 def extract_call_andor_tree(class_table, entry_point):
