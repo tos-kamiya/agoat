@@ -1,4 +1,4 @@
-#coding: utf-8
+# coding: utf-8
 
 __author__ = 'Toshihiro Kamiya <kamiya@mbj.nifty.com>'
 __status__ = 'experimental'
@@ -8,6 +8,7 @@ import sys
 import urllib2
 
 ASCII_SYMBOLS_EXCEPT_FOR_PERCENT = " \t!\"#$&`()*+,-./:;<=>?@[\\]^_'{|}~"
+
 
 def readline_iter(filename):
     if filename != '-':
@@ -22,6 +23,7 @@ def readline_iter(filename):
             L = urllib2.quote(L, safe=ASCII_SYMBOLS_EXCEPT_FOR_PERCENT)
             yield L
 
+
 def sort_uniq(lst, key=None):
     if key:
         lst = sorted(lst, key=key)
@@ -33,11 +35,13 @@ def sort_uniq(lst, key=None):
     dummy = None if lst[0] is not None else 1
     return [item for item, prev_item in zip(lst, [dummy] + lst) if item != prev_item]
 
+
 @contextlib.contextmanager
 def auto_pop(lst):
     original_length = len(lst)
     yield
     lst[:] = lst[:original_length]
+
 
 def list_flatten_iter(L):
     if isinstance(L, list):

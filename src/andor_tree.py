@@ -1,9 +1,10 @@
-#coding: utf-8
+# coding: utf-8
 
 from _utilities import sort_uniq
 
 ORDERED_AND = "&&"
 ORDERED_OR = "||"
+
 
 def normalize_tree(node):
     if not(isinstance(node, list) and node and node[0] in (ORDERED_AND, ORDERED_OR)):
@@ -44,6 +45,6 @@ def normalize_tree(node):
         return t[1]
     return t
 
+
 def is_valid_tree(t):
     raise NameError("Not Yet Implemented")
-

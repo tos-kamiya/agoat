@@ -1,4 +1,4 @@
-#coding: utf-8
+# coding: utf-8
 
 from collections import defaultdict, Counter
 
@@ -6,8 +6,14 @@ from _utilities import sort_uniq
 
 import jimp_parser as jp
 
-BLOCK = 'block'  # BLOCK is a sequence of instructions, which does not any kind of branches (goto, etc)
-BOX = 'box'  # BOX is a sequence possibly including branches but without any incoming or outgoing branches to out of the box
+# BLOCK is a sequence of instructions, which does not any kind of branches
+# (goto, etc)
+BLOCK = 'block'
+
+# BOX is a sequence possibly including branches but without any incoming
+# or outgoing branches to out of the box
+BOX = 'box'
+
 
 def get_label2index(inss):
     label2index = {}
@@ -15,6 +21,7 @@ def get_label2index(inss):
         if ins[0] == jp.LABEL:
             label2index[ins[1]] = i
     return label2index
+
 
 def make_boxes(inss):
     label2index = get_label2index(inss)
@@ -33,7 +40,7 @@ def make_boxes(inss):
                 escape_edges[src].append(dest)
     for v in escape_edges.itervalues():
         v[:] = sort_uniq(v)
-    
+
     boxed_inss = []
     len_inss = len(inss)
     i = 0
@@ -73,6 +80,7 @@ def make_boxes(inss):
         i = nexti
     return boxed_inss
 
+
 def make_basic_blocks(inss):
     bis = []
     cur_block = None
@@ -97,6 +105,7 @@ def make_basic_blocks(inss):
         bis.append(cur_block)
     return bis
 
+
 def make_nested_blocks(bis):
     label2targetcount = Counter()
     for i, ins in enumerate(bis):
@@ -112,7 +121,7 @@ def make_nested_blocks(bis):
         lbl0, ifgoto1, goto2, lbl3 = lbl0[1], ifgoto1[1], goto2[1], lbl3[1]
         if lbl0 == goto2 and label2targetcount.get(lbl0) == 1 and lbl3 == ifgoto1 and label2targetcount.get(lbl3) == 1:
             return True
-    
+
     def recurse_if_box(item):
         if item and item[0] == BOX:
             b = [BOX]
@@ -130,7 +139,7 @@ def make_nested_blocks(bis):
         i = 0
         while i < len_bis:
             eat = False
-            
+
             # loop patterns
             if not eat and i + 5 < len_bis:
                 ss = bis[i:i + 5]
@@ -168,15 +177,15 @@ def make_nested_blocks(bis):
                     i += 6
                     eat = True
                     new_box_found = True
-#             
-#             # swtich-case patterns
+#
+# swtich-case patterns
 #             if not eat and bis[i][0] == jp.SWITCH:
 #                 merged_block = [ORDERED_OR]
 #                 matching_pattern = True
 #                 exit_label = None
 #                 destlabel2count = Counter()
 #                 for dest in bis[i][1]:
-#                     if exit_label is not None and dest == exit_label:  # in case of default: case
+# if exit_label is not None and dest == exit_label:  # in case of default: case
 #                         merged_block.append([ORDERED_AND])
 #                         destlabel2count[exit_label] += 1
 #                         continue
@@ -198,13 +207,13 @@ def make_nested_blocks(bis):
 #                         merged_block.append(bis[dest_index + 1])
 #                     else:
 #                         matching_pattern = False
-#                         break  # for dest
+# break  # for dest
 #                 if matching_pattern and exit_label is not None:
 #                     jump_from_outer = False
 #                     for l, c in destlabel2count.iteritems():
 #                         if label2targetcount.get(l) != c:
 #                             jump_from_outer = True
-#                             break  # for l, c
+# break  # for l, c
 #                     nexti = label2index.get(exit_label) + 1
 #                     unconsumed_label_inside = any((ins[0] == jp.LABEL and ins[0] not in destlabel2count) \
 #                             for ins in bis[i:nexti])
@@ -216,8 +225,8 @@ def make_nested_blocks(bis):
 #                         i = nexti
 #                         eat = True
 #                         new_box_found = True
-#             
-#             # if patterns
+#
+# if patterns
 #             if not eat and i + 3 < len_bis and \
 #                     [ins[0] for ins in bis[i:i + 3]] == [jp.IFGOTO, BLOCK, jp.LABEL] and \
 #                     bis[i][1] == bis[i + 2][1] and label2targetcount.get(bis[i + 2][1]) == 1:
@@ -228,7 +237,7 @@ def make_nested_blocks(bis):
 #             if not eat and i + 5 < len_bis and \
 #                     [ins[0] for ins in bis[i:i + 5]] == [jp.IFGOTO, jp.GOTO, jp.LABEL, BLOCK, jp.LABEL] and \
 #                     bis[i][1] == bis[i + 2][1] and label2targetcount.get(bis[i + 2][1]) == 1 and \
-#                     bis[i + 1][1] == bis[i + 4][1] and label2targetcount.get(bis[i + 4][1]) == 1: 
+#                     bis[i + 1][1] == bis[i + 4][1] and label2targetcount.get(bis[i + 4][1]) == 1:
 #                 nb.append([BLOCK, [ORDERED_OR, bis[i + 3], [ORDERED_AND]]])
 #                 i += 5
 #                 eat = True
@@ -236,12 +245,12 @@ def make_nested_blocks(bis):
 #             if not eat and i + 6 < len_bis and \
 #                     [ins[0] for ins in bis[i:i + 6]] == [jp.IFGOTO, BLOCK, jp.GOTO, jp.LABEL, BLOCK, jp.LABEL] and \
 #                     bis[i][1] == bis[i + 3][1] and label2targetcount.get(bis[i + 3][1]) == 1 and \
-#                     bis[i + 2][1] == bis[i + 5][1] and label2targetcount.get(bis[i + 5][1]) == 1: 
+#                     bis[i + 2][1] == bis[i + 5][1] and label2targetcount.get(bis[i + 5][1]) == 1:
 #                 nb.append([BLOCK, [ORDERED_OR, bis[i + 1], bis[i + 4]]])
 #                 i += 6
 #                 eat = True
 #                 new_box_found = True
-            
+
             if not eat:
                 nb.append(bis[i])
                 i += 1
@@ -250,9 +259,9 @@ def make_nested_blocks(bis):
         bis = nb
     return bis
 
+
 def make_block_and_box(inss):
     bis = make_basic_blocks(inss)
     bis = make_boxes(bis)
     bis = make_nested_blocks(bis)
     return bis
-

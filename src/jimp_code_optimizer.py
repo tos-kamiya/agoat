@@ -1,6 +1,7 @@
-#coding: utf-8
+# coding: utf-8
 
 import jimp_parser as jp
+
 
 def merge_labels(inss):
     label_order = {}
@@ -67,6 +68,7 @@ def merge_labels(inss):
                 reduced[i] = tuple(rins)
     return reduced
 
+
 def remove_redundant_gotos(inss):
     reduced = []
     for i, ins in enumerate(inss):
@@ -106,6 +108,7 @@ def remove_redundant_gotos(inss):
         else:
             reduced.append(ins)
     return reduced
+
 
 def optimize_ins_seq(inss):
     inss = merge_labels(inss)

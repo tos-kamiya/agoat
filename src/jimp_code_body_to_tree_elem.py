@@ -1,4 +1,4 @@
-#coding: utf-8
+# coding: utf-8
 
 try:
     from sys import intern  # py3k
@@ -31,6 +31,7 @@ import _jimp_code_box_generator
 
 if False:
     MethodSigInternTable = dict()
+
     def method_sig_intern(msig):
         v = MethodSigInternTable.get(msig)
         if v:
@@ -41,9 +42,11 @@ else:
     def method_sig_intern(msig):
         return intern(msig)
 
+
 def resolve_type(inss, method_data, class_data):
     if inss is None:
         assert False
+
     def resolve(name):
         if name == 'null':
             return 'java.lang.Object'  # unknown
@@ -74,7 +77,7 @@ def resolve_type(inss, method_data, class_data):
         if t:
             return intern(t)
         return None
-    
+
     resolved_inss = []
     for ins in inss:
         cmd = ins[0]
@@ -87,8 +90,9 @@ def resolve_type(inss, method_data, class_data):
             resolved_inss.append((cmd, rreceiver, sig, linenum))
         else:
             resolved_inss.append(ins)
-    
+
     return resolved_inss
+
 
 def get_max_branches_of_boxes(inss):
     c = 0
@@ -106,6 +110,7 @@ def get_max_branches_of_boxes(inss):
             maxc = max(c, subc)
     return maxc
 
+
 def list_flatten_iter_except_for_block(L):
     if isinstance(L, list):
         if L and L[0] == BLOCK:
@@ -119,23 +124,25 @@ def list_flatten_iter_except_for_block(L):
     else:
         yield L
 
+
 def convert_to_execution_paths(inss):
     if inss and inss[0] == BLOCK:
         return inss
 
     len_inss = len(inss)
     label2index = _jimp_code_box_generator.get_label2index(inss)
- 
+
     paths = []
     path = []
     branches = []
     branches.append((0, path, Counter()))
-     
+
     def nesting_dup(L):
         if len(L) == 1:
             return [L[0]]
         else:
             return [L]
+
     def dig(i, path, visitedlabels):
         if i is None:
             assert False
@@ -166,7 +173,8 @@ def convert_to_execution_paths(inss):
                 # path.append(ins)  # mark of branch/join
                 if dest not in visitedlabels:
                     path = nesting_dup(path)
-                    branches.append((label2index[dest], nesting_dup(path), visitedlabels.copy()))
+                    branches.append(
+                        (label2index[dest], nesting_dup(path), visitedlabels.copy()))
             elif cmd == jp.GOTO:
                 dest = ins[1]
                 dest_index = label2index.get(dest)
@@ -183,7 +191,8 @@ def convert_to_execution_paths(inss):
                 # path.append(ins)  # mark of branch/join
                 for dest in ins[1]:
                     if dest not in visitedlabels:
-                        branches.append((label2index[dest], nesting_dup(path), visitedlabels.copy()))
+                        branches.append(
+                            (label2index[dest], nesting_dup(path), visitedlabels.copy()))
                 return
             elif cmd == jp.LABEL:
                 if ins[1] in visitedlabels:
@@ -195,15 +204,16 @@ def convert_to_execution_paths(inss):
             i += 1
         if path:
             paths.append(path)
-     
+
     while branches:
         b = branches.pop()
         dig(*b)
- 
+
     paths = sort_uniq(paths)
     paths = [list(list_flatten_iter_except_for_block(p)) for p in paths]
     paths.sort()
     return paths
+
 
 def paths_to_ordred_andor_tree(paths):
     def ptoat_i(paths):
@@ -245,13 +255,13 @@ def paths_to_ordred_andor_tree(paths):
 #                 break
 #             postfix.append(c)
 #         return list(reversed(postfix))
-#  
+#
 #     if len(paths) == 0:
 #         return [ORDERED_AND]
-#  
+#
 #     if len(paths) == 1:
 #         return [ORDERED_AND] + paths[0]
-#  
+#
 #     emptyG, multipleG = [], []
 #     for p in paths:
 #         lenp = len(p)
@@ -287,8 +297,9 @@ def paths_to_ordred_andor_tree(paths):
 #                 t.append(pt)
 #                 pt.append(paths_to_ordred_andor_tree(heads))
 #                 pt.extend(postfix)
-# 
+#
 #     return normalize_tree(t)
+
 
 def expand_blocks(node):
     if not node:
@@ -311,17 +322,20 @@ def expand_blocks(node):
 
 NOTREE = 'notree'
 
-def replace_method_code_with_aot_in_class_table(class_table, 
-        branches_atmost=None, progress_repo=None):
+
+def replace_method_code_with_aot_in_class_table(class_table,
+                                                branches_atmost=None, progress_repo=None):
     for cd in class_table.itervalues():
         for md in cd.methods.itervalues():
-            progress_repo and progress_repo(current=(cd.class_name, md.method_sig))
+            progress_repo and progress_repo(
+                current=(cd.class_name, md.method_sig))
             inss = resolve_type(md.code, md, cd)
             bis = _jimp_code_box_generator.make_block_and_box(inss)
             obis = jco.optimize_ins_seq(bis)
             nbranch = get_max_branches_of_boxes(obis)
             if branches_atmost is not None and nbranch > branches_atmost:
-                progress_repo and progress_repo(canceled_becaseof_branches=(cd.class_name, md.method_sig, nbranch))
+                progress_repo and progress_repo(
+                    canceled_becaseof_branches=(cd.class_name, md.method_sig, nbranch))
                 md.code = [NOTREE, md.code]
             else:
                 paths = convert_to_execution_paths(obis)
@@ -329,6 +343,7 @@ def replace_method_code_with_aot_in_class_table(class_table,
                 aot = expand_blocks(aot)
                 aot = normalize_tree(aot)
                 md.code = aot
+
 
 def main(argv, out=sys.stdout):
     filename = argv[1]
@@ -338,9 +353,9 @@ def main(argv, out=sys.stdout):
     if r is None:
         out.write("contains no class\n")
         return
-    
+
     target_method_name_pattern = argv[2] if len(argv) >= 3 else None
-    
+
     clz, cd = r
     for method_sig, md in cd.methods.iteritems():
         if target_method_name_pattern and jp.methodsig_name(method_sig).find(target_method_name_pattern) < 0:

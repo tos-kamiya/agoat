@@ -1,4 +1,4 @@
-#coding: utf-8
+# coding: utf-8
 
 import re
 
@@ -12,24 +12,33 @@ _PAT_NEW = re.compile(r"^\s*%s\s*=\s*new\s+.*;$" % _LEFT)
 _PAT_SOME_ASSIGN = re.compile(r"^\s+%s\s*=.*;$" % _LEFT)
 _PAT_RETURN = re.compile(r"^\s*return.*;$")
 _PAT_THROW = re.compile(r"^\s*throw.*;$")
-_PAT_SPECIALINVOKE = re.compile(r"^\s*(?P<left>%s)\s*=\s*specialinvoke\s+(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>.*)[)]\s*;$" % (_LEFT, _IDENTIFIER, _METHOD_NAME))
-_PAT_SPECIALINVOKE_WO_RETURN = re.compile(r"^\s*specialinvoke\s+(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>.*)[)]\s*;$" % (_IDENTIFIER, _METHOD_NAME))
-_PAT_INVOKE = re.compile(r"^\s*(?P<left>%s)\s*=\s*(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>.*)[)]\s*;$" % (_LEFT, _IDENTIFIER, _METHOD_NAME))
-_PAT_INVOKE_WO_RETURN = re.compile(r"^\s*(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>.*)[)]\s*;$" % (_IDENTIFIER, _METHOD_NAME))
-_PAT_IF_GOTO = re.compile(r"^\s*if\s+.*goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
+_PAT_SPECIALINVOKE = re.compile(
+    r"^\s*(?P<left>%s)\s*=\s*specialinvoke\s+(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>.*)[)]\s*;$" % (_LEFT, _IDENTIFIER, _METHOD_NAME))
+_PAT_SPECIALINVOKE_WO_RETURN = re.compile(
+    r"^\s*specialinvoke\s+(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>.*)[)]\s*;$" % (_IDENTIFIER, _METHOD_NAME))
+_PAT_INVOKE = re.compile(
+    r"^\s*(?P<left>%s)\s*=\s*(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>.*)[)]\s*;$" % (_LEFT, _IDENTIFIER, _METHOD_NAME))
+_PAT_INVOKE_WO_RETURN = re.compile(
+    r"^\s*(?P<receiver>%s)[.](?P<method_name>%s)[(](?P<args>.*)[)]\s*;$" % (_IDENTIFIER, _METHOD_NAME))
+_PAT_IF_GOTO = re.compile(
+    r"^\s*if\s+.*goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
 _PAT_GOTO = re.compile(r"^\s*goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
 _PAT_LABEL = re.compile(r"^\s*(?P<label>%s):$" % _IDENTIFIER)
 _PAT_SWITCH = re.compile(r"^\s*(table|lookup)switch[(].*$")
-_PAT_CASE = re.compile(r"^\s*case\s+[^:]+:\s+goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
-_PAT_DEFAULT = re.compile(r"^\s*default:\s+goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
+_PAT_CASE = re.compile(
+    r"^\s*case\s+[^:]+:\s+goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
+_PAT_DEFAULT = re.compile(
+    r"^\s*default:\s+goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
 _PAT_CATCH = re.compile(r"^\s*catch\s+.*;$")
 
 _PAT_STRING_LITERAL = re.compile(r'^"([^\"]|\.)*?"' + '|' + r"^'([^\"]|\.)*?'")
+
 
 def togd(m):
     if m is None:
         return None
     return m.groupdict()
+
 
 def parse_args(s):
     items = []
@@ -59,14 +68,18 @@ GOTO = "goto"
 SWITCH = "switch"
 LABEL = "label"
 
+
 class InvalidCode(ValueError):
     pass
 
+
 def parse_jimp_code(linenum, lines, filename=None):
     if filename is not None:
-        def loc(linenum): return (filename, linenum)
+        def loc(linenum):
+            return (filename, linenum)
     else:
-        def loc(linenum): return linenum
+        def loc(linenum):
+            return linenum
     bpats = (_PAT_IF_GOTO, IFGOTO), (_PAT_GOTO, GOTO), (_PAT_LABEL, LABEL)
     inss = []
     len_lines = len(lines)
@@ -104,7 +117,8 @@ def parse_jimp_code(linenum, lines, filename=None):
                 continue  # while i
             if _PAT_SWITCH.match(L):
                 destination_labels = []
-                i += 2; L = lines[i]
+                i += 2
+                L = lines[i]
                 while True:
                     gd = togd(_PAT_CASE.match(L) or _PAT_DEFAULT.match(L))
                     if not gd:
@@ -112,21 +126,25 @@ def parse_jimp_code(linenum, lines, filename=None):
                         i += 1
                         break
                     destination_labels.append(gd["label"])
-                    i += 1; L = lines[i]
+                    i += 1
+                    L = lines[i]
                 inss.append((SWITCH, tuple(destination_labels), loc(linenum)))
                 continue  # while i
-            gd = togd(_PAT_SPECIALINVOKE.match(L) or _PAT_SPECIALINVOKE_WO_RETURN.match(L))
+            gd = togd(_PAT_SPECIALINVOKE.match(L)
+                      or _PAT_SPECIALINVOKE_WO_RETURN.match(L))
             if gd:
                 retv = gd["left"] if "left" in gd else None
                 argt = parse_args(gd["args"])
-                inss.append((SPECIALINVOKE, gd["receiver"], gd["method_name"], argt, retv, loc(linenum)))
+                inss.append(
+                    (SPECIALINVOKE, gd["receiver"], gd["method_name"], argt, retv, loc(linenum)))
                 i += 1
                 continue  # while i
             gd = togd(_PAT_INVOKE.match(L) or _PAT_INVOKE_WO_RETURN.match(L))
             if gd:
                 retv = gd["left"] if "left" in gd else None
                 argt = parse_args(gd["args"])
-                inss.append((INVOKE, gd["receiver"], gd["method_name"], argt, retv, loc(linenum)))
+                inss.append(
+                    (INVOKE, gd["receiver"], gd["method_name"], argt, retv, loc(linenum)))
                 i += 1
                 continue  # while i
             if _PAT_SOME_ASSIGN.match(L):
@@ -134,7 +152,8 @@ def parse_jimp_code(linenum, lines, filename=None):
                 pass
             else:
                 if filename:
-                    raise InvalidCode("file %s, line %d: invalid syntax" % (filename, linenum))
+                    raise InvalidCode(
+                        "file %s, line %d: invalid syntax" % (filename, linenum))
                 else:
                     raise InvalidCode("line %d: invalid syntax" % linenum)
     return inss

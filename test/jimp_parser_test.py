@@ -1,10 +1,11 @@
-#coding: utf-8
+# coding: utf-8
 
 import unittest
 
 import sys
 import os.path
-sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
+sys.path.insert(
+    0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
 import jimp_parser as jp
 
@@ -36,23 +37,28 @@ public class Hello extends java.lang.Object
 }
 """
 
+
 def stub_store_jimp_method_code(mtd, linenum, lines):
     mtd.code = (linenum, lines)
 
+
 class JimpParserTest(unittest.TestCase):
+
     def test_method_sig(self):
         msig = jp.MethodSig("int", "hoge", ())
         self.assertEqual(jp.methodsig_retv(msig), "int")
         self.assertEqual(jp.methodsig_name(msig), "hoge")
         self.assertEqual(jp.methodsig_params(msig), ())
-        
+
     def test_hello_string(self):
-        class_name, class_data = jp.parse_jimp_lines(helloJimpText.splitlines(), 
-                parse_jimp_method_code=stub_store_jimp_method_code)
+        class_name, class_data = jp.parse_jimp_lines(
+            helloJimpText.splitlines(),
+            parse_jimp_method_code=stub_store_jimp_method_code)
         self.assertEqual(class_name, "Hello")
         self.assertEqual(class_data.base_name, "java.lang.Object")
         for msig, m in class_data.methods.iteritems():
-            self.assertIn(msig, [jp.MethodSig(None, "<init>", ()), jp.MethodSig(None, "main", ("java.lang.String[]", ))])
+            self.assertIn(
+                msig, [jp.MethodSig(None, "<init>", ()), jp.MethodSig(None, "main", ("java.lang.String[]", ))])
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
