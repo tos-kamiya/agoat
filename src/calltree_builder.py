@@ -5,7 +5,7 @@ import sys
 import andor_tree as at
 import jimp_parser as jp
 import _jimp_code_body_to_tree_elem as jcbte
-from _jimp_code_body_to_tree_elem import NOTREE  # re-export
+from _jimp_code_body_to_tree_elem import NOTREE, inss_to_tree, inss_to_tree_in_class_table  # re-export
 
 
 def extract_class_hierarchy(class_table, include_indirect_decendants=True):
@@ -328,7 +328,7 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
             clz, msig, branches = canceled_becaseof_branches
             sys.stderr.write(
                 ">   canceled: %s %s (branches=%d)\n" % (clz, msig, branches))
-    jcbte.replace_method_code_with_aot_in_class_table(class_table,
+    class_table = jcbte.inss_to_tree_in_class_table(class_table,
             branches_atmost=50, progress_repo=progress_repo)
 
     logout and logout.write("> extract hierachy\n")

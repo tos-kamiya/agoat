@@ -323,26 +323,40 @@ def expand_blocks(node):
 NOTREE = 'notree'
 
 
-def replace_method_code_with_aot_in_class_table(class_table,
-        branches_atmost=None, progress_repo=None):
-    for cd in class_table.itervalues():
-        for md in cd.methods.itervalues():
-            progress_repo and progress_repo(
-                current=(cd.class_name, md.method_sig))
-            inss = resolve_type(md.code, md, cd)
-            bis = _jimp_code_box_generator.make_block_and_box(inss)
-            obis = jco.optimize_ins_seq(bis)
-            nbranch = get_max_branches_of_boxes(obis)
-            if branches_atmost is not None and nbranch > branches_atmost:
+def inss_to_tree(method_data, class_data, branches_atmost=None):
+    inss = resolve_type(method_data.code, method_data, class_data)
+    bis = _jimp_code_box_generator.make_block_and_box(inss)
+    obis = jco.optimize_ins_seq(bis)
+    nbranch = get_max_branches_of_boxes(obis)
+    if branches_atmost is not None and nbranch > branches_atmost:
+        return (NOTREE, nbranch)
+    else:
+        paths = convert_to_execution_paths(obis)
+        aot = paths_to_ordred_andor_tree(paths)
+        aot = expand_blocks(aot)
+        aot = normalize_tree(aot)
+        return aot
+
+
+def inss_to_tree_in_class_table(class_table, branches_atmost=None, progress_repo=None):
+    new_tbl = {}  # str -> ClassData
+    for clz, cd in class_table.iteritems():
+        new_tbl[clz] = new_cd = jp.ClassData(cd.class_name, cd.base_name, interf_names=cd.interf_names)
+        for msig, md in cd.methods.iteritems():
+            progress_repo and progress_repo(current=(cd.class_name, md.method_sig))
+
+            new_md = jp.MethodData(md.method_sig, md.scope_class)
+            new_md.fields = md.fields
+            aot = inss_to_tree(md, cd, branches_atmost=branches_atmost)
+            if isinstance(aot, tuple) and aot[0] == NOTREE:
+                nbranch = aot[1]
                 progress_repo and progress_repo(
                         canceled_becaseof_branches=(cd.class_name, md.method_sig, nbranch))
-                md.code = [NOTREE, md.code]
+                new_md.code = [NOTREE, md.code]
             else:
-                paths = convert_to_execution_paths(obis)
-                aot = paths_to_ordred_andor_tree(paths)
-                aot = expand_blocks(aot)
-                aot = normalize_tree(aot)
-                md.code = aot
+                new_md.code = aot
+            new_cd.methods[msig] = new_md
+    return new_tbl
 
 
 def main(argv, out=sys.stdout):
