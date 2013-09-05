@@ -1,11 +1,14 @@
 # coding: utf-8
 
+import json
 import sys
 
 import andor_tree as at
 import jimp_parser as jp
 import _jimp_code_body_to_tree_elem as jcbte
 from _jimp_code_body_to_tree_elem import NOTREE, inss_to_tree, inss_to_tree_in_class_table  # re-export
+
+LOCATION = 'location'
 
 
 def extract_class_hierarchy(class_table, include_indirect_decendants=True):
@@ -212,20 +215,20 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc):
                 recv_msig = tuple(aot[1:3])
                 if recv_msig == clz_msig or recv_msig == recursive_context:
                     return None
-                loc_info = clz_msig, aot[3]
+                loc_info = (LOCATION, clz_msig[0], clz_msig[1], aot[3])
                 v = dig_dispatch(recv_msig, recursive_context, loc_info, special_invoke=True)
             elif cmd == jp.INVOKE:
                 recv_msig = tuple(aot[1:3])
                 if recv_msig == clz_msig or recv_msig == recursive_context:
                     return None
-                loc_info = clz_msig, aot[3]
+                loc_info = (LOCATION, clz_msig[0], clz_msig[1], aot[3])
                 v = dig_dispatch(recv_msig, recursive_context, loc_info)
             else:
                 return None
                 # loc_info = clz_msig, aot[-1]
                 # return tuple(list(aot[:-1]) + [loc_info])
             if not v:
-                loc_info = clz_msig, aot[-1]
+                loc_info = (LOCATION, clz_msig[0], clz_msig[1], aot[-1])
                 return tuple(list(aot[:-1]) + [loc_info])
             return v
         else:
