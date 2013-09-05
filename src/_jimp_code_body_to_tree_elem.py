@@ -11,7 +11,7 @@ from collections import Counter
 
 from _utilities import sort_uniq
 import jimp_parser as jp
-import jimp_code_optimizer as jco
+import _jimp_code_optimizer as jco
 from andor_tree import ORDERED_AND, ORDERED_OR, normalize_tree
 from _jimp_code_box_generator import BOX, BLOCK
 import _jimp_code_box_generator
