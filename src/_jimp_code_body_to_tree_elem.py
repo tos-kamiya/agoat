@@ -324,7 +324,7 @@ NOTREE = 'notree'
 
 
 def replace_method_code_with_aot_in_class_table(class_table,
-                                                branches_atmost=None, progress_repo=None):
+        branches_atmost=None, progress_repo=None):
     for cd in class_table.itervalues():
         for md in cd.methods.itervalues():
             progress_repo and progress_repo(
@@ -335,7 +335,7 @@ def replace_method_code_with_aot_in_class_table(class_table,
             nbranch = get_max_branches_of_boxes(obis)
             if branches_atmost is not None and nbranch > branches_atmost:
                 progress_repo and progress_repo(
-                    canceled_becaseof_branches=(cd.class_name, md.method_sig, nbranch))
+                        canceled_becaseof_branches=(cd.class_name, md.method_sig, nbranch))
                 md.code = [NOTREE, md.code]
             else:
                 paths = convert_to_execution_paths(obis)

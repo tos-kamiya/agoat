@@ -1,11 +1,11 @@
 # coding: utf-8
 
 import sys
-import pprint
 
 import andor_tree as at
 import jimp_parser as jp
-import jimp_code_body_to_tree_elem as jcbte
+import _jimp_code_body_to_tree_elem as jcbte
+from _jimp_code_body_to_tree_elem import NOTREE  # re-export
 
 
 def extract_class_hierarchy(class_table, include_indirect_decendants=True):
@@ -13,8 +13,7 @@ def extract_class_hierarchy(class_table, include_indirect_decendants=True):
     class_to_descendants = {}  # str -> set of str
     for clz, class_data in class_table.iteritems():
         if class_data.base_name:
-            class_to_descendants.setdefault(
-                class_data.base_name, set()).add(clz)
+            class_to_descendants.setdefault(class_data.base_name, set()).add(clz)
 
     if include_indirect_decendants:
         emptyset = set()
@@ -72,8 +71,7 @@ def make_method_call_resolver(class_table, recv_method_to_defs):
     def resolver(recv_msig, static_method=False):
         resolved = []
         recv, msig = recv_msig
-        cands = [recv] if static_method else recv_method_to_defs.get(
-            recv_msig, [])
+        cands = [recv] if static_method else recv_method_to_defs.get(recv_msig, [])
         for clz in cands:
             cd = class_table.get(clz)
             if cd:
@@ -215,8 +213,7 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc):
                 if recv_msig == clz_msig or recv_msig == recursive_context:
                     return None
                 loc_info = clz_msig, aot[3]
-                v = dig_dispatch(
-                    recv_msig, recursive_context, loc_info, special_invoke=True)
+                v = dig_dispatch(recv_msig, recursive_context, loc_info, special_invoke=True)
             elif cmd == jp.INVOKE:
                 recv_msig = tuple(aot[1:3])
                 if recv_msig == clz_msig or recv_msig == recursive_context:
@@ -246,14 +243,12 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc):
             node_label = (called_method[0], called_method[1], ctx)
             cn = call_node_memo.get(node_label)
             if cn is None:
-                cn = [CALL, recursive_context, (
-                    jp.INVOKE, called_method, loc_info)]
+                cn = [CALL, recursive_context, (jp.INVOKE, called_method, loc_info)]
                 if md.code != jcbte.NOTREE:
                     v = dig_node(md.code, ctx, called_method)
                 else:
-                    v = None
-                if v:
-                    cn.append(v)
+                    v = jcbte.NOTREE  # can't expand
+                cn.append(v)
                 call_node_memo[node_label] = cn
                 dispatch_node.append(cn)
             else:
@@ -271,16 +266,13 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc):
 
 def extract_call_andor_tree(class_table, entry_point):
     class_to_descendants = extract_class_hierarchy(class_table)
-    class_to_methods = dict((claz, cd.methods.keys())
-                            for claz, cd in class_table.iteritems())
+    class_to_methods = dict((claz, cd.methods.keys()) for claz, cd in class_table.iteritems())
     # class_to_methods  # str -> [MethodSig]
 
-    recv_method_to_defs = make_dispatch_table(
-        class_to_methods, class_to_descendants)
+    recv_method_to_defs = make_dispatch_table(class_to_methods, class_to_descendants)
 
     resolver = make_method_call_resolver(class_table, recv_method_to_defs)
-    methods_ircc = find_methods_involved_in_recursive_call_chain(
-        entry_point, resolver)
+    methods_ircc = find_methods_involved_in_recursive_call_chain(entry_point, resolver)
 
     # out.write("methods involved in recursive chain:\n")
     # for mtd in methods_ircc:
@@ -291,6 +283,8 @@ def extract_call_andor_tree(class_table, entry_point):
 
 
 def main(argv, out=sys.stdout, logout=sys.stderr):
+    import pprint
+
     dirname = argv[1]
     entry_point_class = argv[2] if len(argv) >= 3 else None
     entry_point_method = argv[3] if len(argv) >= 4 else None
@@ -335,13 +329,13 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
             sys.stderr.write(
                 ">   canceled: %s %s (branches=%d)\n" % (clz, msig, branches))
     jcbte.replace_method_code_with_aot_in_class_table(class_table,
-                                                      branches_atmost=50, progress_repo=progress_repo)
+            branches_atmost=50, progress_repo=progress_repo)
 
     logout and logout.write("> extract hierachy\n")
     class_to_descendants = extract_class_hierarchy(class_table)
     logout and logout.write("> reslove dispatch\n")
     class_to_methods = dict((claz, cd.methods.keys())
-                            for claz, cd in class_table.iteritems())
+            for claz, cd in class_table.iteritems())
     # class_to_methods  # str -> [MethodSig]
 
     recv_method_to_defs = make_dispatch_table(
@@ -350,7 +344,7 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
     logout and logout.write("> find recursive\n")
     resolver = make_method_call_resolver(class_table, recv_method_to_defs)
     methods_ircc = find_methods_involved_in_recursive_call_chain(
-        entry_point, resolver)
+            entry_point, resolver)
 
     # out.write("methods involved in recursive chain:\n")
     # for mtd in methods_ircc:
