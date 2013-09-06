@@ -11,6 +11,7 @@ import jimp_parser as jp
 import jimp_code_term_extractor as jcte
 import calltree_builder as cb
 import node_summarizer as ns
+import calltree_query as cq
 
 def list_entry_points(soot_dir, output_file):
     class_table = dict((clz, cd) \
@@ -50,14 +51,26 @@ def generate_call_tree_and_node_summary(entry_point, soot_dir, output_file, pret
             pickle.dump((call_tree, node_summary_table), out)
 
 
-def main(argv):
-    # sootOutputからエントリポイント一覧を取得する
-    # sootOutputとエントリポイントからコールツリーを作成する
-    # コールツリーに対してノードサマリを作成する
-    # 検索する
+def search_method_bodies(call_tree_file, query_words, output_file):
+    with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
+        call_tree, node_summary_table = pickle.load(inp)
 
+    call_nodes = cq.find_lower_call_nodes(query_words, call_tree, node_summary_table)
+
+    with open_w_default(output_file, "wb", sys.stdout) as out:
+        pp = pprint.PrettyPrinter(indent=4, stream=out)
+        for call_node in sorted(call_nodes):
+            recursive_context = call_node[1]
+            invoked = call_node[2]
+            clz, msig = invoked[1], invoked[2]
+            out.write("%s\t%s\t%s\n" % (clz, msig, recursive_context))
+            marked = cq.mark_uncontributing_nodes_w_call(query_words, call_node)
+            pp.pprint(marked)
+
+
+def main(argv):
     psr = argparse.ArgumentParser(description='agoat command-line')
-    subpsrs = psr.add_subparsers(help='commands', dest='command')
+    subpsrs = psr.add_subparsers(dest='command')
 
     psr_ep = subpsrs.add_parser('e', help='listing entry points')
     psr_ep.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
@@ -73,11 +86,10 @@ def main(argv):
     psr_ct.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
     psr_ct.add_argument('-p', '--pretty-print', action='store_true', help='print call-tree in human-readable format')
 
-    psr_sh = subpsrs.add_parser('s', help='search')
-    psr_sh.add_argument('calltree', action='store', help="call-tree file. '-' for standard input")
-    psr_sh.add_argument('query', action='store', nargs='+', help="query words")
-    psr_sh.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
-    psr_sh.add_argument('-p', '--pretty-print', action='store_true', help='print call-tree in human-readable format')
+    psr_q = subpsrs.add_parser('q', help='search by query words')
+    psr_q.add_argument('calltree', action='store', help="call-tree file. '-' for standard input")
+    psr_q.add_argument('queryword', action='store', nargs='+', help="query words")
+    psr_q.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
 
     args = psr.parse_args(argv[1:])
     if args.command == 'e':
@@ -88,6 +100,8 @@ def main(argv):
         entry_point_msig = jp.MethodSig(None, "main", ("java.lang.String[]",))
         entry_point = (args.entrypoint, entry_point_msig)
         generate_call_tree_and_node_summary(entry_point, args.soot_dir, args.output, args.pretty_print)
+    elif args.command == 'q':
+        search_method_bodies(args.calltree, args.queryword, args.output)
     else:
         assert False
 
