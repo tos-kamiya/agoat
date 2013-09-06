@@ -36,11 +36,20 @@ def sort_uniq(lst, key=None):
     return [item for item, prev_item in zip(lst, [dummy] + lst) if item != prev_item]
 
 
+# @contextlib.contextmanager
+# def auto_pop(lst):
+#     original_length = len(lst)
+#     yield
+#     lst[:] = lst[:original_length]
+
+
 @contextlib.contextmanager
-def auto_pop(lst):
-    original_length = len(lst)
-    yield
-    lst[:] = lst[:original_length]
+def open_w_default(filename, mode, default):
+    if filename == '-':
+        yield default
+    else:
+        with open(filename, mode) as outp:
+            yield outp
 
 
 def list_flatten_iter(L):
