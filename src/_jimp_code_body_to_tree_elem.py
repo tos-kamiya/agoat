@@ -43,10 +43,7 @@ else:
         return intern(msig)
 
 
-def resolve_type(inss, method_data, class_data):
-    if inss is None:
-        assert False
-
+def gen_resolver(method_data, class_data):
     def resolve(name):
         if name == 'null':
             return 'java.lang.Object'  # unknown
@@ -77,7 +74,14 @@ def resolve_type(inss, method_data, class_data):
         if t:
             return intern(t)
         return None
+    return resolve
 
+
+def resolve_type(inss, method_data, class_data):
+    if inss is None:
+        assert False
+
+    resolve = gen_resolver(method_data, class_data)
     resolved_inss = []
     for ins in inss:
         cmd = ins[0]

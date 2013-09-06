@@ -8,18 +8,28 @@ import pprint
 from _utilities import open_w_default
 
 import jimp_parser as jp
+import jimp_code_term_extractor as jcte
 import calltree_builder as cb
 import node_summarizer as ns
 
 def list_entry_points(soot_dir, output_file):
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
-
     entry_points = cb.find_entry_points(class_table)
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
         for ep in sorted(entry_points):
             out.write("%s\n" % ep[0])
+
+
+def list_methods(soot_dir, output_file):
+    class_table = dict((clz, cd) \
+            for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
+    methods = jcte.extract_methods(class_table)
+
+    with open_w_default(output_file, "wb", sys.stdout) as out:
+        for clz, msig in methods:
+            out.write("%s\t%s\n" % (clz, msig))
 
 
 def generate_call_tree(entry_point, soot_dir, output_file, pretty_print=False):
@@ -63,6 +73,10 @@ def main(argv):
     psr_ep.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_ep.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
 
+    psr_mt = subpsrs.add_parser('m', help='listing methods')
+    psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
+    psr_mt.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
+
     psr_ct = subpsrs.add_parser('c', help='generate call tree')
     psr_ct.add_argument('entrypoint', action='store', help='entry-point class')
     psr_ct.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
@@ -77,6 +91,8 @@ def main(argv):
     args = psr.parse_args(argv[1:])
     if args.command == 'e':
         list_entry_points(args.soot_dir, args.output)
+    elif args.command == 'm':
+        list_methods(args.soot_dir, args.output)
     elif args.command == 'c':
         entry_point_msig = jp.MethodSig(None, "main", ("java.lang.String[]",))
         entry_point = (args.entrypoint, entry_point_msig)
