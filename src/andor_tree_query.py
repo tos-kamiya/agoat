@@ -68,7 +68,7 @@ def mark_uncontributing_nodes(node, predicate_func):
         if not isinstance(node, list):
             return [UNCONTRIBUTING, node] if r != True else node
 
-        if r == False:
+        if r == False or not node:
             return [UNCONTRIBUTING, node]
         assert r is Undecided or r == True
 
@@ -85,3 +85,28 @@ def mark_uncontributing_nodes(node, predicate_func):
         return marked
 
     return mark_uncontributing_nodes_i(node)
+
+
+class LengthNotDefined(ValueError):
+    pass
+
+def path_min_length(node, weighting_func=None):
+    def path_min_length_i(node):
+        if weighting_func is not None:
+            L = weighting_func(node)
+            if L is not None:
+                return L
+        if not isinstance(node, list):
+            return 1
+        if not node:
+            return 0
+        n0 = node[0]
+        if n0 == ORDERED_AND:
+            return sum(path_min_length_i(subn) for subn in node[1:])
+        elif n0 == ORDERED_OR:
+            if len(node) == 1:
+                raise LengthNotDefined()
+            return min(path_min_length_i(subn) for subn in node[1:])
+        else:
+            assert False  # invalid tree
+    return path_min_length_i(node)

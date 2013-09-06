@@ -122,6 +122,29 @@ class AndOrTreeQueryTest(unittest.TestCase):
         unm = atq.mark_uncontributing_nodes(tree, pred)
         self.assertSequenceEqual(unm, [atq.ORDERED_AND, 1, [atq.UNCONTRIBUTING, 2], [atq.ORDERED_OR, 3, [atq.UNCONTRIBUTING, 4]]])
 
+    def test_path_min_length_empty(self):
+        tree = [atq.ORDERED_AND]
+        L = atq.path_min_length(tree)
+        self.assertEqual(L, 0)
+
+    def test_path_min_length_invalid(self):
+        tree = [atq.ORDERED_AND, 1, 2, [atq.ORDERED_OR]]
+        with self.assertRaises(atq.LengthNotDefined):
+            L = atq.path_min_length(tree)
+
+    def test_path_min_length(self):
+        tree = [atq.ORDERED_AND, 1, 2, [atq.ORDERED_OR, 3]]
+        L = atq.path_min_length(tree)
+        self.assertEqual(L, 3)
+
+        tree = [atq.ORDERED_AND, 1, 2, [atq.ORDERED_OR, 3, [atq.ORDERED_AND, 4, 5]]]
+        L = atq.path_min_length(tree)
+        self.assertEqual(L, 3)
+
+        tree = [atq.ORDERED_AND, 1, 2, [atq.ORDERED_AND, 3, 4]]
+        L = atq.path_min_length(tree)
+        self.assertEqual(L, 4)
+
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
