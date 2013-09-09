@@ -68,6 +68,7 @@ def search_method_bodies(call_tree_file, query_words, output_file):
     with open_w_default(output_file, "wb", sys.stdout) as out:
         pp = pprint.PrettyPrinter(indent=4, stream=out)
         for call_node in sorted(call_nodes):
+            out.write("---\n")
             recursive_context = call_node[1]
             invoked = call_node[2]
             clz, msig = invoked[1], invoked[2]
