@@ -1,5 +1,6 @@
 #coding: utf-8
 
+import os
 import sys
 import argparse
 import pickle
@@ -79,10 +80,12 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
 
 
 def main(argv):
-    psr = argparse.ArgumentParser(description='agoat command-line')
-    subpsrs = psr.add_subparsers(dest='command')
+    default_calltree_path = os.path.join(os.curdir, 'agoat.calltree')
 
-    psr_ep = subpsrs.add_parser('e', help='listing entry points')
+    psr = argparse.ArgumentParser(description='agoat command-line')
+    subpsrs = psr.add_subparsers(dest='command', help='commands')
+
+    psr_ep = subpsrs.add_parser('e', help='listing entry point classes')
     psr_ep.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_ep.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
 
@@ -94,20 +97,22 @@ def main(argv):
     psr_ct.add_argument('-e', '--entry-point', action='store', nargs='*', dest='entrypointclasses',
             help='entry-point class. If not given, all possible classes will be regarded as entry points')
     psr_ct.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
-    psr_ct.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
+    psr_ct.add_argument('-o', '--output', action='store', 
+            help="output file. '-' for standard output. (default '%s')" % default_calltree_path, 
+            default=default_calltree_path)
     psr_ct.add_argument('-p', '--pretty-print', action='store_true', help='print call-tree in human-readable format')
 
-    psr_q = subpsrs.add_parser('q', help='search by query words')
-    psr_q.add_argument('calltree', action='store', help="call-tree file. '-' for standard input")
+    psr_q = subpsrs.add_parser('q', help='search query words in call tree')
+    psr_q.add_argument('-c', '--call-tree', action='store', 
+           help="call-tree file. '-' for standard input. (default '%s')" % default_calltree_path,
+            default=default_calltree_path)
     psr_q.add_argument('queryword', action='store', nargs='+', help="query words")
     psr_q.add_argument('-I', '--ignore-case', action='store_true')
     psr_q.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
 
     args = psr.parse_args(argv[1:])
-    if args.command == 'e':
-        list_entry_points(args.soot_dir, args.output)
-    elif args.command == 'm':
-        list_methods(args.soot_dir, args.output)
+    if args.command == 'm':
+        list_methods(args.soot_dir, args.output, args.entry_point)
     elif args.command == 'c':
         if args.entrypointclasses is not None:
             eps = []
@@ -119,7 +124,7 @@ def main(argv):
             eps = None
         generate_call_tree_and_node_summary(eps, args.soot_dir, args.output, args.pretty_print)
     elif args.command == 'q':
-        search_method_bodies(args.calltree, args.queryword, args.output, args.ignore_case)
+        search_method_bodies(args.call_tree, args.queryword, args.output, args.ignore_case)
     else:
         assert False
 
