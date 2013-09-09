@@ -34,7 +34,7 @@ def build_query_pattern_list(query_words):
     return query_patterns
 
 
-def find_lower_call_nodes(query_words, call_tree, node_summary_table):
+def find_lower_call_nodes(query_words, call_trees, node_summary_table):
     query_patterns = build_query_pattern_list(query_words)
     already_searched = set()
     def predicate_func(node):
@@ -57,8 +57,11 @@ def find_lower_call_nodes(query_words, call_tree, node_summary_table):
                 return atq.HookResult(atq.find_lower_bound_nodes(body, predicate_func))
         else:
             return atq.Undecided
-    return atq.find_lower_bound_nodes(call_tree, predicate_func)
 
+    call_nodes = []
+    for call_tree in call_trees:
+        call_nodes.extend(atq.find_lower_bound_nodes(call_tree, predicate_func))
+    return call_nodes
 
 def mark_uncontributing_nodes_w_call(query_words, call_node):
     query_patterns = build_query_pattern_list(query_words)

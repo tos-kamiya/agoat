@@ -9,8 +9,8 @@ from jimp_parser import INVOKE, SPECIALINVOKE
 import jimp_parser as jp
 import calltree_builder as cb
 
-def extract_node_summerize_table(call_andor_tree):
-    tbl = {}  # (clz, MethodSig, recursive_context) -> list of (clz, MethodSig)
+def extract_node_summerize_table(call_andor_tree, summary_memo={}):
+    # summary_memo = {}  # (clz, MethodSig, recursive_context) -> list of (clz, MethodSig)
     def scan_invocation(node):
         assert isinstance(node, tuple)
         assert node[0] in (INVOKE, SPECIALINVOKE)
@@ -32,7 +32,7 @@ def extract_node_summerize_table(call_andor_tree):
                 clz_msig = clz, msig = invoked[1], invoked[2]
                 subsum = set([clz_msig])
                 k = (clz, msig, recursive_context)
-                if k not in tbl:
+                if k not in summary_memo:
                     subnode = node[3]
                     if subnode == NOTREE:
                         raise ValueError("NOTREE not yet supported")
@@ -42,9 +42,9 @@ def extract_node_summerize_table(call_andor_tree):
                         subsum.update(dig_node(subnode))
                     else:
                         subsum.update(scan_invocation(subnode))
-                    sorted_subsum = tbl[k] = sorted(subsum)
+                    sorted_subsum = summary_memo[k] = sorted(subsum)
                 else:
-                    sorted_subsum = tbl[k]
+                    sorted_subsum = summary_memo[k]
                 return sorted_subsum
             elif n0 == NOTREE:
                 raise ValueError("NOTREE not yet supported")
@@ -52,7 +52,7 @@ def extract_node_summerize_table(call_andor_tree):
             return scan_invocation(node)
 
     dig_node(call_andor_tree)
-    return tbl
+    return summary_memo
 
 def main(argv, out=sys.stdout, logout=sys.stderr):
     import pprint

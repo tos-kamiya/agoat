@@ -90,8 +90,8 @@ def make_method_call_resolver(class_table, recv_method_to_defs):
 
 
 def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
-                                                  include_direct_recursive_calls=False):
-    # entry_point  # (str, MethodSig)
+          include_direct_recursive_calls=False):
+    # entry_points  # list of (str, MethodSig)
 
     methods_searched = set()
     # set of (str, MethodSig) # methods involved in recursive call chain
@@ -116,20 +116,24 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
                     receiver_class, mtd = node[1], node[2]
                     rc_mtd = (receiver_class, mtd)
                     if not include_direct_recursive_calls and rc_mtd == stack[-1]:
-                        return
-                    r = resolver(rc_mtd, static_method=True)
-                    if r:
-                        assert len(r) == 1
-                        _, md = r[0]
-                        dig_call(rc_mtd, md, stack)
+                        pass
+                    else:
+                        r = resolver(rc_mtd, static_method=True)
+                        if r:
+                            assert len(r) == 1
+                            _, md = r[0]
+                            dig_call(rc_mtd, md, stack)
                 elif cmd == jp.INVOKE:
                     receiver_class, mtd = node[1], node[2]
                     rc_mtd = (receiver_class, mtd)
                     if not include_direct_recursive_calls and rc_mtd == stack[-1]:
-                        return
-                    r = resolver(rc_mtd)
-                    for rc_mtd, md in r:
-                        dig_call(rc_mtd, md, stack)
+                        pass
+                    else:
+                        r = resolver(rc_mtd)
+                        for rc_mtd, md in r:
+                            dig_call(rc_mtd, md, stack)
+                elif cmd in (jp.LABEL, jp.RETURN, jp.THROW):
+                    pass
                 else:
                     # sys.stderr.write("node = %s\n" % repr(node))
                     assert False
@@ -140,7 +144,7 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
                     dig_node(item, callee, stack)
         finally:
             if len(stack) > len_stack0:
-                stack[:] = stack[len_stack0:]
+                stack[:] = stack[:len_stack0]
 
     def dig_call(rc_mtd, md, stack):
         len_stack0 = len(stack)
@@ -158,11 +162,10 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
                 return
             methods_searched.add(rc_mtd)
             stack.append(rc_mtd)
-            node = aot[0]
-            dig_node(node, rc_mtd, stack)
+            dig_node(aot, rc_mtd, stack)
         finally:
             if len(stack) > len_stack0:
-                stack[:] = stack[len_stack0:]
+                stack[:] = stack[:len_stack0]
 
     stack_sentinel = None
     dig_call(c_m0, md0, [stack_sentinel])
@@ -185,9 +188,10 @@ def find_entry_points(class_table):
 CALL = "call"
 
 
-def build_call_andor_tree(entry_point, resolver, methods_ircc):
+def build_call_andor_tree(entry_point, resolver, methods_ircc, call_node_memo={}):
     # entry_point  # (str, MethodSig)
     # methods_ircc  # set of (str, MethodSig)
+    # call_node_memo = {}  # (str, MethodSig, recursive_context) -> node
 
     def dig_node(aot, recursive_context, clz_msig):
         if isinstance(aot, list):
@@ -230,8 +234,7 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc):
         else:
             return None
 
-    call_node_memo = {}  # (str, MethodSig, recursive_context) -> node
-
+    digging_calls = []
     def dig_dispatch(cmd, recv_msig, recursive_context, loc_info):
         cand_methods = resolver(recv_msig, static_method=(cmd == jp.SPECIALINVOKE))
         if not cand_methods:
@@ -246,7 +249,14 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc):
             v = call_node_memo.get(node_label)
             if v is None:
                 if md.code != jcbte.NOTREE:
-                    v = dig_node(md.code, rc, clz_method)
+                    if clz_method in digging_calls:
+                        if rc is None:
+                            assert clz_method == digging_calls[-1]  # direct recursion
+                        v = [at.ORDERED_AND]
+                    else:
+                        digging_calls.append(clz_method)
+                        v = dig_node(md.code, rc, clz_method)
+                        digging_calls.pop()
                 else:
                     v = jcbte.NOTREE  # can't expand
                 call_node_memo[node_label] = v
@@ -263,7 +273,7 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc):
     return dig_dispatch(jp.SPECIALINVOKE, entry_point, None, None)
 
 
-def extract_call_andor_tree(class_table, entry_point):
+def extract_call_andor_trees(class_table, entry_points):
     class_to_descendants = extract_class_hierarchy(class_table)
     class_to_methods = dict((claz, cd.methods.keys()) for claz, cd in class_table.iteritems())
     # class_to_methods  # str -> [MethodSig]
@@ -271,14 +281,22 @@ def extract_call_andor_tree(class_table, entry_point):
     recv_method_to_defs = make_dispatch_table(class_to_methods, class_to_descendants)
 
     resolver = make_method_call_resolver(class_table, recv_method_to_defs)
-    methods_ircc = find_methods_involved_in_recursive_call_chain(entry_point, resolver)
 
+    methods_ircc = set()
+    for entry_point in entry_points:
+        ms = find_methods_involved_in_recursive_call_chain(entry_point, resolver)
+        methods_ircc.update(ms)
+    methods_ircc = sorted(methods_ircc)
     # out.write("methods involved in recursive chain:\n")
     # for mtd in methods_ircc:
     #     out.write("  %s\n" % repr(mtd))
 
-    call_tree = build_call_andor_tree(entry_point, resolver, methods_ircc)
-    return call_tree
+    call_trees = []
+    call_node_memo = {}
+    for entry_point in entry_points:
+        call_tree = build_call_andor_tree(entry_point, resolver, methods_ircc, call_node_memo=call_node_memo)
+        call_trees.append(call_tree)
+    return call_trees
 
 
 def main(argv, out=sys.stdout, logout=sys.stderr):
