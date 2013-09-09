@@ -48,47 +48,9 @@ def find_lower_bound_nodes(node, predicate_func):
     return find_lower_bound_nodes_i(node)
 
 
-UNCONTRIBUTING = 'uncontributing'
-
-
-def mark_uncontributing_nodes(node, predicate_func):
-    """
-    The predicate_func returns either True (contributing), False (not contributing), Undecided (unknown. may or maynot).
-    The predicate_func has to hold the following property:
-    (1) If a node is decided to not contribute, none of its descendant nodes contributes.
-    (2) If none of descendant nodes of a node is decided to contribute, the node is decided to not contribute.
-    Besides, if special treatment is needed to some node, the predicate_func can return a HookResult object.
-    When a HookResult object is returned, its value is used as a result for the node.
-    """
-
-    def mark_uncontributing_nodes_i(node):
-        r = predicate_func(node)
-        if isinstance(r, HookResult):
-            return r.value
-        if not isinstance(node, list):
-            return [UNCONTRIBUTING, node] if r != True else node
-
-        if r == False or not node:
-            return [UNCONTRIBUTING, node]
-        assert r is Undecided or r == True
-
-        marked = []
-        n0 = node[0]
-        if n0 in (ORDERED_AND, ORDERED_OR):
-            marked.append(n0)
-            for subn in node[1:]:
-                marked.append(mark_uncontributing_nodes_i(subn))
-            if all((isinstance(subn, list) and subn and subn[0] == UNCONTRIBUTING) for subn in marked[1:]):
-                return [UNCONTRIBUTING, node]
-        else:
-            assert False  # invalid tree
-        return marked
-
-    return mark_uncontributing_nodes_i(node)
-
-
 class LengthNotDefined(ValueError):
     pass
+
 
 def path_min_length(node, weighting_func=None):
     def path_min_length_i(node):
@@ -110,3 +72,49 @@ def path_min_length(node, weighting_func=None):
         else:
             assert False  # invalid tree
     return path_min_length_i(node)
+
+
+class Uncontributing(object):
+    def __init__(self, node):
+        self.node = node
+    def __str__(self):
+        return "Uncontributing(len=%d)" % path_min_length(self.node)
+
+
+def mark_uncontributing_nodes(node, predicate_func):
+    """
+    The predicate_func returns either True (contributing), False (not contributing), Undecided (unknown. may or maynot).
+    The predicate_func has to hold the following property:
+    (1) If a node is decided to not contribute, none of its descendant nodes contributes.
+    (2) If none of descendant nodes of a node is decided to contribute, the node is decided to not contribute.
+    Besides, if special treatment is needed to some node, the predicate_func can return a HookResult object.
+    When a HookResult object is returned, its value is used as a result for the node.
+    """
+
+    def mark_uncontributing_nodes_i(node):
+        r = predicate_func(node)
+        if isinstance(r, HookResult):
+            return r.value
+        if not isinstance(node, list):
+            return Uncontributing(node) if r != True else node
+
+        if r == False or not node:
+            return Uncontributing(node)
+        assert r is Undecided or r == True
+
+        marked = []
+        n0 = node[0]
+        if n0 in (ORDERED_AND, ORDERED_OR):
+            marked.append(n0)
+            for subn in node[1:]:
+                marked.append(mark_uncontributing_nodes_i(subn))
+            if all(isinstance(subn, Uncontributing) for subn in marked[1:]):
+                new_node = [n0]
+                for subn in marked[1:]:
+                    new_node.append(subn.node)
+                return Uncontributing(new_node)
+        else:
+            assert False  # invalid tree
+        return marked
+
+    return mark_uncontributing_nodes_i(node)

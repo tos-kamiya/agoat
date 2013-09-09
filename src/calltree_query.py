@@ -4,7 +4,7 @@ import re
 
 import jimp_parser as jp
 from andor_tree import ORDERED_AND, ORDERED_OR
-from andor_tree_query import UNCONTRIBUTING, LengthNotDefined  # re-export
+from andor_tree_query import Uncontributing, LengthNotDefined  # re-export
 from calltree_builder import CALL
 import andor_tree_query as atq
 
@@ -73,11 +73,17 @@ def mark_uncontributing_nodes_w_call(query_words, call_node):
             node_label = (clz, msig, recursive_context)
             v = call_node_memo.get(node_label)
             if v is None:
-                mw = calc_missing_query_words([(clz, msig)], query_patterns)
-                if len(mw) < len_query_patterns:
-                    v = [CALL, recursive_context, invoked, [UNCONTRIBUTING]]
+                b = mark_uncontributing_nodes_w_call_i(body)
+                recv_body_contributing = not isinstance(b, Uncontributing)
+                if recv_body_contributing:
+                    v = [CALL, recursive_context, invoked, b]
                 else:
-                    v = mark_uncontributing_nodes_w_call_i(body)
+                    mw = calc_missing_query_words([(clz, msig)], query_patterns)
+                    recv_clz_method_contributing = len(mw) < len_query_patterns
+                    if recv_clz_method_contributing:
+                        v = [CALL, recursive_context, invoked, Uncontributing([ORDERED_AND])]
+                    else:
+                        v = Uncontributing(node)
                 call_node_memo[node_label] = v
             return atq.HookResult(v)
         elif isinstance(node, tuple) and node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE):
@@ -91,18 +97,16 @@ def mark_uncontributing_nodes_w_call(query_words, call_node):
     return mark_uncontributing_nodes_w_call_i(call_node)
 
 
-def path_min_length_w_uncontributing(node):
+def path_length(node):
     def weighting_func(node):
         if isinstance(node, list):
             assert node
             n0 = node[0]
-            if n0 == UNCONTRIBUTING:
-                return atq.path_min_length(node[1], weighting_func)
-            elif n0 == CALL:
+            if n0 == CALL:
                 return 1
             else:
                 assert n0 in (ORDERED_AND, ORDERED_OR)
                 return None
         else:
             return 1
-    return atq.path_min_length(node, weighting_func)
+    return atq.path_min_length_w_uncontributing(node, weighting_func)
