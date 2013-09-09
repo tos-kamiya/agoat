@@ -59,11 +59,12 @@ def generate_call_tree_and_node_summary(entry_points, soot_dir, output_file, pre
             pickle.dump((call_trees, node_summary_table), out)
 
 
-def search_method_bodies(call_tree_file, query_words, output_file):
+def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=False):
     with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
         call_trees, node_summary_table = pickle.load(inp)
 
-    call_nodes = cq.find_lower_call_nodes(query_words, call_trees, node_summary_table)
+    query_patterns = cq.build_query_pattern_list(query_words, ignore_case=ignore_case)
+    call_nodes = cq.find_lower_call_nodes(query_patterns, call_trees, node_summary_table)
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
         pp = pprint.PrettyPrinter(indent=4, stream=out)
@@ -73,7 +74,7 @@ def search_method_bodies(call_tree_file, query_words, output_file):
             invoked = call_node[2]
             clz, msig = invoked[1], invoked[2]
             out.write("%s\t%s\t%s\n" % (clz, msig, recursive_context))
-            marked = cq.mark_uncontributing_nodes_w_call(query_words, call_node)
+            marked = cq.mark_uncontributing_nodes_w_call(query_patterns, call_node)
             pp.pprint(marked)
 
 
@@ -99,6 +100,7 @@ def main(argv):
     psr_q = subpsrs.add_parser('q', help='search by query words')
     psr_q.add_argument('calltree', action='store', help="call-tree file. '-' for standard input")
     psr_q.add_argument('queryword', action='store', nargs='+', help="query words")
+    psr_q.add_argument('-I', '--ignore-case', action='store_true')
     psr_q.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
 
     args = psr.parse_args(argv[1:])
@@ -117,7 +119,7 @@ def main(argv):
             eps = None
         generate_call_tree_and_node_summary(eps, args.soot_dir, args.output, args.pretty_print)
     elif args.command == 'q':
-        search_method_bodies(args.calltree, args.queryword, args.output)
+        search_method_bodies(args.calltree, args.queryword, args.output, args.ignore_case)
     else:
         assert False
 

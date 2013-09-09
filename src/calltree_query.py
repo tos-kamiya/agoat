@@ -26,18 +26,20 @@ def calc_missing_query_words(summary, query_patterns):
     return sorted(query_words_remaining.keys())
 
 
-def build_query_pattern_list(query_words):
+def build_query_pattern_list(query_words, ignore_case=False):
     if len(set(query_words)) != len(query_words):
         raise ValueError("duplicated query words")
     if not all(query_words):
         raise ValueError("empty string in query words")
 
-    query_patterns = [(w, re.compile(w, re.IGNORECASE)) for w in query_words]
+    if ignore_case:
+        query_patterns = [(w, re.compile(w, re.IGNORECASE)) for w in query_words]
+    else:
+        query_patterns = [(w, re.compile(w)) for w in query_words]
     return query_patterns
 
 
-def find_lower_call_nodes(query_words, call_trees, node_summary_table):
-    query_patterns = build_query_pattern_list(query_words)
+def find_lower_call_nodes(query_patterns, call_trees, node_summary_table):
     already_searched = set()
     def predicate_func(node):
         if isinstance(node, list) and node and node[0] == CALL:
@@ -73,8 +75,7 @@ def find_lower_call_nodes(query_words, call_trees, node_summary_table):
     call_nodes = _utilities.sort_uniq(call_nodes, key=get_call_node_label)
     return call_nodes
 
-def mark_uncontributing_nodes_w_call(query_words, call_node):
-    query_patterns = build_query_pattern_list(query_words)
+def mark_uncontributing_nodes_w_call(query_patterns, call_node):
     len_query_patterns = len(query_patterns)
     call_node_memo = {}
     def predicate_func(node):
