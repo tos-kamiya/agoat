@@ -100,7 +100,7 @@ class AndOrTreeQueryTest(unittest.TestCase):
                 return atq.Undecided
         tree = [atq.ORDERED_AND]
         unm = atq.mark_uncontributing_nodes(tree, pred)
-        self.assertSequenceEqual(unm, [atq.UNCONTRIBUTING, tree])
+        self.assertEqual(unm, atq.Uncontributing(tree))
 
     def test_mark_uncontributing_nodes_single_depth_tree(self):
         def pred(node):
@@ -110,7 +110,7 @@ class AndOrTreeQueryTest(unittest.TestCase):
                 return atq.Undecided
         tree = [atq.ORDERED_AND, 1, 2, 3]
         unm = atq.mark_uncontributing_nodes(tree, pred)
-        self.assertSequenceEqual(unm, [atq.ORDERED_AND, 1, [atq.UNCONTRIBUTING, 2], 3])
+        self.assertSequenceEqual(unm, [atq.ORDERED_AND, 1, atq.Uncontributing(2), 3])
 
     def test_mark_uncontributing_nodes_multiple_depth_tree(self):
         def pred(node):
@@ -120,7 +120,7 @@ class AndOrTreeQueryTest(unittest.TestCase):
                 return atq.Undecided
         tree = [atq.ORDERED_AND, 1, 2, [atq.ORDERED_OR, 3, 4]]
         unm = atq.mark_uncontributing_nodes(tree, pred)
-        self.assertSequenceEqual(unm, [atq.ORDERED_AND, 1, [atq.UNCONTRIBUTING, 2], [atq.ORDERED_OR, 3, [atq.UNCONTRIBUTING, 4]]])
+        self.assertSequenceEqual(unm, [atq.ORDERED_AND, 1, atq.Uncontributing(2), [atq.ORDERED_OR, 3, atq.Uncontributing(4)]])
 
     def test_path_min_length_empty(self):
         tree = [atq.ORDERED_AND]

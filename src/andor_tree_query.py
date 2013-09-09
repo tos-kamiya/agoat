@@ -77,8 +77,17 @@ def path_min_length(node, weighting_func=None):
 class Uncontributing(object):
     def __init__(self, node):
         self.node = node
+
     def __str__(self):
         return "Uncontributing(len=%d)" % path_min_length(self.node)
+
+    def __eq__(self, other):
+        if not isinstance(other, Uncontributing):
+            return False
+        return self.node == other.node
+
+    def __hash__(self):
+        return hash(self.node)
 
 
 def mark_uncontributing_nodes(node, predicate_func):
