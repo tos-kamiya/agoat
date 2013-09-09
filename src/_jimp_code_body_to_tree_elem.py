@@ -78,8 +78,7 @@ def gen_resolver(method_data, class_data):
 
 
 def resolve_type(inss, method_data, class_data):
-    if inss is None:
-        assert False
+    assert inss is not None
 
     resolve = gen_resolver(method_data, class_data)
     resolved_inss = []
