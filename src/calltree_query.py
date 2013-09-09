@@ -79,7 +79,7 @@ def mark_uncontributing_nodes_w_call(query_words, call_node):
                 else:
                     v = mark_uncontributing_nodes_w_call_i(body)
                 call_node_memo[node_label] = v
-                return atq.HookResult(v)
+            return atq.HookResult(v)
         elif isinstance(node, tuple) and node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE):
             clz, msig = node[1], node[2]
             mw = calc_missing_query_words([(clz, msig)], query_patterns)
