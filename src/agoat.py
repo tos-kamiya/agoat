@@ -7,6 +7,7 @@ import pickle
 
 from _utilities import open_w_default
 
+import andor_tree_query as atq
 import jimp_parser as jp
 import jimp_code_term_extractor as jcte
 import calltree_builder as cb
@@ -72,6 +73,34 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
         pickle.dump(clz_msig2conversion, out)
+
+
+def mark_uncontributing_nodes_w_call_wo_memo(call_node, query_patterns):
+    len_query_patterns = len(query_patterns)
+    def predicate_func(node):
+        if isinstance(node, list) and node and node[0] == cb.CALL:
+            recursive_context = node[1]
+            invoked = node[2]
+            body = node[3]
+            clz, msig = invoked[1], invoked[2]
+            b = mark_uncontributing_nodes_w_call_i(body)
+            recv_body_contributing = not isinstance(b, cq.Uncontributing)
+            if recv_body_contributing:
+                v = [cb.CALL, recursive_context, invoked, b]
+            else:
+                if cq.count_missing_query_words([(clz, msig)], query_patterns) < len_query_patterns:
+                    v = [cb.CALL, recursive_context, invoked, cq.Uncontributing([atq.ORDERED_AND])]
+                else:
+                    v = cq.Uncontributing(node)
+            return atq.HookResult(v)
+        elif isinstance(node, tuple) and node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE):
+            clz, msig = node[1], node[2]
+            return cq.count_missing_query_words([(clz, msig)], query_patterns) < len_query_patterns
+        else:
+            return atq.Undecided
+    def mark_uncontributing_nodes_w_call_i(node):
+        return atq.mark_uncontributing_nodes(node, predicate_func)
+    return mark_uncontributing_nodes_w_call_i(call_node)
 
 
 def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2conversion=None):
@@ -270,7 +299,7 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
     with open_w_default(output_file, "wb", sys.stdout) as out:
         for call_node in sorted(call_nodes):
             shallower = cq.extract_shallowest_treecut(call_node, query_patterns)
-            marked = cq.mark_uncontributing_nodes_w_call(shallower, query_patterns)
+            marked = mark_uncontributing_nodes_w_call_wo_memo(shallower, query_patterns)
             out.write("---\n")
             format_call_tree_node_compact(marked, out, clz_msig2conversion=clz_msig2conversion)
 #         pp = pprint.PrettyPrinter(indent=4, stream=out)
