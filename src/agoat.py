@@ -4,7 +4,6 @@ import os
 import sys
 import argparse
 import pickle
-import pprint
 
 from _utilities import open_w_default
 
@@ -14,6 +13,15 @@ import calltree_builder as cb
 import node_summarizer as ns
 import calltree_query as cq
 import src_linenumber_converter as slc
+
+
+def pretty_print_pickle_data(data_file, out=sys.stdout):
+    import pprint
+
+    with open_w_default(data_file, "rb", sys.stdin) as inp:
+        data = pickle.load(inp)
+    pp = pprint.PrettyPrinter(indent=4, stream=out)
+    pp.pprint(data)
 
 
 def list_entry_points(soot_dir, output_file):
@@ -36,7 +44,7 @@ def list_methods(soot_dir, output_file):
             out.write("%s\t%s\n" % (clz, msig))
 
 
-def generate_call_tree_and_node_summary(entry_points, soot_dir, output_file, pretty_print=False):
+def generate_call_tree_and_node_summary(entry_points, soot_dir, output_file):
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
 
@@ -50,18 +58,10 @@ def generate_call_tree_and_node_summary(entry_points, soot_dir, output_file, pre
         node_summary_table = ns.extract_node_summerize_table(call_tree, summary_memo=node_summary_table)
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        if pretty_print:
-            pp = pprint.PrettyPrinter(indent=4, stream=out)
-            for call_tree in call_trees:
-                out.write("call tree:\n")
-                pp.pprint(call_tree)
-            out.write("node summary table:\n")
-            pp.pprint(node_summary_table)
-        else:
-            pickle.dump((call_trees, node_summary_table), out)
+        pickle.dump((call_trees, node_summary_table), out)
 
 
-def generate_linenumber_table(soot_dir, javap_dir, output_file, pretty_print=False):
+def generate_linenumber_table(soot_dir, javap_dir, output_file):
     assert os.path.isdir(soot_dir)
     assert os.path.isdir(javap_dir)
 
@@ -71,12 +71,7 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file, pretty_print=Fal
     clz_msig2conversion = slc.jimp_linnum_to_src_linenum_table(class_table, claz_msig2invocationindex2linenum)
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        if pretty_print:
-            pp = pprint.PrettyPrinter(indent=4, stream=out)
-            out.write("line-number table:\n")
-            pp.pprint(clz_msig2conversion)
-        else:
-            pickle.dump(clz_msig2conversion, out)
+        pickle.dump(clz_msig2conversion, out)
 
 
 def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2conversion=None):
@@ -149,6 +144,7 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
 
     return format_i(node, 0)
 
+
 def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=False, line_number_table=None):
     with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
         call_trees, node_summary_table = pickle.load(inp)
@@ -199,7 +195,6 @@ def main(argv):
     psr_sl.add_argument('-o', '--output', action='store', 
             help="output file. '-' for standard output. (default '%s')" % default_linenumbertable_path, 
             default=default_linenumbertable_path)
-    psr_sl.add_argument('--pretty-print', action='store_true', help='print call-tree in human-readable format')
 
     psr_ct = subpsrs.add_parser('c', help='generate call tree and node summary table')
     psr_ct.add_argument('-e', '--entry-point', action='store', nargs='*', dest='entrypointclasses',
@@ -208,7 +203,6 @@ def main(argv):
     psr_ct.add_argument('-o', '--output', action='store', 
             help="output file. '-' for standard output. (default '%s')" % default_calltree_path, 
             default=default_calltree_path)
-    psr_ct.add_argument('--pretty-print', action='store_true', help='print call-tree in human-readable format')
 
     psr_q = subpsrs.add_parser('q', help='search query words in call tree')
     psr_q.add_argument('queryword', action='store', nargs='+', help="query words")
@@ -221,11 +215,14 @@ def main(argv):
             help="line-number table file. '-' for standard input. (default '%s')" % default_linenumbertable_path,
             default=None)
 
+    psr_db = subpsrs.add_parser('debug', help='debug function')
+    psr_db.add_argument('-p', action='store', dest='internaldata', help='pretty print internal data')
+
     args = psr.parse_args(argv[1:])
     if args.command == 'm':
         list_methods(args.soot_dir, args.output)
     elif args.command == 'l':
-        generate_linenumber_table(args.soot_dir, args.javap_dir, args.output, args.pretty_print)
+        generate_linenumber_table(args.soot_dir, args.javap_dir, args.output)
     elif args.command == 'c':
         if args.entrypointclasses is not None:
             eps = []
@@ -235,7 +232,7 @@ def main(argv):
                 eps.append(entry_point)
         else:
             eps = None
-        generate_call_tree_and_node_summary(eps, args.soot_dir, args.output, args.pretty_print)
+        generate_call_tree_and_node_summary(eps, args.soot_dir, args.output)
     elif args.command == 'q':
         line_number_table = None
         if args.line_number_table is not None:
@@ -244,6 +241,9 @@ def main(argv):
             if os.path.exists(default_linenumbertable_path):
                 line_number_table = default_linenumbertable_path
         search_method_bodies(args.call_tree, args.queryword, args.output, args.ignore_case, line_number_table)
+    elif args.command == 'debug':
+        if args.internaldata:
+            pretty_print_pickle_data(args.internaldata)
     else:
         assert False
 
