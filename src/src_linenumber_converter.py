@@ -132,7 +132,7 @@ def split_into_method_iter(asmfile, lines):
                         yield METHOD_CODE, pack(class_name, method_sig, method_body)
                         method_sig, method_body = None, None
                     args = m.group('args') or ''
-                    method_sig = '\t'.join(['void', m.group('name')] + filter(None, args.split(', ')))
+                    method_sig = '\t'.join(['void', '<init>'] + filter(None, args.split(', ')))
                     method_body = []
                 else:
                     m = pat_static.match(L)
@@ -140,8 +140,8 @@ def split_into_method_iter(asmfile, lines):
                         if class_name and method_sig:
                             yield METHOD_CODE, pack(class_name, method_sig, method_body)
                             method_sig, method_body = None, None
-#                         method_sig = '\t'.join([m.group('retv'), m.group('name')] + filter(None, args.split(', ')))
-#                         method_body = []
+                        method_sig = '\t'.join(['void', '<clinit>'])
+                        method_body = []
         else:
             if method_body is not None:
                 method_body.append(L)
