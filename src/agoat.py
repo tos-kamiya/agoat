@@ -26,22 +26,20 @@ def pretty_print_pickle_data(data_file, out=sys.stdout):
 
 
 def format_clz_msig(clz, msig):
-    fields = msig.split('\t')
-    retv = fields[0]
-    method_name = fields[1]
-    params = fields[2:]
-    return "%s %s %s(%s)" % (clz, retv, method_name, ','.join(params))
+    return "%s %s %s(%s)" % (clz, jp.methodsig_retv(msig), jp.methodsig_name(msig), ','.join(jp.methodsig_params(msig)))
 
 
-def list_entry_points(soot_dir, output_file):
+def list_entry_points(soot_dir, output_file, option_method_sig=False):
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
     entry_points = cb.find_entry_points(class_table)
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
         for ep in sorted(entry_points):
-            out.write("%s\n" % ep[0])
-
+            if not option_method_sig:
+                out.write("%s\n" % ep[0])
+            else:
+                out.write("%s\n" % format_clz_msig(*ep))
 
 def list_methods(soot_dir, output_file):
     class_table = dict((clz, cd) \
@@ -53,12 +51,11 @@ def list_methods(soot_dir, output_file):
             out.write("%s\n" % format_clz_msig(clz, msig))
 
 
-def generate_call_tree_and_node_summary(entry_points, soot_dir, output_file):
+def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_file):
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
 
-    if entry_points is None:
-        entry_points = cb.find_entry_points(class_table)
+    entry_points = cb.find_entry_points(class_table, target_class_names=entry_point_classes)
 
     class_table = cb.inss_to_tree_in_class_table(class_table)
     call_trees = cb.extract_call_andor_trees(class_table, entry_points)
@@ -348,6 +345,7 @@ def main(argv):
     psr_ep = subpsrs.add_parser('e', help='listing entry point classes')
     psr_ep.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_ep.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
+    psr_ep.add_argument('-m', '--method-sig', action='store_true', help="output method signatures")
 
     psr_mt = subpsrs.add_parser('m', help='listing methods (defined methods and used ones)')
     psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
@@ -387,21 +385,13 @@ def main(argv):
 
     args = psr.parse_args(argv[1:])
     if args.command == 'e':
-        list_entry_points(args.soot_dir, args.output)
+        list_entry_points(args.soot_dir, args.output, args.method_sig)
     elif args.command == 'm':
         list_methods(args.soot_dir, args.output)
     elif args.command == 'l':
         generate_linenumber_table(args.soot_dir, args.javap_dir, args.output)
     elif args.command == 'c':
-        if args.entrypointclasses is not None:
-            eps = []
-            entry_point_msig = jp.MethodSig(None, "main", ("java.lang.String[]",))
-            for c in args.entrypointclasses:
-                entry_point = (c, entry_point_msig)
-                eps.append(entry_point)
-        else:
-            eps = None
-        generate_call_tree_and_node_summary(eps, args.soot_dir, args.output)
+        generate_call_tree_and_node_summary(args.entrypointclasses, args.soot_dir, args.output)
     elif args.command == 'q':
         line_number_table = None
         if args.line_number_table is not None:
