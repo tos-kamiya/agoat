@@ -38,8 +38,8 @@ public class Hello extends java.lang.Object
 """
 
 
-def stub_store_jimp_method_code(mtd, linenum, lines):
-    mtd.code = (linenum, lines)
+def stub_store_jimp_method_code(mtd, line_and_linenums):
+    mtd.code = zip(*line_and_linenums)[0]
 
 
 class JimpParserTest(unittest.TestCase):

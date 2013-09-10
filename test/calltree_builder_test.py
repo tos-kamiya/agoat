@@ -7,6 +7,7 @@ import os.path
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
+import andor_tree as at
 import jimp_parser as jp
 import calltree_builder as cb
 
@@ -99,12 +100,12 @@ class CalltreeBuilderTest(unittest.TestCase):
     def test_find_methods_involved_in_recursive_call_chain_direct(self):
         class_table = {
             'A': ClassDataStubOnlyMethods('A', {
-                'main': MethodDataStubOnlyCode('main', [
+                'main': MethodDataStubOnlyCode('main', [at.ORDERED_AND,
                     (jp.INVOKE, 'B', 'b')
                 ])
             }),
             'B': ClassDataStubOnlyMethods('B', {
-                'b': MethodDataStubOnlyCode('b', [
+                'b': MethodDataStubOnlyCode('b', [at.ORDERED_AND,
                     (jp.INVOKE, 'B', 'b')
                 ])
             }),
@@ -128,17 +129,17 @@ class CalltreeBuilderTest(unittest.TestCase):
     def test_find_methods_involved_in_recursive_call_chain_indirect(self):
         class_table = {
             'A': ClassDataStubOnlyMethods('A', {
-                'main': MethodDataStubOnlyCode('main', [
+                'main': MethodDataStubOnlyCode('main', [at.ORDERED_AND,
                     (jp.INVOKE, 'B', 'b')
                 ])
             }),
             'B': ClassDataStubOnlyMethods('B', {
-                'b': MethodDataStubOnlyCode('b', [
+                'b': MethodDataStubOnlyCode('b', [at.ORDERED_AND,
                     (jp.INVOKE, 'C', 'c')
                 ])
             }),
             'C': ClassDataStubOnlyMethods('C', {
-                'c': MethodDataStubOnlyCode('c', [
+                'c': MethodDataStubOnlyCode('c', [at.ORDERED_AND,
                     (jp.INVOKE, 'B', 'b')
                 ])
             }),

@@ -13,6 +13,7 @@ import jimp_code_term_extractor as jcte
 import calltree_builder as cb
 import node_summarizer as ns
 import calltree_query as cq
+import src_linenumber_converter as slc
 
 
 def list_entry_points(soot_dir, output_file):
@@ -60,27 +61,124 @@ def generate_call_tree_and_node_summary(entry_points, soot_dir, output_file, pre
             pickle.dump((call_trees, node_summary_table), out)
 
 
-def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=False):
+def generate_linenumber_table(soot_dir, javap_dir, output_file, pretty_print=False):
+    assert os.path.isdir(soot_dir)
+    assert os.path.isdir(javap_dir)
+
+    class_table = dict((clz, cd) \
+            for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
+    claz_msig2invocationindex2linenum = slc.make_invocationindex_to_src_linenum_table(javap_dir)
+    clz_msig2conversion = slc.jimp_linnum_to_src_linenum_table(class_table, claz_msig2invocationindex2linenum)
+
+    with open_w_default(output_file, "wb", sys.stdout) as out:
+        if pretty_print:
+            pp = pprint.PrettyPrinter(indent=4, stream=out)
+            out.write("line-number table:\n")
+            pp.pprint(clz_msig2conversion)
+        else:
+            pickle.dump(clz_msig2conversion, out)
+
+
+def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2conversion=None):
+    def format_clz_msig(clz, msig):
+        fields = msig.split('\t')
+        retv = fields[0]
+        method_name = fields[1]
+        params = fields[2:]
+        return "%s . %s %s(%s)" % (clz, retv, method_name, ','.join(params))
+
+    if clz_msig2conversion:
+        def format_loc_info(loc_info):
+            if loc_info is None:
+                return "-"
+            clz, msig, jimp_linenum_str = loc_info.split('\n')
+            jimp_linenum = int(jimp_linenum_str)
+            conv = clz_msig2conversion.get((clz, msig))
+            if not conv:
+                assert False  #debug
+            src_linenum = conv[jimp_linenum] if conv else "*"
+            return "%s\t(line: %s)" % (format_clz_msig(clz, msig), src_linenum)
+    else:
+        def format_loc_info(loc_info):
+            if loc_info is None:
+                return "-"
+            clz, msig, jimp_linenum_str = loc_info.split('\n')
+            return "%s" % (format_clz_msig(clz, msig))
+
+    indent_step_str = ' ' * indent_width
+    def format_i(node, indent):
+        if isinstance(node, list):
+            assert node
+            n0 = node[0]
+            if n0 == cq.ORDERED_OR:
+                out.write('%s||\n' % (indent_step_str * indent))
+                for subn in node[1:]:
+                    if isinstance(subn, cq.Uncontributing):
+                        pass
+                    else:
+                        format_i(subn, indent + 1)
+            elif n0 == cq.ORDERED_AND:
+                for subn in node[1:]:
+                    if isinstance(subn, cq.Uncontributing):
+                        pass
+                    else:
+                        format_i(subn, indent)
+            elif n0 == cb.CALL:
+                invoked = node[2]
+                clz, msig = invoked[1], invoked[2]
+                loc_info = invoked[3]
+                out.write('%s%s\t%s\n' % (indent_step_str * indent, format_clz_msig(clz, msig), format_loc_info(loc_info)))
+                body = node[3]
+                if not (body is None or isinstance(body, cq.Uncontributing)):
+                    format_i(body, indent + 1)
+            else:
+                assert False
+        elif isinstance(node, tuple):
+            assert node
+            n0 = node[0]
+            assert n0 in (jp.INVOKE, jp.SPECIALINVOKE)
+            clz, msig = node[1], node[2]
+            loc_info = node[3]
+            out.write('%s%s\t%s\n' % (indent_step_str * indent, format_clz_msig(clz, msig), format_loc_info(loc_info)))
+        elif isinstance(node, cq.Uncontributing):
+            assert False
+        else:
+            assert False
+
+    return format_i(node, 0)
+
+def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=False, line_number_table=None):
     with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
         call_trees, node_summary_table = pickle.load(inp)
+
+    clz_msig2conversion = None
+    if line_number_table is not None:
+        print line_number_table
+        with open_w_default(line_number_table, "rb", sys.stdin) as inp:
+            clz_msig2conversion = pickle.load(inp)
 
     query_patterns = cq.build_query_pattern_list(query_words, ignore_case=ignore_case)
     call_nodes = cq.find_lower_call_nodes(query_patterns, call_trees, node_summary_table)
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        pp = pprint.PrettyPrinter(indent=4, stream=out)
         for call_node in sorted(call_nodes):
             out.write("---\n")
-            recursive_context = call_node[1]
-            invoked = call_node[2]
-            clz, msig = invoked[1], invoked[2]
-            out.write("%s\t%s\t%s\n" % (clz, msig, recursive_context))
             marked = cq.mark_uncontributing_nodes_w_call(query_patterns, call_node)
-            pp.pprint(marked)
-
+            format_call_tree_node(marked, out, clz_msig2conversion=clz_msig2conversion)
+#         pp = pprint.PrettyPrinter(indent=4, stream=out)
+#         for call_node in sorted(call_nodes):
+#             out.write("---\n")
+#             recursive_context = call_node[1]
+#             invoked = call_node[2]
+#             clz, msig = invoked[1], invoked[2]
+#             out.write("%s\t%s\t%s\n" % (clz, msig, recursive_context))
+#             marked = cq.mark_uncontributing_nodes_w_call(query_patterns, call_node)
+#             pp.pprint(marked)
 
 def main(argv):
-    default_calltree_path = os.path.join(os.curdir, 'agoat.calltree')
+    default_calltree_path = 'agoat.calltree'
+    default_linenumbertable_path = 'agoat.linenumbertable'
+    default_javap_dir_path = 'javapOutput'
 
     psr = argparse.ArgumentParser(description='agoat command-line')
     subpsrs = psr.add_subparsers(dest='command', help='commands')
@@ -93,6 +191,14 @@ def main(argv):
     psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_mt.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
 
+    psr_sl = subpsrs.add_parser('l', help='generate line number table')
+    psr_sl.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
+    psr_sl.add_argument('-j', '--javap-dir', action='store', default=default_javap_dir_path)
+    psr_sl.add_argument('-o', '--output', action='store', 
+            help="output file. '-' for standard output. (default '%s')" % default_linenumbertable_path, 
+            default=default_linenumbertable_path)
+    psr_sl.add_argument('--pretty-print', action='store_true', help='print call-tree in human-readable format')
+
     psr_ct = subpsrs.add_parser('c', help='generate call tree and node summary table')
     psr_ct.add_argument('-e', '--entry-point', action='store', nargs='*', dest='entrypointclasses',
             help='entry-point class. If not given, all possible classes will be regarded as entry points')
@@ -100,19 +206,24 @@ def main(argv):
     psr_ct.add_argument('-o', '--output', action='store', 
             help="output file. '-' for standard output. (default '%s')" % default_calltree_path, 
             default=default_calltree_path)
-    psr_ct.add_argument('-p', '--pretty-print', action='store_true', help='print call-tree in human-readable format')
+    psr_ct.add_argument('--pretty-print', action='store_true', help='print call-tree in human-readable format')
 
     psr_q = subpsrs.add_parser('q', help='search query words in call tree')
-    psr_q.add_argument('-c', '--call-tree', action='store', 
-           help="call-tree file. '-' for standard input. (default '%s')" % default_calltree_path,
-            default=default_calltree_path)
     psr_q.add_argument('queryword', action='store', nargs='+', help="query words")
+    psr_q.add_argument('-c', '--call-tree', action='store', 
+            help="call-tree file. '-' for standard input. (default '%s')" % default_calltree_path,
+            default=default_calltree_path)
     psr_q.add_argument('-I', '--ignore-case', action='store_true')
     psr_q.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
+    psr_q.add_argument('-l', '--line-number-table', action='store', 
+            help="line-number table file. '-' for standard input. (default '%s')" % default_linenumbertable_path,
+            default=None)
 
     args = psr.parse_args(argv[1:])
     if args.command == 'm':
-        list_methods(args.soot_dir, args.output, args.entry_point)
+        list_methods(args.soot_dir, args.output)
+    elif args.command == 'l':
+        generate_linenumber_table(args.soot_dir, args.javap_dir, args.output, args.pretty_print)
     elif args.command == 'c':
         if args.entrypointclasses is not None:
             eps = []
@@ -124,7 +235,13 @@ def main(argv):
             eps = None
         generate_call_tree_and_node_summary(eps, args.soot_dir, args.output, args.pretty_print)
     elif args.command == 'q':
-        search_method_bodies(args.call_tree, args.queryword, args.output, args.ignore_case)
+        line_number_table = None
+        if args.line_number_table is not None:
+            line_number_table = args.line_number_table
+        else:
+            if os.path.exists(default_linenumbertable_path):
+                line_number_table = default_linenumbertable_path
+        search_method_bodies(args.call_tree, args.queryword, args.output, args.ignore_case, line_number_table)
     else:
         assert False
 

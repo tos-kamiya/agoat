@@ -73,7 +73,7 @@ class InvalidCode(ValueError):
     pass
 
 
-def parse_jimp_code(linenum, lines, filename=None):
+def parse_jimp_code(line_and_linenums, filename=None):
     if filename is not None:
         def loc(linenum):
             return (filename, linenum)
@@ -82,11 +82,11 @@ def parse_jimp_code(linenum, lines, filename=None):
             return linenum
     bpats = (_PAT_IF_GOTO, IFGOTO), (_PAT_GOTO, GOTO), (_PAT_LABEL, LABEL)
     inss = []
+    lines, linenums = zip(*line_and_linenums)
     len_lines = len(lines)
-    linenum0 = linenum
     i = 0
     while i < len_lines:
-        linenum = linenum0 + i
+        linenum = linenums[i]
         L = lines[i]
         if not L:
             i += 1
