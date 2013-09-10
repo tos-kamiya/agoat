@@ -124,7 +124,7 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
                 indent_str = indent_step_str * indent
                 out.write('%s%s\t%s\n' % (indent_str, format_clz_msig(clz, msig), format_loc_info(loc_info)))
                 body = node[3]
-                if not (body is None or isinstance(body, cq.Uncontributing)):
+                if not (isinstance(body, cq.Uncontributing) or isinstance(body, list) and len(body) <= 1):
                     out.write('%s{\n' % indent_str)
                     format_i(body, indent + 1)
                     out.write('%s}\n' % indent_str)
@@ -145,6 +145,88 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
     return format_i(node, 0)
 
 
+def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig2conversion=None):
+    def format_clz_msig(clz, msig):
+        fields = msig.split('\t')
+        retv = fields[0]
+        method_name = fields[1]
+        params = fields[2:]
+        return "%s . %s %s(%s)" % (clz, retv, method_name, ','.join(params))
+
+    if clz_msig2conversion:
+        def format_loc_info(loc_info):
+            if loc_info is None:
+                return "-"
+            clz, msig, jimp_linenum_str = loc_info.split('\n')
+            jimp_linenum = int(jimp_linenum_str)
+            conv = clz_msig2conversion.get((clz, msig))
+            src_linenum = conv[jimp_linenum] if conv else "*"
+            return "(line: %s)" % src_linenum
+    else:
+        def format_loc_info(loc_info):
+            return ""
+
+    indent_step_str = ' ' * indent_width
+    def format_i(node, indent):
+        if isinstance(node, list):
+            assert node
+            n0 = node[0]
+            if n0 == cq.ORDERED_OR:
+                contributing_subn = [subn for subn in node[1:] if not isinstance(subn, cq.Uncontributing)]
+                if len(contributing_subn) >= 2:
+                    out.write('%s||\n' % (indent_step_str * indent))
+                    for subn in contributing_subn:
+                        format_i(subn, indent + 1)
+                elif contributing_subn:
+                    format_i(contributing_subn[0], indent)
+            elif n0 == cq.ORDERED_AND:
+                for subn in node[1:]:
+                    if isinstance(subn, cq.Uncontributing):
+                        pass
+                    else:
+                        format_i(subn, indent)
+            elif n0 == cb.CALL:
+                invoked = node[2]
+                clz, msig = invoked[1], invoked[2]
+                loc_info = invoked[3]
+                indent_str = indent_step_str * indent
+                body = node[3]
+                if not (isinstance(body, cq.Uncontributing) or isinstance(body, list) and len(body) <= 1):
+                    out.write('%s%s {\n' % (indent_str, format_clz_msig(clz, msig)))
+                    format_i(body, indent + 1)
+                    out.write('%s}\n' % indent_str)
+                else:
+                    out.write('%s%s\t%s\n' % (indent_step_str * indent, format_clz_msig(clz, msig), format_loc_info(loc_info)))
+            else:
+                assert False
+        elif isinstance(node, tuple):
+            assert node
+            n0 = node[0]
+            assert n0 in (jp.INVOKE, jp.SPECIALINVOKE)
+            clz, msig = node[1], node[2]
+            loc_info = node[3]
+            out.write('%s%s\t%s\n' % (indent_step_str * indent, format_clz_msig(clz, msig), format_loc_info(loc_info)))
+        elif isinstance(node, cq.Uncontributing):
+            assert False
+        else:
+            assert False
+
+
+    assert isinstance(node, list) and node and node[0] == cb.CALL
+
+    indent = 0
+    invoked = node[2]
+    clz, msig = invoked[1], invoked[2]
+    indent_str = indent_step_str * indent
+    body = node[3]
+    if not (isinstance(body, cq.Uncontributing) or isinstance(body, list) and len(body) <= 1):
+        out.write('%s%s {\n' % (indent_str, format_clz_msig(clz, msig)))
+        format_i(body, indent + 1)
+        out.write('%s}\n' % indent_str)
+    else:
+        out.write('%s%s {}\n' % (indent_step_str * indent, format_clz_msig(clz, msig)))
+
+
 def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=False, line_number_table=None):
     with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
         call_trees, node_summary_table = pickle.load(inp)
@@ -162,7 +244,7 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
             shallower = cq.extract_shallowest_treecut(call_node, query_patterns)
             marked = cq.mark_uncontributing_nodes_w_call(shallower, query_patterns)
             out.write("---\n")
-            format_call_tree_node(marked, out, clz_msig2conversion=clz_msig2conversion)
+            format_call_tree_node_compact(marked, out, clz_msig2conversion=clz_msig2conversion)
 #         pp = pprint.PrettyPrinter(indent=4, stream=out)
 #         for call_node in sorted(call_nodes):
 #             out.write("---\n")
