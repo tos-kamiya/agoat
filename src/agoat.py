@@ -386,7 +386,9 @@ def main(argv):
     psr_db.add_argument('-p', action='store', dest='internaldata', help='pretty print internal data')
 
     args = psr.parse_args(argv[1:])
-    if args.command == 'm':
+    if args.command == 'e':
+        list_entry_points(args.soot_dir, args.output)
+    elif args.command == 'm':
         list_methods(args.soot_dir, args.output)
     elif args.command == 'l':
         generate_linenumber_table(args.soot_dir, args.javap_dir, args.output)
