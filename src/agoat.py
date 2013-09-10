@@ -25,6 +25,14 @@ def pretty_print_pickle_data(data_file, out=sys.stdout):
     pp.pprint(data)
 
 
+def format_clz_msig(clz, msig):
+    fields = msig.split('\t')
+    retv = fields[0]
+    method_name = fields[1]
+    params = fields[2:]
+    return "%s %s %s(%s)" % (clz, retv, method_name, ','.join(params))
+
+
 def list_entry_points(soot_dir, output_file):
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
@@ -42,7 +50,7 @@ def list_methods(soot_dir, output_file):
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
         for clz, msig in methods:
-            out.write("%s\t%s\n" % (clz, msig))
+            out.write("%s\n" % format_clz_msig(clz, msig))
 
 
 def generate_call_tree_and_node_summary(entry_points, soot_dir, output_file):
@@ -104,13 +112,6 @@ def mark_uncontributing_nodes_w_call_wo_memo(call_node, query_patterns):
 
 
 def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2conversion=None):
-    def format_clz_msig(clz, msig):
-        fields = msig.split('\t')
-        retv = fields[0]
-        method_name = fields[1]
-        params = fields[2:]
-        return "%s . %s %s(%s)" % (clz, retv, method_name, ','.join(params))
-
     if clz_msig2conversion:
         def format_loc_info(loc_info):
             if loc_info is None:
@@ -207,13 +208,6 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
 
 
 def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig2conversion=None):
-    def format_clz_msig(clz, msig):
-        fields = msig.split('\t')
-        retv = fields[0]
-        method_name = fields[1]
-        params = fields[2:]
-        return "%s . %s %s(%s)" % (clz, retv, method_name, ','.join(params))
-
     if clz_msig2conversion:
         def format_loc_info(loc_info):
             if loc_info is None:
@@ -265,8 +259,7 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
                 if node_label not in printed_node_labels:
                     printed_node_labels.add(node_label)
                     body = node[3]
-                    buf = []
-                    buf.append((0, '%s {' % format_clz_msig(clz, msig), format_loc_info(loc_info)))
+                    buf = [(0, '%s {' % format_clz_msig(clz, msig), format_loc_info(loc_info))]
                     b = format_i(body)
                     if b:
                         for p in b:
@@ -299,12 +292,11 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
 
     invoked = node[2]
     clz, msig = invoked[1], invoked[2]
-    loc_info = invoked[3]
+    # loc_info = invoked[3]
     node_label = (clz, msig, node[1])
     printed_node_labels.add(node_label)
     body = node[3]
-    line_depth_body_locinfos = []
-    line_depth_body_locinfos.append((0, '%s {' % format_clz_msig(clz, msig), format_loc_info(loc_info)))
+    line_depth_body_locinfos = [(0, '%s {' % format_clz_msig(clz, msig), '')]
     buf = format_i(body)
     if buf:
         for p in buf:
