@@ -167,8 +167,8 @@ def parse_jimp_field_decl(entity, linenum, line):
         entity.fields[name] = typ
 
 
-def store_jimp_method_code(mtd, lines):
-    mtd.code = parse_jimp_code(lines)
+def store_jimp_method_code(mtd, line_with_linenums):
+    mtd.code = parse_jimp_code(line_with_linenums)
 
 
 def parse_jimp_lines(lines,
@@ -236,7 +236,7 @@ def parse_jimp_lines(lines,
             if is_decl_line(L):
                 parse_jimp_method_local_decl(curmtd, linenum, L)
             else:
-                curcode.append((L, linenum))
+                curcode.append((linenum, L))
         elif curcls:
             if is_decl_line(L):
                 assert curcls is not None

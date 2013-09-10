@@ -73,7 +73,7 @@ class InvalidCode(ValueError):
     pass
 
 
-def parse_jimp_code(line_and_linenums, filename=None):
+def parse_jimp_code(line_with_linenums, filename=None):
     if filename is not None:
         def loc(linenum):
             return (filename, linenum)
@@ -82,12 +82,10 @@ def parse_jimp_code(line_and_linenums, filename=None):
             return linenum
     bpats = (_PAT_IF_GOTO, IFGOTO), (_PAT_GOTO, GOTO), (_PAT_LABEL, LABEL)
     inss = []
-    lines, linenums = zip(*line_and_linenums)
-    len_lines = len(lines)
+    len_lines = len(line_with_linenums)
     i = 0
     while i < len_lines:
-        linenum = linenums[i]
-        L = lines[i]
+        linenum, L = line_with_linenums[i]
         if not L:
             i += 1
         elif _PAT_BIND.match(L):
@@ -118,7 +116,7 @@ def parse_jimp_code(line_and_linenums, filename=None):
             if _PAT_SWITCH.match(L):
                 destination_labels = []
                 i += 2
-                L = lines[i]
+                _, L = line_with_linenums[i]
                 while True:
                     gd = togd(_PAT_CASE.match(L) or _PAT_DEFAULT.match(L))
                     if not gd:
@@ -127,7 +125,7 @@ def parse_jimp_code(line_and_linenums, filename=None):
                         break
                     destination_labels.append(gd["label"])
                     i += 1
-                    L = lines[i]
+                    _, L = line_with_linenums[i]
                 inss.append((SWITCH, tuple(destination_labels), loc(linenum)))
                 continue  # while i
             gd = togd(_PAT_SPECIALINVOKE.match(L)
