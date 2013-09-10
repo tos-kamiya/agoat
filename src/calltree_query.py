@@ -103,15 +103,11 @@ def treecut(node, depth, has_further_deep_nodes=[None]):
     return treecut_i(node, depth)
 
 
-def extract_shallowest_treecut(call_node, query_patterns):
+def extract_shallowest_treecut(call_node, query_patterns, max_depth=-1):
     assert call_node and call_node[0] == CALL
-    recursive_context = call_node[1]
-    invoked = call_node[2]
-    clz, msig = invoked[1], invoked[2]
-    node_label = (clz, msig, recursive_context)
 
     depth = 1
-    while True:
+    while max_depth < 0 or depth < max_depth:
         has_further_deep_nodes = [False]
         tc = treecut(call_node, depth, has_further_deep_nodes)
         summary = ns.summarize_node(tc)
@@ -121,6 +117,8 @@ def extract_shallowest_treecut(call_node, query_patterns):
             assert False
         depth += 1
 
+    # not found
+    return None
 
 def mark_uncontributing_nodes_w_call(call_node, query_patterns):
     len_query_patterns = len(query_patterns)

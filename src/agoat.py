@@ -284,7 +284,7 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
         out.write('%s%s\t%s\n' % (indent_step_str * d, b, locinfo))
 
 
-def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=False, line_number_table=None):
+def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=False, line_number_table=None, max_depth=-1):
     with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
         call_trees, node_summary_table = pickle.load(inp)
 
@@ -298,7 +298,9 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
         for call_node in sorted(call_nodes):
-            shallower = cq.extract_shallowest_treecut(call_node, query_patterns)
+            shallower = cq.extract_shallowest_treecut(call_node, query_patterns, max_depth)
+            if shallower is None:
+                continue
             marked = mark_uncontributing_nodes_w_call_wo_memo(shallower, query_patterns)
             out.write("---\n")
             format_call_tree_node_compact(marked, out, clz_msig2conversion=clz_msig2conversion)
@@ -316,6 +318,7 @@ def main(argv):
     default_calltree_path = 'agoat.calltree'
     default_linenumbertable_path = 'agoat.linenumbertable'
     default_javap_dir_path = 'javapOutput'
+    defalut_max_depth_of_subtree = 5
 
     psr = argparse.ArgumentParser(description='agoat command-line')
     subpsrs = psr.add_subparsers(dest='command', help='commands')
@@ -353,6 +356,9 @@ def main(argv):
     psr_q.add_argument('-l', '--line-number-table', action='store', 
             help="line-number table file. '-' for standard input. (default '%s')" % default_linenumbertable_path,
             default=None)
+    psr_q.add_argument('-D', '--max-depth', action='store', type=int, 
+            help="max depth of subtree. -1 for unlimited depth. (default is '%d')" % defalut_max_depth_of_subtree,
+            default=defalut_max_depth_of_subtree)
 
     psr_db = subpsrs.add_parser('debug', help='debug function')
     psr_db.add_argument('-p', action='store', dest='internaldata', help='pretty print internal data')
@@ -379,7 +385,7 @@ def main(argv):
         else:
             if os.path.exists(default_linenumbertable_path):
                 line_number_table = default_linenumbertable_path
-        search_method_bodies(args.call_tree, args.queryword, args.output, args.ignore_case, line_number_table)
+        search_method_bodies(args.call_tree, args.queryword, args.output, args.ignore_case, line_number_table, args.max_depth)
     elif args.command == 'debug':
         if args.internaldata:
             pretty_print_pickle_data(args.internaldata)
