@@ -23,16 +23,16 @@ class JimpCodeParserTest(unittest.TestCase):
         specialinvoke r0.<init>();
         return;
 """.split("\n"))
-        line_and_linenums = [(L, li + 1) for li, L in enumerate(lines)]
-        c = jcp.parse_jimp_code(line_and_linenums)
+        line_with_linenums = [(li + 1, L) for li, L in enumerate(lines)]
+        c = jcp.parse_jimp_code(line_with_linenums)
         self.assertSequenceEqual(c, [
             (jcp.SPECIALINVOKE, 'r0', '<init>', (), None, 2),
             (jcp.RETURN, 3)
         ])
 
         fn = "SpecialInvoke.jimp"
-        line_and_linenums = [(L, li + 1) for li, L in enumerate(lines)]
-        c = jcp.parse_jimp_code(line_and_linenums, fn)
+        line_with_linenums = [(li + 1, L) for li, L in enumerate(lines)]
+        c = jcp.parse_jimp_code(line_with_linenums, fn)
         self.assert_having_filename(c, fn)
 
     def test_invoke(self):
@@ -43,16 +43,16 @@ class JimpCodeParserTest(unittest.TestCase):
         $r1.format("Hello\n", $r2);
         return;
 """.split("\n"))
-        line_and_linenums = [(L, li + 1) for li, L in enumerate(lines)]
-        c = jcp.parse_jimp_code(line_and_linenums)
+        line_with_linenums = [(li + 1, L) for li, L in enumerate(lines)]
+        c = jcp.parse_jimp_code(line_with_linenums)
         self.assertSequenceEqual(c, [
             (jcp.INVOKE, '$r1', 'format', ('"Hello\\n"', '$r2'), None, 4),
             (jcp.RETURN, 5)
         ])
 
         fn = "Invoke.jimp"
-        line_and_linenums = [(L, li + 1) for li, L in enumerate(lines)]
-        c = jcp.parse_jimp_code(line_and_linenums, fn)
+        line_with_linenums = [(li + 1, L) for li, L in enumerate(lines)]
+        c = jcp.parse_jimp_code(line_with_linenums, fn)
         self.assert_having_filename(c, fn)
 
     def test_if_goto(self):
@@ -68,8 +68,8 @@ class JimpCodeParserTest(unittest.TestCase):
     label1:
         return;
 """.split("\n"))
-        line_and_linenums = [(L, li + 1) for li, L in enumerate(lines)]
-        c = jcp.parse_jimp_code(line_and_linenums)
+        line_with_linenums = [(li + 1, L) for li, L in enumerate(lines)]
+        c = jcp.parse_jimp_code(line_with_linenums)
         self.assertSequenceEqual(c, [
             (jcp.IFGOTO, 'label0', 3),
             (jcp.INVOKE, '$r1', 'println',
@@ -82,8 +82,8 @@ class JimpCodeParserTest(unittest.TestCase):
         ])
 
         fn = "IfGoto.jimp"
-        line_and_linenums = [(L, li + 1) for li, L in enumerate(lines)]
-        c = jcp.parse_jimp_code(line_and_linenums, fn)
+        line_with_linenums = [(li + 1, L) for li, L in enumerate(lines)]
+        c = jcp.parse_jimp_code(line_with_linenums, fn)
         self.assert_having_filename(c, fn)
 
     def test_switch(self):
@@ -127,13 +127,13 @@ class JimpCodeParserTest(unittest.TestCase):
             (jcp.LABEL, 'label5', 22),
             (jcp.RETURN, 23)
         ]
-        line_and_linenums = [(L, li + 1) for li, L in enumerate(lines)]
-        c = jcp.parse_jimp_code(line_and_linenums)
+        line_with_linenums = [(li + 1, L) for li, L in enumerate(lines)]
+        c = jcp.parse_jimp_code(line_with_linenums)
         self.assertSequenceEqual(c, expected)
 
         fn = "Switch.jimp"
-        line_and_linenums = [(L, li + 1) for li, L in enumerate(lines)]
-        c = jcp.parse_jimp_code(line_and_linenums, fn)
+        line_with_linenums = [(li + 1, L) for li, L in enumerate(lines)]
+        c = jcp.parse_jimp_code(line_with_linenums, fn)
         self.assert_having_filename(c, fn)
 
 if __name__ == "__main__":
