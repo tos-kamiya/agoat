@@ -94,8 +94,6 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
             clz, msig, jimp_linenum_str = loc_info.split('\n')
             jimp_linenum = int(jimp_linenum_str)
             conv = clz_msig2conversion.get((clz, msig))
-            if not conv:
-                assert False  #debug
             src_linenum = conv[jimp_linenum] if conv else "*"
             return "%s\t(line: %s)" % (format_clz_msig(clz, msig), src_linenum)
     else:
@@ -128,10 +126,13 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
                 invoked = node[2]
                 clz, msig = invoked[1], invoked[2]
                 loc_info = invoked[3]
-                out.write('%s%s\t%s\n' % (indent_step_str * indent, format_clz_msig(clz, msig), format_loc_info(loc_info)))
+                indent_str = indent_step_str * indent
+                out.write('%s%s\t%s\n' % (indent_str, format_clz_msig(clz, msig), format_loc_info(loc_info)))
                 body = node[3]
                 if not (body is None or isinstance(body, cq.Uncontributing)):
+                    out.write('%s{\n' % indent_str)
                     format_i(body, indent + 1)
+                    out.write('%s}\n' % indent_str)
             else:
                 assert False
         elif isinstance(node, tuple):
