@@ -40,7 +40,8 @@ _PAT_DECL = re.compile(r"^\s+" +
 _PAT_INTERFACE_DEF_HEAD = re.compile(r"^" +
                                      r"(%s\s+)*" % _ATTR +
                                      r"(annotation\s+)?interface\s+(?P<interf_name>%s)" % _IDENTIFIER +
-                                     r".*$")
+                                     r"(\s+extends\s+(?P<base_names>(%s| )+))?" % _IDENTIFIER +
+                                     r"$")
 # _PAT_INTERFACE_DEF_BEGIN = re.compile("^" + "{" + "$")
 _PAT_INTERFACE_DEF_END = re.compile("^" + "}" + "$")
 
@@ -195,9 +196,17 @@ def parse_jimp_lines(lines,
         if not L:
             continue
 
-        if _PAT_INTERFACE_DEF_HEAD.match(L):
-            return None
-
+        gd = togd(_PAT_INTERFACE_DEF_HEAD.match(L))
+        if gd:
+            # treat an interface like an abstract class
+            assert class_name is None
+            linenum += 1
+            class_name = gd["interf_name"]
+            t = gd["base_names"]
+            base_names = t.split(" ") if t else None
+            class_data = curcls = ClassData(
+                class_name, None, base_names)
+            continue
         gd = togd(_PAT_CLASS_DEF_HEAD.match(L))
         if gd:
             assert class_name is None

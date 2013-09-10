@@ -13,6 +13,9 @@ def extract_class_hierarchy(class_table, include_indirect_decendants=True):
     for clz, class_data in class_table.iteritems():
         if class_data.base_name:
             class_to_descendants.setdefault(class_data.base_name, set()).add(clz)
+        if class_data.interf_names:
+            for interf in class_data.interf_names:
+                class_to_descendants.setdefault(interf, set()).add(clz)
 
     if include_indirect_decendants:
         emptyset = set()

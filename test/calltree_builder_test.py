@@ -16,6 +16,7 @@ class ClassDataStubOnlyBase(object):
 
     def __init__(self, base_name):
         self.base_name = base_name
+        self.interf_names = None
 
 
 class ClassDataStubOnlyMethods(object):
