@@ -11,6 +11,7 @@ from calltree_builder import CALL
 import andor_tree_query as atq
 import node_summarizer as ns
 
+
 def count_missing_query_words(summary, query_patterns):
     query_words_remaining = dict((w, r) for w, r in query_patterns)
     for c, m in summary:
@@ -113,7 +114,7 @@ def extract_shallowest_treecut(call_node, query_patterns):
     while True:
         has_further_deep_nodes = [False]
         tc = treecut(call_node, depth, has_further_deep_nodes)
-        summary = ns.summerize_node(tc)
+        summary = ns.summarize_node(tc)
         if count_missing_query_words(summary, query_patterns) == 0:
             return tc
         if not has_further_deep_nodes[0]:

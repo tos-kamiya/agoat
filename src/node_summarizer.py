@@ -10,7 +10,36 @@ import jimp_parser as jp
 import calltree_builder as cb
 
 
-def summerize_node(call_andor_tree):
+def node_complexity(node):
+    if isinstance(node, list):
+        n0 = node[0]
+        if n0 in (ORDERED_AND, ORDERED_OR):
+            depth, branch = 0, 0
+            for subn in node[1:]:
+                d, b = node_complexity(subn)
+                if d > depth:
+                    depth = d
+                branch += b
+            return depth, branch
+        elif n0 == CALL:
+            assert node[2][0] in (INVOKE, SPECIALINVOKE)
+            invoked = node[2]
+            clz_msig = clz, msig = invoked[1], invoked[2]
+            subnode = node[3]
+            if subnode == NOTREE:
+                raise ValueError("NOTREE not yet supported")
+            if subnode is None:
+                return 0, 0
+            elif isinstance(subnode, list):
+                d, b = node_complexity(subnode)
+                return d + 1, branch
+        elif n0 == NOTREE:
+            raise ValueError("NOTREE not yet supported")
+    else:
+        return 0, 0
+
+
+def summarize_node(node):
     def scan_invocation(node):
         assert isinstance(node, tuple)
         assert node[0] in (INVOKE, SPECIALINVOKE)
@@ -26,7 +55,6 @@ def summerize_node(call_andor_tree):
                     subsum.update(dig_node(subn))
                 return sorted(subsum)
             elif n0 == CALL:
-                recursive_context = node[1]
                 assert node[2][0] in (INVOKE, SPECIALINVOKE)
                 invoked = node[2]
                 clz_msig = clz, msig = invoked[1], invoked[2]
@@ -46,10 +74,10 @@ def summerize_node(call_andor_tree):
         else:
             return scan_invocation(node)
 
-    return dig_node(call_andor_tree)
+    return dig_node(node)
 
 
-def extract_node_summerize_table(call_andor_tree, summary_memo={}):
+def extract_node_summary_table(call_andor_tree, summary_memo={}):
     # summary_memo = {}  # (clz, MethodSig, recursive_context) -> list of (clz, MethodSig)
     def scan_invocation(node):
         assert isinstance(node, tuple)
@@ -94,6 +122,7 @@ def extract_node_summerize_table(call_andor_tree, summary_memo={}):
     dig_node(call_andor_tree)
     return summary_memo
 
+
 def main(argv, out=sys.stdout, logout=sys.stderr):
     import pprint
 
@@ -114,7 +143,7 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
 #     pp = pprint.PrettyPrinter(indent=4, stream=out)
 #     pp.pprint(call_andor_tree)
 
-    node_summary_table = extract_node_summerize_table(call_andor_tree)
+    node_summary_table = extract_node_summary_table(call_andor_tree)
     pp = pprint.PrettyPrinter(indent=4, stream=out)
     pp.pprint(node_summary_table)
 
