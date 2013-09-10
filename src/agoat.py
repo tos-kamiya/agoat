@@ -172,6 +172,38 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
             assert False
 
     return format_i(node, 0)
+# 
+# 
+# def node_complexity(node):
+#     if isinstance(node, list):
+#         n0 = node[0]
+#         if n0 in (atq.ORDERED_AND, atq.ORDERED_OR):
+#             depth, branch, tot_node, uncontributings = 0, 0, 0, 0
+#             for subn in node[1:]:
+#                 d, b, tn, uc = node_complexity(subn)
+#                 if d > depth:
+#                     depth = d
+#                 branch += b
+#                 tot_node += tn
+#                 uncontributings = uc
+#             return depth, branch, tot_node, uncontributings
+#         elif n0 == cb.CALL:
+#             assert node[2][0] in (jp.INVOKE, jp.SPECIALINVOKE)
+#             subnode = node[3]
+#             if subnode == cb.NOTREE:
+#                 raise ValueError("NOTREE not yet supported")
+#             elif isinstance(subnode, list):
+#                 d, b, tn, uc = node_complexity(subnode)
+#                 return d + 1, b, 1 + tn, uc
+#             elif isinstance(subnode, cq.Uncontributing): 
+#                 return 1, 0, 0, 1
+#             else:
+#                 return 1, 0, 1, 0
+#         elif n0 == cb.NOTREE:
+#             raise ValueError("NOTREE not yet supported")
+#     elif isinstance(node, cq.Uncontributing): 
+#         return 0, 0, 0, 1
+#     return 1, 0, 1, 0
 
 
 def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig2conversion=None):
@@ -295,13 +327,11 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
 
     query_patterns = cq.build_query_pattern_list(query_words, ignore_case=ignore_case)
     call_nodes = cq.find_lower_call_nodes(query_patterns, call_trees, node_summary_table)
+    shallowers = filter(None, (cq.extract_shallowest_treecut(call_node, query_patterns, max_depth) for call_node in call_nodes))
+    markeds = [mark_uncontributing_nodes_w_call_wo_memo(shallower, query_patterns) for shallower in shallowers]
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        for call_node in sorted(call_nodes):
-            shallower = cq.extract_shallowest_treecut(call_node, query_patterns, max_depth)
-            if shallower is None:
-                continue
-            marked = mark_uncontributing_nodes_w_call_wo_memo(shallower, query_patterns)
+        for marked in sorted(markeds):
             out.write("---\n")
             format_call_tree_node_compact(marked, out, clz_msig2conversion=clz_msig2conversion)
 #         pp = pprint.PrettyPrinter(indent=4, stream=out)

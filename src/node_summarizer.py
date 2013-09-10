@@ -10,35 +10,6 @@ import jimp_parser as jp
 import calltree_builder as cb
 
 
-def node_complexity(node):
-    if isinstance(node, list):
-        n0 = node[0]
-        if n0 in (ORDERED_AND, ORDERED_OR):
-            depth, branch = 0, 0
-            for subn in node[1:]:
-                d, b = node_complexity(subn)
-                if d > depth:
-                    depth = d
-                branch += b
-            return depth, branch
-        elif n0 == CALL:
-            assert node[2][0] in (INVOKE, SPECIALINVOKE)
-            invoked = node[2]
-            clz_msig = clz, msig = invoked[1], invoked[2]
-            subnode = node[3]
-            if subnode == NOTREE:
-                raise ValueError("NOTREE not yet supported")
-            if subnode is None:
-                return 0, 0
-            elif isinstance(subnode, list):
-                d, b = node_complexity(subnode)
-                return d + 1, branch
-        elif n0 == NOTREE:
-            raise ValueError("NOTREE not yet supported")
-    else:
-        return 0, 0
-
-
 def summarize_node(node):
     def scan_invocation(node):
         assert isinstance(node, tuple)
@@ -57,7 +28,7 @@ def summarize_node(node):
             elif n0 == CALL:
                 assert node[2][0] in (INVOKE, SPECIALINVOKE)
                 invoked = node[2]
-                clz_msig = clz, msig = invoked[1], invoked[2]
+                clz_msig = invoked[1], invoked[2]
                 subsum = set([clz_msig])
                 subnode = node[3]
                 if subnode == NOTREE:
