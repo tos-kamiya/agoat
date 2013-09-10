@@ -9,9 +9,9 @@ from andor_tree import ORDERED_AND, ORDERED_OR
 from andor_tree_query import Uncontributing, LengthNotDefined  # re-export
 from calltree_builder import CALL
 import andor_tree_query as atq
+import node_summarizer as ns
 
-
-def calc_missing_query_words(summary, query_patterns):
+def count_missing_query_words(summary, query_patterns):
     query_words_remaining = dict((w, r) for w, r in query_patterns)
     for c, m in summary:
         found = False
@@ -22,8 +22,8 @@ def calc_missing_query_words(summary, query_patterns):
         if found:
             del query_words_remaining[qw]
         if not query_words_remaining:
-            break  # for c, m
-    return sorted(query_words_remaining.keys())
+            return 0
+    return len(query_words_remaining)
 
 
 def build_query_pattern_list(query_words, ignore_case=False):
@@ -54,7 +54,7 @@ def find_lower_call_nodes(query_patterns, call_trees, node_summary_table):
             summary = node_summary_table.get(node_label)
             if summary is None:
                 return False
-            if not calc_missing_query_words(summary, query_patterns):
+            if count_missing_query_words(summary, query_patterns) == 0:
                 lower_bound_nodes = atq.find_lower_bound_nodes(body, predicate_func)
                 return atq.HookResult(lower_bound_nodes if lower_bound_nodes else [node])
             else:
@@ -75,7 +75,53 @@ def find_lower_call_nodes(query_patterns, call_trees, node_summary_table):
     call_nodes = _utilities.sort_uniq(call_nodes, key=get_call_node_label)
     return call_nodes
 
-def mark_uncontributing_nodes_w_call(query_patterns, call_node):
+
+def treecut(node, depth, has_further_deep_nodes=[None]):
+    def treecut_i(node, remaining_depth):
+        if isinstance(node, list):
+            assert node
+            n0 = node[0]
+            if n0 in (ORDERED_AND, ORDERED_OR):
+                t = [n0]
+                for subn in node[1:]:
+                    t.append(treecut_i(subn, remaining_depth))
+                return t
+            elif n0 == CALL:
+                if remaining_depth > 0:
+                    t = node[:3]
+                    t.append(treecut_i(node[3], remaining_depth - 1))
+                    return t
+                else:
+                    has_further_deep_nodes[0] = True
+                    assert isinstance(node[2], tuple)
+                    return node[2]
+            else:
+                assert False
+        else:
+            return node
+    return treecut_i(node, depth)
+
+
+def extract_shallowest_treecut(call_node, query_patterns):
+    assert call_node and call_node[0] == CALL
+    recursive_context = call_node[1]
+    invoked = call_node[2]
+    clz, msig = invoked[1], invoked[2]
+    node_label = (clz, msig, recursive_context)
+
+    depth = 1
+    while True:
+        has_further_deep_nodes = [False]
+        tc = treecut(call_node, depth, has_further_deep_nodes)
+        summary = ns.summerize_node(tc)
+        if count_missing_query_words(summary, query_patterns) == 0:
+            return tc
+        if not has_further_deep_nodes[0]:
+            assert False
+        depth += 1
+
+
+def mark_uncontributing_nodes_w_call(call_node, query_patterns):
     len_query_patterns = len(query_patterns)
     call_node_memo = {}
     def predicate_func(node):
@@ -92,9 +138,7 @@ def mark_uncontributing_nodes_w_call(query_patterns, call_node):
                 if recv_body_contributing:
                     v = [CALL, recursive_context, invoked, b]
                 else:
-                    mw = calc_missing_query_words([(clz, msig)], query_patterns)
-                    recv_clz_method_contributing = len(mw) < len_query_patterns
-                    if recv_clz_method_contributing:
+                    if count_missing_query_words([(clz, msig)], query_patterns) < len_query_patterns:
                         v = [CALL, recursive_context, invoked, Uncontributing([ORDERED_AND])]
                     else:
                         v = Uncontributing(node)
@@ -102,8 +146,7 @@ def mark_uncontributing_nodes_w_call(query_patterns, call_node):
             return atq.HookResult(v)
         elif isinstance(node, tuple) and node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE):
             clz, msig = node[1], node[2]
-            mw = calc_missing_query_words([(clz, msig)], query_patterns)
-            return len(mw) < len_query_patterns
+            return count_missing_query_words([(clz, msig)], query_patterns) < len_query_patterns
         else:
             return atq.Undecided
     def mark_uncontributing_nodes_w_call_i(node):

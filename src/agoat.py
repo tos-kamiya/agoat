@@ -111,12 +111,13 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
             assert node
             n0 = node[0]
             if n0 == cq.ORDERED_OR:
-                out.write('%s||\n' % (indent_step_str * indent))
-                for subn in node[1:]:
-                    if isinstance(subn, cq.Uncontributing):
-                        pass
-                    else:
+                contributing_subn = [subn for subn in node[1:] if not isinstance(subn, cq.Uncontributing)]
+                if len(contributing_subn) >= 2:
+                    out.write('%s||\n' % (indent_step_str * indent))
+                    for subn in contributing_subn:
                         format_i(subn, indent + 1)
+                elif contributing_subn:
+                    format_i(contributing_subn[0], indent)
             elif n0 == cq.ORDERED_AND:
                 for subn in node[1:]:
                     if isinstance(subn, cq.Uncontributing):
@@ -153,7 +154,6 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
 
     clz_msig2conversion = None
     if line_number_table is not None:
-        print line_number_table
         with open_w_default(line_number_table, "rb", sys.stdin) as inp:
             clz_msig2conversion = pickle.load(inp)
 
@@ -162,8 +162,9 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
         for call_node in sorted(call_nodes):
+            shallower = cq.extract_shallowest_treecut(call_node, query_patterns)
+            marked = cq.mark_uncontributing_nodes_w_call(shallower, query_patterns)
             out.write("---\n")
-            marked = cq.mark_uncontributing_nodes_w_call(query_patterns, call_node)
             format_call_tree_node(marked, out, clz_msig2conversion=clz_msig2conversion)
 #         pp = pprint.PrettyPrinter(indent=4, stream=out)
 #         for call_node in sorted(call_nodes):
@@ -172,7 +173,7 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
 #             invoked = call_node[2]
 #             clz, msig = invoked[1], invoked[2]
 #             out.write("%s\t%s\t%s\n" % (clz, msig, recursive_context))
-#             marked = cq.mark_uncontributing_nodes_w_call(query_patterns, call_node)
+#             marked = cq.mark_uncontributing_nodes_w_call(call_node, query_patterns)
 #             pp.pprint(marked)
 
 def main(argv):
