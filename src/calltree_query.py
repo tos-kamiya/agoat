@@ -1,8 +1,7 @@
 #coding: utf-8
 
 import re
-
-import _utilities
+import itertools
 
 import jimp_parser as jp
 from andor_tree import ORDERED_AND, ORDERED_OR
@@ -63,18 +62,20 @@ def find_lower_call_nodes(query_patterns, call_trees, node_summary_table):
         else:
             return atq.Undecided
 
-    def get_call_node_label(call_node):
+    def get_recv_msig(call_node):
         assert isinstance(call_node, list) and call_node and call_node[0] == CALL
-        recursive_context = call_node[1]
         invoked = call_node[2]
         clz, msig = invoked[1], invoked[2]
-        return (clz, msig, recursive_context)
+        return (clz, msig)
 
     call_nodes = []
     for call_tree in call_trees:
         call_nodes.extend(atq.find_lower_bound_nodes(call_tree, predicate_func))
-    call_nodes = _utilities.sort_uniq(call_nodes, key=get_call_node_label)
-    return call_nodes
+    call_nodes.sort(key=get_recv_msig)
+    uniq_call_nodes = []
+    for k, g in itertools.groupby(call_nodes, key=get_recv_msig):
+        uniq_call_nodes.append(g.next())
+    return uniq_call_nodes
 
 
 def treecut(node, depth, has_further_deep_nodes=[None]):
