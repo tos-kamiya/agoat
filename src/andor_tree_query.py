@@ -73,15 +73,17 @@ class Uncontributing(object):
         self.node = node
 
     def __str__(self):
-        return "Uncontributing(len=%d)" % path_min_length(self.node)
+        return "Uncontributing(*)"
 
+    # all Uncontributing objects equals to each otehr
     def __eq__(self, other):
-        if not isinstance(other, Uncontributing):
-            return False
-        return self.node == other.node
+        return isinstance(other, Uncontributing)
+
+    def __ne__(self, other):
+        return not isinstance(other, Uncontributing)
 
     def __hash__(self):
-        return hash(self.node)
+        return 1
 
 
 def mark_uncontributing_nodes(node, predicate_func):

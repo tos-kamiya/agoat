@@ -1,7 +1,6 @@
 #coding: utf-8
 
 import re
-import itertools
 
 import jimp_parser as jp
 import calltree as ct
@@ -132,12 +131,7 @@ def find_lower_call_nodes(query_patterns, call_trees, node_summary_table):
         if fullfills_query(call_tree):
             search_i(call_tree)
 
-    uniq_lower_call_nodes = []
-    for k, g in itertools.groupby(lower_call_nodes, key=cb.callnode_label):
-        uniq_lower_call_nodes.append(g.next())
-    for t in uniq_lower_call_nodes:  #debug
-        assert fullfills_query(t)  #debug
-    return uniq_lower_call_nodes
+    return lower_call_nodes
 
 
 def treecut(node, depth, has_further_deep_nodes=[None]):
@@ -175,8 +169,6 @@ def extract_shallowest_treecut(call_node, query_patterns, max_depth=-1):
         m = missing_query_patterns(summary, query_patterns)
         if not m:
             return tc
-        if not has_further_deep_nodes[0]:  #debug
-            print cb.callnode_label(call_node)  # debug
         assert has_further_deep_nodes[0]
         depth += 1
 

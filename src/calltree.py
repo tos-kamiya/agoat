@@ -22,3 +22,10 @@ class CallNode(object):
         return self.invoked == other.invoked and \
                 self.recursive_cxt == other.recursive_cxt and \
                 self.body == other.body
+
+    def __ne__(self, other):
+        if not isinstance(other, CallNode):
+            return True
+        return self.invoked != other.invoked or \
+                self.recursive_cxt != other.recursive_cxt or \
+                self.body != other.body

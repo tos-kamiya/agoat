@@ -6,7 +6,7 @@ import argparse
 import pickle
 import pprint
 
-from _utilities import open_w_default
+from _utilities import open_w_default, sort_uniq
 
 import jimp_parser as jp
 import jimp_code_term_extractor as jcte
@@ -412,6 +412,28 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
         out.write('%s%s\t%s\n' % (indent_step_str * d, b, locinfo))
 
 
+def remove_recursive_contexts(call_node):
+    def remove_rc_i(node):
+        if isinstance(node, list):
+            assert node
+            n0 = node[0]
+            if n0 in (ct.ORDERED_AND, ct.ORDERED_OR):
+                t = [n0]
+                t.extend(remove_rc_i(subn) for subn in node[1:])
+                return t
+            else:
+                assert False
+        elif isinstance(node, ct.CallNode):
+            return ct.CallNode(node.invoked, None, remove_rc_i(node.body))
+        else:
+            return node
+    return remove_rc_i(call_node)
+
+
+def remove_outermost_loc_info(call_node):
+    invoked = call_node.invoked
+    return ct.CallNode((invoked[0], invoked[1], invoked[2], invoked[3], None), call_node.recursive_cxt, call_node.body)
+
 def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=False, line_number_table=None, max_depth=-1):
     with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
         call_trees, node_summary_table = pickle.load(inp)
@@ -424,12 +446,14 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
     query_patterns = cq.build_query_pattern_list(query_words, ignore_case=ignore_case)
     call_nodes = cq.find_lower_call_nodes(query_patterns, call_trees, node_summary_table)
     shallowers = filter(None, (cq.extract_shallowest_treecut(call_node, query_patterns, max_depth) for call_node in call_nodes))
+    markeds = [mark_uncontributing_nodes_w_call_wo_memo(cn, query_patterns) for cn in shallowers]
+    contextlesses = [remove_outermost_loc_info(remove_recursive_contexts(cn)) for cn in markeds]
+    call_node_wo_rcs = sort_uniq(contextlesses, key=cb.callnode_label)
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        for shallower in shallowers:
-            marked = mark_uncontributing_nodes_w_call_wo_memo(shallower, query_patterns)
+        for cn in call_node_wo_rcs:
             out.write("---\n")
-            format_call_tree_node_compact(marked, out, clz_msig2conversion=clz_msig2conversion)
+            format_call_tree_node_compact(cn, out, clz_msig2conversion=clz_msig2conversion)
 #         pp = pprint.PrettyPrinter(indent=4, stream=out)
 #         for call_node in sorted(call_nodes):
 #             out.write("---\n")
