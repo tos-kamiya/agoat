@@ -83,24 +83,22 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
 def mark_uncontributing_nodes_w_call_wo_memo(call_node, query_patterns):
     len_query_patterns = len(query_patterns)
     def predicate_func(node):
-        if isinstance(node, list) and node and node[0] == cb.CALL:
-            recursive_context = node[1]
-            invoked = node[2]
-            body = node[3]
+        if isinstance(node, cb.CallNode):
+            invoked = node.invoked
             clz, msig = invoked[1], invoked[2]
-            b = mark_uncontributing_nodes_w_call_i(body)
+            b = mark_uncontributing_nodes_w_call_i(node.body)
             recv_body_contributing = not isinstance(b, cq.Uncontributing)
             if recv_body_contributing:
-                v = [cb.CALL, recursive_context, invoked, b]
+                n = cb.CallNode(invoked, node.recursive_cxt, b)
             else:
-                if cq.count_missing_query_words([(clz, msig)], query_patterns) < len_query_patterns:
-                    v = [cb.CALL, recursive_context, invoked, cq.Uncontributing([atq.ORDERED_AND])]
+                if len(cq.missing_query_words([(clz, msig)], query_patterns)) < len_query_patterns:
+                    n = cb.CallNode(invoked, node.recursive_cxt, cq.Uncontributing([atq.ORDERED_AND]))
                 else:
-                    v = cq.Uncontributing(node)
-            return atq.HookResult(v)
+                    n = cq.Uncontributing(node)
+            return atq.HookResult(n)
         elif isinstance(node, tuple) and node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE):
             clz, msig = node[1], node[2]
-            return cq.count_missing_query_words([(clz, msig)], query_patterns) < len_query_patterns
+            return len(cq.missing_query_words([(clz, msig)], query_patterns)) < len_query_patterns
         else:
             return atq.Undecided
     def mark_uncontributing_nodes_w_call_i(node):
@@ -144,19 +142,19 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
                         pass
                     else:
                         format_i(subn, indent)
-            elif n0 == cb.CALL:
-                invoked = node[2]
-                clz, msig = invoked[1], invoked[2]
-                loc_info = invoked[3]
-                indent_str = indent_step_str * indent
-                out.write('%s%s\t%s\n' % (indent_str, format_clz_msig(clz, msig), format_loc_info(loc_info)))
-                body = node[3]
-                if not (isinstance(body, cq.Uncontributing) or isinstance(body, list) and len(body) <= 1):
-                    out.write('%s{\n' % indent_str)
-                    format_i(body, indent + 1)
-                    out.write('%s}\n' % indent_str)
             else:
                 assert False
+        elif isinstance(node, cb.CallNode):
+            invoked = node.invoked
+            clz, msig = invoked[1], invoked[2]
+            loc_info = invoked[3]
+            indent_str = indent_step_str * indent
+            out.write('%s%s\t%s\n' % (indent_str, format_clz_msig(clz, msig), format_loc_info(loc_info)))
+            body = node[3]
+            if not (isinstance(body, cq.Uncontributing) or isinstance(body, list) and len(body) <= 1):
+                out.write('%s{\n' % indent_str)
+                format_i(body, indent + 1)
+                out.write('%s}\n' % indent_str)
         elif isinstance(node, tuple):
             assert node
             n0 = node[0]
@@ -248,27 +246,26 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
                 if buf:
                     return buf
                 return None
-            elif n0 == cb.CALL:
-                invoked = node[2]
-                clz, msig = invoked[1], invoked[2]
-                loc_info = invoked[3]
-                node_label = (clz, msig, node[1])
-                if node_label not in printed_node_labels:
-                    printed_node_labels.add(node_label)
-                    body = node[3]
-                    buf = [(0, '%s {' % format_clz_msig(clz, msig), format_loc_info(loc_info))]
-                    b = format_i(body)
-                    if b:
-                        for p in b:
-                            buf.append((p[0] + 1, p[1], p[2]))
-                        buf.append((0, '}', ''))
-                    else:
-                        p = buf[-1]
-                        buf[-1] = (p[0], p[1] + '}', p[2])
-                    return buf
-                return None
             else:
                 assert False
+        elif isinstance(node, cb.CallNode):
+            invoked = node.invoked
+            clz, msig = invoked[1], invoked[2]
+            loc_info = invoked[3]
+            node_label = (clz, msig, node.recursive_cxt)
+            if node_label not in printed_node_labels:
+                printed_node_labels.add(node_label)
+                buf = [(0, '%s {' % format_clz_msig(clz, msig), format_loc_info(loc_info))]
+                b = format_i(node.body)
+                if b:
+                    for p in b:
+                        buf.append((p[0] + 1, p[1], p[2]))
+                    buf.append((0, '}', ''))
+                else:
+                    p = buf[-1]
+                    buf[-1] = (p[0], p[1] + '}', p[2])
+                return buf
+            return None
         elif isinstance(node, tuple):
             assert node
             n0 = node[0]
@@ -285,16 +282,17 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
         else:
             assert False
 
-    assert isinstance(node, list) and node and node[0] == cb.CALL
+    if not isinstance(node, cb.CallNode):
+        assert False
+    assert isinstance(node, cb.CallNode)
 
-    invoked = node[2]
+    invoked = node.invoked
     clz, msig = invoked[1], invoked[2]
     # loc_info = invoked[3]
-    node_label = (clz, msig, node[1])
+    node_label = (clz, msig, node.recursive_cxt)
     printed_node_labels.add(node_label)
-    body = node[3]
     line_depth_body_locinfos = [(0, '%s {' % format_clz_msig(clz, msig), '')]
-    buf = format_i(body)
+    buf = format_i(node.body)
     if buf:
         for p in buf:
             line_depth_body_locinfos.append((p[0] + 1, p[1], p[2]))
@@ -409,4 +407,3 @@ def main(argv):
 
 if __name__ == '__main__':
     main(sys.argv)
-

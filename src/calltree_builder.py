@@ -198,7 +198,24 @@ def find_entry_points(class_table, target_class_names=None):
     return entry_points
 
 
-CALL = "call"
+class CallNode(object):
+    def __init__(self, invoked, recursive_cxt, body):
+        self.invoked = invoked
+        self.recursive_cxt = recursive_cxt
+        self.body = body
+
+    def __repr__(self):
+        return "CallNode(%s,%s,%s)" % (repr(self.invoked), repr(self.recursive_cxt), repr(self.body))
+
+    # def __hash__(self):
+    #     return hash(self.invoked) + hash(self.recursive_cxt) + hash(self.body)
+
+    def __eq__(self, other):
+        if not isinstance(other, CallNode):
+            return False
+        return self.invoked == other.invoked and \
+                self.recursive_cxt == other.recursive_cxt and \
+                self.body == other.body
 
 
 def build_call_andor_tree(entry_point, resolver, methods_ircc, call_node_memo={}):
@@ -257,7 +274,7 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc, call_node_memo={}
             rc = recursive_context
             if rc is None and clz_method in methods_ircc:
                 rc = clz_method
-            cn = [CALL, rc, (cmd, clz_method[0], clz_method[1], loc_info)]
+            cn = CallNode((cmd, clz_method[0], clz_method[1], loc_info), rc, None)
             node_label = (clz_method[0], clz_method[1], rc)
             v = call_node_memo.get(node_label)
             if v is None:
@@ -273,7 +290,7 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc, call_node_memo={}
                 else:
                     v = jcbte.NOTREE  # can't expand
                 call_node_memo[node_label] = v
-            cn.append(v)
+            cn.body = v
             dispatch_node.append(cn)
         len_dispatch_node = len(dispatch_node)
         if len_dispatch_node == 1:

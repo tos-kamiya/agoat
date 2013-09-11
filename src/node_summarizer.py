@@ -3,7 +3,7 @@
 import sys
 
 from andor_tree import ORDERED_AND, ORDERED_OR
-from calltree_builder import CALL, NOTREE
+from calltree_builder import CallNode, NOTREE
 from jimp_parser import INVOKE, SPECIALINVOKE
 
 import jimp_parser as jp
@@ -12,40 +12,42 @@ import calltree_builder as cb
 
 def summarize_node(node):
     def scan_invocation(node):
+        if not isinstance(node, tuple):
+            assert False  # debug
         assert isinstance(node, tuple)
         assert node[0] in (INVOKE, SPECIALINVOKE)
         clz = node[1]
         msig = node[2]
-        return [(clz, msig)]
+        return (clz, msig)
+
+    summary = set()
     def dig_node(node):
         if isinstance(node, list):
             n0 = node[0]
             if n0 in (ORDERED_AND, ORDERED_OR):
-                subsum = set()
                 for subn in node[1:]:
-                    subsum.update(dig_node(subn))
-                return sorted(subsum)
-            elif n0 == CALL:
-                assert node[2][0] in (INVOKE, SPECIALINVOKE)
-                invoked = node[2]
-                clz_msig = invoked[1], invoked[2]
-                subsum = set([clz_msig])
-                subnode = node[3]
-                if subnode == NOTREE:
-                    raise ValueError("NOTREE not yet supported")
-                if subnode is None:
-                    pass
-                elif isinstance(subnode, list):
-                    subsum.update(dig_node(subnode))
-                else:
-                    subsum.update(scan_invocation(subnode))
-                return sorted(subsum)
+                    dig_node(subn)
             elif n0 == NOTREE:
                 raise ValueError("NOTREE not yet supported")
+            else:
+                assert False
+        elif isinstance(node, CallNode):
+            invoked = node.invoked
+            assert invoked[0] in (INVOKE, SPECIALINVOKE)
+            clz_msig = invoked[1], invoked[2]
+            summary.add(clz_msig)
+            subnode = node.body
+            if subnode == NOTREE:
+                raise ValueError("NOTREE not yet supported")
+            if subnode is None:
+                pass
+            elif isinstance(subnode, (list, CallNode)):
+                dig_node(subnode)
         else:
-            return scan_invocation(node)
+            summary.add(scan_invocation(node))
 
-    return dig_node(node)
+    dig_node(node)
+    return summary
 
 
 def extract_node_summary_table(call_andor_tree, summary_memo={}):
@@ -64,29 +66,30 @@ def extract_node_summary_table(call_andor_tree, summary_memo={}):
                 for subn in node[1:]:
                     subsum.update(dig_node(subn))
                 return sorted(subsum)
-            elif n0 == CALL:
-                recursive_context = node[1]
-                assert node[2][0] in (INVOKE, SPECIALINVOKE)
-                invoked = node[2]
-                clz_msig = clz, msig = invoked[1], invoked[2]
-                subsum = set([clz_msig])
-                k = (clz, msig, recursive_context)
-                if k not in summary_memo:
-                    subnode = node[3]
-                    if subnode == NOTREE:
-                        raise ValueError("NOTREE not yet supported")
-                    if subnode is None:
-                        pass
-                    elif isinstance(subnode, list):
-                        subsum.update(dig_node(subnode))
-                    else:
-                        subsum.update(scan_invocation(subnode))
-                    sorted_subsum = summary_memo[k] = sorted(subsum)
-                else:
-                    sorted_subsum = summary_memo[k]
-                return sorted_subsum
             elif n0 == NOTREE:
                 raise ValueError("NOTREE not yet supported")
+            else:
+                assert False
+        elif isinstance(node, CallNode):
+            invoked = node.invoked
+            assert invoked[0] in (INVOKE, SPECIALINVOKE)
+            clz_msig = clz, msig = invoked[1], invoked[2]
+            subsum = set([clz_msig])
+            k = (clz, msig, node.recursive_cxt)
+            if k not in summary_memo:
+                subnode = node.body
+                if subnode == NOTREE:
+                    raise ValueError("NOTREE not yet supported")
+                if subnode is None:
+                    pass
+                elif isinstance(subnode, (list, CallNode)):
+                    subsum.update(dig_node(subnode))
+                else:
+                    subsum.update(scan_invocation(subnode))
+                sorted_subsum = summary_memo[k] = sorted(subsum)
+            else:
+                sorted_subsum = summary_memo[k]
+            return sorted_subsum
         else:
             return scan_invocation(node)
 
