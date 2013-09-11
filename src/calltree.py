@@ -5,6 +5,7 @@ from andor_tree import ORDERED_AND, ORDERED_OR  # re-export
 
 class CallNode(object):
     def __init__(self, invoked, recursive_cxt, body):
+        assert invoked[0] is not None  # debug
         self.invoked = invoked
         self.recursive_cxt = recursive_cxt
         self.body = body

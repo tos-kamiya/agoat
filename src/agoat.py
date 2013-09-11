@@ -63,6 +63,7 @@ def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_fi
     node_summary_table = {}
     for call_tree in call_trees:
         node_summary_table = cs.extract_node_summary_table(call_tree, summary_memo=node_summary_table)
+        assert None not in node_summary_table  # debug
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
         pickle.dump((call_trees, node_summary_table), out)
@@ -147,8 +148,7 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
                 assert False
         elif isinstance(node, ct.CallNode):
             invoked = node.invoked
-            clz, msig = invoked[1], invoked[2]
-            loc_info = invoked[3]
+            clz, msig, loc_info = invoked[1], invoked[2], invoked[4]
             indent_str = indent_step_str * indent
             out.write('%s%s\t%s\n' % (indent_str, format_clz_msig(clz, msig), format_loc_info(loc_info)))
             body = node[3]
@@ -160,8 +160,7 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
             assert node
             n0 = node[0]
             assert n0 in (jp.INVOKE, jp.SPECIALINVOKE)
-            clz, msig = node[1], node[2]
-            loc_info = node[3]
+            clz, msig, loc_info = invoked[1], invoked[2], invoked[4]
             out.write('%s%s\t%s\n' % (indent_step_str * indent, format_clz_msig(clz, msig), format_loc_info(loc_info)))
         elif isinstance(node, cq.Uncontributing):
             assert False
@@ -250,7 +249,8 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
             else:
                 assert False
         elif isinstance(node, ct.CallNode):
-            _, clz, msig, loc_info = node.invoked
+            invoked = node.invoked
+            clz, msig, loc_info = invoked[1], invoked[2], invoked[4]
             node_label = cb.callnode_label(node)
             if node_label not in printed_node_labels:
                 printed_node_labels.add(node_label)
@@ -269,7 +269,7 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
             assert node
             n0 = node[0]
             assert n0 in (jp.INVOKE, jp.SPECIALINVOKE)
-            _, clz, msig, loc_info = node
+            clz, msig, loc_info = node[1], node[2], node[4]
             node_label = (clz, msig, None)  # context unknown, use non-context as default
             if node_label not in printed_node_labels:
                 printed_node_labels.add(node_label)
@@ -281,7 +281,7 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
             assert False
 
     assert isinstance(node, ct.CallNode)
-    _, clz, msig, _ = node.invoked
+    clz, msig = node.invoked[1], node.invoked[2]
     node_label = cb.callnode_label(node)
     printed_node_labels.add(node_label)
     line_depth_body_locinfos = [(0, '%s {' % format_clz_msig(clz, msig), '')]

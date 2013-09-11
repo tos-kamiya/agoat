@@ -12,16 +12,18 @@ import calltree_summarizer as cs
 
 def missing_query_words(summary, query_patterns):
     query_words_remaining = dict((w, r) for w, r in query_patterns)
-    for c, m in summary:
-        found = False
-        for qw, qr in query_words_remaining.iteritems():
-            if qr.search(c) or qr.search(m):
-                found = True
-                break  # for qw
-        if found:
-            del query_words_remaining[qw]
-        if not query_words_remaining:
-            return []
+    for s in summary:
+        if isinstance(s, tuple):
+            c, m = s
+            found = False
+            for qw, qr in query_words_remaining.iteritems():
+                if qr.search(c) or qr.search(m):
+                    found = True
+                    break  # for qw
+            if found:
+                del query_words_remaining[qw]
+            if not query_words_remaining:
+                return []
     return query_words_remaining.keys()
 
 
@@ -105,7 +107,7 @@ def extract_shallowest_treecut(call_node, query_patterns, max_depth=-1):
     while max_depth < 0 or depth < max_depth:
         has_further_deep_nodes = [False]
         tc = treecut(call_node, depth, has_further_deep_nodes)
-        summary = cs.summarize_node(tc)
+        summary = cs.get_node_summary(tc)
         m = missing_query_words(summary, query_patterns)
         if not m:
             return tc

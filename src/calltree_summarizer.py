@@ -7,7 +7,7 @@ import calltree_builder as cb
 import jimp_parser as jp
 
 
-def summarize_node(node):
+def get_node_summary(node):
     def scan_invocation(node):
         assert isinstance(node, tuple)
         assert node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
@@ -31,6 +31,7 @@ def summarize_node(node):
             assert invoked[0] in (jp.INVOKE, jp.SPECIALINVOKE)
             clz_msig = invoked[1], invoked[2]
             summary.add(clz_msig)
+            invoked[3] and summary.update(invoked[3])
             subnode = node.body
             if subnode == cb.NOTREE:
                 raise ValueError("NOTREE not yet supported")
@@ -40,11 +41,13 @@ def summarize_node(node):
                 dig_node(subnode)
             else:
                 summary.add(scan_invocation(subnode))
+                subnode[3] and summary.update(subnode[3])
         else:
             summary.add(scan_invocation(node))
+            node[3] and summary.update(node[3])
 
     dig_node(node)
-    return summary
+    return sorted(summary)
 
 
 def extract_node_summary_table(call_andor_tree, summary_memo={}):
@@ -54,7 +57,8 @@ def extract_node_summary_table(call_andor_tree, summary_memo={}):
         assert node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
         clz = node[1]
         msig = node[2]
-        return [(clz, msig)]
+        assert clz is not None  # debug
+        return (clz, msig)
     def dig_node(node):
         if isinstance(node, list):
             n0 = node[0]
@@ -72,6 +76,7 @@ def extract_node_summary_table(call_andor_tree, summary_memo={}):
             assert invoked[0] in (jp.INVOKE, jp.SPECIALINVOKE)
             clz_msig = clz, msig = invoked[1], invoked[2]
             subsum = set([clz_msig])
+            invoked[3] and subsum.update(invoked[3])
             k = (clz, msig, node.recursive_cxt)
             if k not in summary_memo:
                 subnode = node.body
@@ -82,13 +87,16 @@ def extract_node_summary_table(call_andor_tree, summary_memo={}):
                 elif isinstance(subnode, (list, ct.CallNode)):
                     subsum.update(dig_node(subnode))
                 else:
-                    subsum.update(scan_invocation(subnode))
+                    subsum.add(scan_invocation(subnode))
+                    subnode[3] and subsum.update(subnode[3])
                 sorted_subsum = summary_memo[k] = sorted(subsum)
             else:
                 sorted_subsum = summary_memo[k]
             return sorted_subsum
         else:
-            return scan_invocation(node)
+            s = [scan_invocation(node)]
+            node[3] and s.extend(node[3])
+            return s
 
     dig_node(call_andor_tree)
     return summary_memo
@@ -117,6 +125,7 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
     node_summary_table = extract_node_summary_table(call_andor_tree)
     pp = pprint.PrettyPrinter(indent=4, stream=out)
     pp.pprint(node_summary_table)
+
 
 if __name__ == '__main__':
     main(sys.argv)

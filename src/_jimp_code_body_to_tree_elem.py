@@ -46,34 +46,34 @@ else:
 def gen_resolver(method_data, class_data):
     def resolve(name):
         if name == 'null':
-            return 'java.lang.Object'  # unknown
+            return 'java.lang.Object', None  # unknown
         if name is None:
-            return None
+            return None, None
         if name.startswith("class "):
-            return 'java.lang.Class'
+            return 'java.lang.Class', None
         elif name in ("true", "false"):
-            return 'boolean'
+            return 'boolean', None
         elif name.startswith("'"):
-            return "char"
+            return "char", None
         elif name.startswith('"'):
-            return "java.lang.String"
+            return "java.lang.String", name
         elif name[0] in "-+0123456789":
             s = name[-1]
             if s == 'L':
-                return 'long'
+                return 'long', None
             elif s == 'F':
-                return 'float'
+                return 'float', None
             elif s == 'D':
-                return 'double'
+                return 'double', None
             else:
-                return 'int'
+                return 'int', None
         t = method_data.fields.get(name)
         if t:
-            return intern(t)
+            return intern(t), None
         t = class_data.fields.get(name)
         if t:
-            return intern(t)
-        return None
+            return intern(t), None
+        return None, None
     return resolve
 
 
@@ -85,12 +85,24 @@ def resolve_type(inss, method_data, class_data):
     for ins in inss:
         cmd = ins[0]
         if cmd in (jp.SPECIALINVOKE, jp.INVOKE):
+            literals = set()
             receiver, method_name, args, retv, linenum = ins[1:]
-            rreceiver = resolve(receiver) or receiver
-            rargs = tuple(map(resolve, args))
-            rretv = resolve(retv)
-            sig = method_sig_intern(jp.MethodSig(rretv, method_name, rargs))
-            resolved_inss.append((cmd, rreceiver, sig, linenum))
+            rrecv, lit = resolve(receiver)
+            if rrecv is None:
+                rrecv = receiver
+            lit and literals.add(lit)
+            rargs = []
+            for a in args:
+                rarg, lit = resolve(a)
+                lit and literals.add(lit)
+                rargs.append(rarg)
+            rargs = tuple(rargs)
+            rretv, lit = resolve(retv)
+            lit and literals.add(lit)
+            msig = method_sig_intern(jp.MethodSig(rretv, method_name, rargs))
+            literals = tuple(sorted(literals))
+            assert rrecv is not None  # debug
+            resolved_inss.append((cmd, rrecv, msig, literals, linenum))
         else:
             resolved_inss.append(ins)
 
@@ -162,6 +174,7 @@ def convert_to_execution_paths(inss):
                 b.extend(convert_to_execution_paths(ins[1:]))
                 path.append(b)
             elif cmd in (jp.SPECIALINVOKE, jp.INVOKE):
+                assert inss[1] is not None  # debug
                 is_repetitive = path and path[-1][:-1] == ins[:-1]
                 # cmd, receiver, method_name, args, retv, linenum = ins
                 if not is_repetitive:
