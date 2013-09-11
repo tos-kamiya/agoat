@@ -4,6 +4,7 @@ import os
 import sys
 import argparse
 import pickle
+import pprint
 
 from _utilities import open_w_default
 
@@ -17,13 +18,58 @@ import calltree_query as cq
 import src_linenumber_converter as slc
 
 
-def pretty_print_pickle_data(data_file, out=sys.stdout):
-    import pprint
+# def replace_callnode_with_tuple(L):
+# #     object_ids = set()
+# #     duplidate_object_ids = set()
+# #     def found_duplicate_objects(L):
+# #         if not isinstance(L, (list, ct.CallNode)):
+# #             return
+# # 
+# #         i = id(L)
+# #         if i in object_ids:
+# #             duplidate_object_ids.add(i)
+# #         else:
+# #             object_ids.add(i)
+# #             if isinstance(L, list):
+# #                 for item in L:
+# #                     found_duplicate_objects(item)
+# #             else:
+# #                 # assert isinstance(L, ct.CallNode)
+# #                 for item in L.body:
+# #                     found_duplicate_objects(item)
+# 
+#     object_ids = set()
+#     def replace_i(L):
+#         if isinstance(L, (list, ct.CallNode)):
+#             i = id(L)
+#             if i in object_ids:
+#                 return "id/%d" % i
+#             object_ids.add(i)
+#         if isinstance(L, list):
+#             return [replace_callnode_with_tuple(item) for item in L]
+#         if isinstance(L, tuple):
+#             return tuple(replace_callnode_with_tuple(item) for item in L)
+#         if isinstance(L, ct.CallNode):
+#             return ('CallNode', L.invoked, L.recursive_cxt, replace_callnode_with_tuple(L.body))
+#         return L
+# 
+#     return replace_i(L)
 
+
+def pretty_print_pickle_data(data_file, out=sys.stdout):
     with open_w_default(data_file, "rb", sys.stdin) as inp:
         data = pickle.load(inp)
+#     data = replace_callnode_with_tuple(data)
     pp = pprint.PrettyPrinter(indent=4, stream=out)
     pp.pprint(data)
+
+
+def repr_print_pickle_data(data_file, out=sys.stdout):
+    with open_w_default(data_file, "rb", sys.stdin) as inp:
+        data = pickle.load(inp)
+#     data = replace_callnode_with_tuple(data)
+    out.write(repr(data))
+    out.write('\n')
 
 
 def format_clz_msig(clz, msig):
@@ -50,6 +96,20 @@ def list_methods(soot_dir, output_file):
     with open_w_default(output_file, "wb", sys.stdout) as out:
         for clz, msig in methods:
             out.write("%s\n" % format_clz_msig(clz, msig))
+
+
+def list_literals(soot_dir, output_file):
+    class_table = dict((clz, cd) \
+            for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
+    literals = set()
+    for clz, cd in class_table.iteritems():
+        for msig, md in cd.methods.iteritems():
+            literals.update(jcte.extract_referred_literals(md.code, md, cd))
+    literals = sorted(literals)
+
+    with open_w_default(output_file, "wb", sys.stdout) as out:
+        for lit in literals:
+            out.write("%s\n" % lit)
 
 
 def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_file):
@@ -87,20 +147,26 @@ def mark_uncontributing_nodes_w_call_wo_memo(call_node, query_patterns):
     def predicate_func(node):
         if isinstance(node, ct.CallNode):
             invoked = node.invoked
-            clz, msig = invoked[1], invoked[2]
+            clz_msig = invoked[1], invoked[2]
+            literals = invoked[3]
             b = mark_uncontributing_nodes_w_call_i(node.body)
             recv_body_contributing = not isinstance(b, cq.Uncontributing)
             if recv_body_contributing:
                 n = ct.CallNode(invoked, node.recursive_cxt, b)
             else:
-                if len(cq.missing_query_words([(clz, msig)], query_patterns)) < len_query_patterns:
+                terms = [clz_msig]
+                literals and terms.extend(literals)
+                if len(cq.missing_query_patterns(terms, query_patterns)) < len_query_patterns:
                     n = ct.CallNode(invoked, node.recursive_cxt, cq.Uncontributing([ct.ORDERED_AND]))
                 else:
                     n = cq.Uncontributing(node)
             return atq.HookResult(n)
         elif isinstance(node, tuple) and node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE):
-            clz, msig = node[1], node[2]
-            return len(cq.missing_query_words([(clz, msig)], query_patterns)) < len_query_patterns
+            clz_msig = node[1], node[2]
+            literals = node[3]
+            terms = [clz_msig]
+            literals and terms.extend(literals)
+            return len(cq.missing_query_patterns(terms, query_patterns)) < len_query_patterns
         else:
             return atq.Undecided
     def mark_uncontributing_nodes_w_call_i(node):
@@ -308,10 +374,10 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
     query_patterns = cq.build_query_pattern_list(query_words, ignore_case=ignore_case)
     call_nodes = cq.find_lower_call_nodes(query_patterns, call_trees, node_summary_table)
     shallowers = filter(None, (cq.extract_shallowest_treecut(call_node, query_patterns, max_depth) for call_node in call_nodes))
-    markeds = [mark_uncontributing_nodes_w_call_wo_memo(shallower, query_patterns) for shallower in shallowers]
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        for marked in sorted(markeds):
+        for shallower in shallowers:
+            marked = mark_uncontributing_nodes_w_call_wo_memo(shallower, query_patterns)
             out.write("---\n")
             format_call_tree_node_compact(marked, out, clz_msig2conversion=clz_msig2conversion)
 #         pp = pprint.PrettyPrinter(indent=4, stream=out)
@@ -339,6 +405,10 @@ def main(argv):
     psr_ep.add_argument('-m', '--method-sig', action='store_true', help="output method signatures")
 
     psr_mt = subpsrs.add_parser('m', help='listing methods (defined methods and used ones)')
+    psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
+    psr_mt.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
+
+    psr_mt = subpsrs.add_parser('L', help='listing literals')
     psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_mt.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
 
@@ -372,13 +442,16 @@ def main(argv):
             default=defalut_max_depth_of_subtree)
 
     psr_db = subpsrs.add_parser('debug', help='debug function')
-    psr_db.add_argument('-p', action='store', dest='internaldata', help='pretty print internal data')
+    psr_db.add_argument('-p', '--pretty-print', action='store', help='pretty print internal data')
+    psr_db.add_argument('-r', '--repr', action='store', help="print raw repr()'d text of internal data")
 
     args = psr.parse_args(argv[1:])
     if args.command == 'e':
         list_entry_points(args.soot_dir, args.output, args.method_sig)
     elif args.command == 'm':
         list_methods(args.soot_dir, args.output)
+    elif args.command == 'L':
+        list_literals(args.soot_dir, args.output)
     elif args.command == 'l':
         generate_linenumber_table(args.soot_dir, args.javap_dir, args.output)
     elif args.command == 'c':
@@ -392,8 +465,10 @@ def main(argv):
                 line_number_table = default_linenumbertable_path
         search_method_bodies(args.call_tree, args.queryword, args.output, args.ignore_case, line_number_table, args.max_depth)
     elif args.command == 'debug':
-        if args.internaldata:
-            pretty_print_pickle_data(args.internaldata)
+        if args.pretty_print:
+            pretty_print_pickle_data(args.pretty_print)
+        elif args.repr:
+            repr_print_pickle_data(args.repr)
     else:
         assert False
 
