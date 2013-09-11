@@ -4,12 +4,10 @@ import re
 import itertools
 
 import jimp_parser as jp
-from andor_tree import ORDERED_AND, ORDERED_OR
+import calltree as ct
 from andor_tree_query import Uncontributing # re-export
-from calltree_builder import CallNode
 import andor_tree_query as atq
-import node_summarizer as ns
-
+import calltree_summarizer as cs
 
 def missing_query_words(summary, query_patterns):
     query_words_remaining = dict((w, r) for w, r in query_patterns)
@@ -42,7 +40,7 @@ def build_query_pattern_list(query_words, ignore_case=False):
 def find_lower_call_nodes(query_patterns, call_trees, node_summary_table):
     already_searched = set()
     def predicate_func(node):
-        if isinstance(node, CallNode):
+        if isinstance(node, ct.CallNode):
             invoked = node.invoked
             clz, msig = invoked[1], invoked[2]
             node_label = (clz, msig, node.recursive_cxt)
@@ -61,7 +59,7 @@ def find_lower_call_nodes(query_patterns, call_trees, node_summary_table):
             return atq.Undecided
 
     def get_recv_msig(call_node):
-        assert isinstance(call_node, CallNode)
+        assert isinstance(call_node, ct.CallNode)
         invoked = call_node.invoked
         clz, msig = invoked[1], invoked[2]
         return (clz, msig)
@@ -81,16 +79,16 @@ def treecut(node, depth, has_further_deep_nodes=[None]):
         if isinstance(node, list):
             assert node
             n0 = node[0]
-            if n0 in (ORDERED_AND, ORDERED_OR):
+            if n0 in (ct.ORDERED_AND, ct.ORDERED_OR):
                 t = [n0]
                 for subn in node[1:]:
                     t.append(treecut_i(subn, remaining_depth))
                 return t
             else:
                 assert False
-        elif isinstance(node, CallNode):
+        elif isinstance(node, ct.CallNode):
             if remaining_depth > 0:
-                cn = CallNode(node.invoked, node.recursive_cxt, treecut_i(node.body, remaining_depth - 1))
+                cn = ct.CallNode(node.invoked, node.recursive_cxt, treecut_i(node.body, remaining_depth - 1))
                 return cn
             else:
                 has_further_deep_nodes[0] = True
@@ -101,13 +99,13 @@ def treecut(node, depth, has_further_deep_nodes=[None]):
 
 
 def extract_shallowest_treecut(call_node, query_patterns, max_depth=-1):
-    assert isinstance(call_node, CallNode)
+    assert isinstance(call_node, ct.CallNode)
 
     depth = 1
     while max_depth < 0 or depth < max_depth:
         has_further_deep_nodes = [False]
         tc = treecut(call_node, depth, has_further_deep_nodes)
-        summary = ns.summarize_node(tc)
+        summary = cs.summarize_node(tc)
         m = missing_query_words(summary, query_patterns)
         if not m:
             return tc
@@ -124,7 +122,7 @@ def mark_uncontributing_nodes_w_call(call_node, query_patterns):
     len_query_patterns = len(query_patterns)
     call_node_memo = {}
     def predicate_func(node):
-        if isinstance(node, CallNode):
+        if isinstance(node, ct.CallNode):
             invoked = node.invoked
             clz, msig = invoked[1], invoked[2]
             node_label = (clz, msig, node.recursive_cxt)
@@ -133,10 +131,10 @@ def mark_uncontributing_nodes_w_call(call_node, query_patterns):
                 b = mark_uncontributing_nodes_w_call_i(node.body)
                 recv_body_contributing = not isinstance(b, Uncontributing)
                 if recv_body_contributing:
-                    v = CallNode(node.invoked, node.recursive_cxt, b)
+                    v = ct.CallNode(node.invoked, node.recursive_cxt, b)
                 else:
                     if len(missing_query_words([(clz, msig)], query_patterns)) < len_query_patterns:
-                        v = CallNode(node.invoked, node.recursive_cxt, Uncontributing([ORDERED_AND]))
+                        v = ct.CallNode(node.invoked, node.recursive_cxt, Uncontributing([ct.ORDERED_AND]))
                     else:
                         v = Uncontributing(node)
                 call_node_memo[node_label] = v

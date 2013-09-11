@@ -1,6 +1,6 @@
 #coding: utf-8
 
-from andor_tree import ORDERED_AND, ORDERED_OR
+import andor_tree as at
 
 Undecided = object()
 
@@ -33,7 +33,7 @@ def find_lower_bound_nodes(node, predicate_func):
         lower_bound_nodes = []
         if node:
             n0 = node[0]
-            if n0 in (ORDERED_AND, ORDERED_OR):
+            if n0 in (at.ORDERED_AND, at.ORDERED_OR):
                 for subn in node[1:]:
                     subns = find_lower_bound_nodes_i(subn)
                     if subns:
@@ -48,30 +48,24 @@ def find_lower_bound_nodes(node, predicate_func):
     return find_lower_bound_nodes_i(node)
 
 
-# class LengthNotDefined(ValueError):
-#     pass
-# 
-# 
-# def path_min_length(node, weighting_func=None):
-#     def path_min_length_i(node):
-#         if weighting_func is not None:
-#             L = weighting_func(node)
-#             if L is not None:
-#                 return L
-#         if not isinstance(node, list):
-#             return 1
-#         if not node:
-#             return 0
-#         n0 = node[0]
-#         if n0 == ORDERED_AND:
-#             return sum(path_min_length_i(subn) for subn in node[1:])
-#         elif n0 == ORDERED_OR:
-#             if len(node) == 1:
-#                 raise LengthNotDefined()
-#             return min(path_min_length_i(subn) for subn in node[1:])
-#         else:
-#             assert False  # invalid tree
-#     return path_min_length_i(node)
+def path_min_length(node, weighting_func=None):
+    def path_min_length_i(node):
+        if weighting_func is not None:
+            L = weighting_func(node)
+            if L is not None:
+                return L
+        if not isinstance(node, list):
+            return 1
+        if not node:
+            return 0
+        n0 = node[0]
+        if n0 == at.ORDERED_AND:
+            return sum(path_min_length_i(subn) for subn in node[1:])
+        elif n0 == at.ORDERED_OR:
+            return min(path_min_length_i(subn) for subn in node[1:])
+        else:
+            assert False  # invalid tree
+    return path_min_length_i(node)
 
 
 class Uncontributing(object):
@@ -113,7 +107,7 @@ def mark_uncontributing_nodes(node, predicate_func):
 
         marked = []
         n0 = node[0]
-        if n0 in (ORDERED_AND, ORDERED_OR):
+        if n0 in (at.ORDERED_AND, at.ORDERED_OR):
             marked.append(n0)
             for subn in node[1:]:
                 marked.append(mark_uncontributing_nodes_i(subn))

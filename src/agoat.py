@@ -10,8 +10,9 @@ from _utilities import open_w_default
 import andor_tree_query as atq
 import jimp_parser as jp
 import jimp_code_term_extractor as jcte
+import calltree as ct
 import calltree_builder as cb
-import node_summarizer as ns
+import calltree_summarizer as cs
 import calltree_query as cq
 import src_linenumber_converter as slc
 
@@ -61,7 +62,7 @@ def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_fi
     call_trees = cb.extract_call_andor_trees(class_table, entry_points)
     node_summary_table = {}
     for call_tree in call_trees:
-        node_summary_table = ns.extract_node_summary_table(call_tree, summary_memo=node_summary_table)
+        node_summary_table = cs.extract_node_summary_table(call_tree, summary_memo=node_summary_table)
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
         pickle.dump((call_trees, node_summary_table), out)
@@ -83,16 +84,16 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
 def mark_uncontributing_nodes_w_call_wo_memo(call_node, query_patterns):
     len_query_patterns = len(query_patterns)
     def predicate_func(node):
-        if isinstance(node, cb.CallNode):
+        if isinstance(node, ct.CallNode):
             invoked = node.invoked
             clz, msig = invoked[1], invoked[2]
             b = mark_uncontributing_nodes_w_call_i(node.body)
             recv_body_contributing = not isinstance(b, cq.Uncontributing)
             if recv_body_contributing:
-                n = cb.CallNode(invoked, node.recursive_cxt, b)
+                n = ct.CallNode(invoked, node.recursive_cxt, b)
             else:
                 if len(cq.missing_query_words([(clz, msig)], query_patterns)) < len_query_patterns:
-                    n = cb.CallNode(invoked, node.recursive_cxt, cq.Uncontributing([atq.ORDERED_AND]))
+                    n = ct.CallNode(invoked, node.recursive_cxt, cq.Uncontributing([ct.ORDERED_AND]))
                 else:
                     n = cq.Uncontributing(node)
             return atq.HookResult(n)
@@ -128,7 +129,7 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
         if isinstance(node, list):
             assert node
             n0 = node[0]
-            if n0 == cq.ORDERED_OR:
+            if n0 == ct.ORDERED_OR:
                 contributing_subn = [subn for subn in node[1:] if not isinstance(subn, cq.Uncontributing)]
                 if len(contributing_subn) >= 2:
                     out.write('%s||\n' % (indent_step_str * indent))
@@ -136,7 +137,7 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
                         format_i(subn, indent + 1)
                 elif contributing_subn:
                     format_i(contributing_subn[0], indent)
-            elif n0 == cq.ORDERED_AND:
+            elif n0 == ct.ORDERED_AND:
                 for subn in node[1:]:
                     if isinstance(subn, cq.Uncontributing):
                         pass
@@ -144,7 +145,7 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
                         format_i(subn, indent)
             else:
                 assert False
-        elif isinstance(node, cb.CallNode):
+        elif isinstance(node, ct.CallNode):
             invoked = node.invoked
             clz, msig = invoked[1], invoked[2]
             loc_info = invoked[3]
@@ -222,7 +223,7 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
         if isinstance(node, list):
             assert node
             n0 = node[0]
-            if n0 == cq.ORDERED_OR:
+            if n0 == ct.ORDERED_OR:
                 subouts = []
                 for subn in node[1:]:
                     b = format_i(subn)
@@ -237,7 +238,7 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
                 elif len(subouts) == 1:
                     return subouts[0]
                 return None
-            elif n0 == cq.ORDERED_AND:
+            elif n0 == ct.ORDERED_AND:
                 buf = []
                 for subn in node[1:]:
                     b = format_i(subn)
@@ -248,7 +249,7 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
                 return None
             else:
                 assert False
-        elif isinstance(node, cb.CallNode):
+        elif isinstance(node, ct.CallNode):
             invoked = node.invoked
             clz, msig = invoked[1], invoked[2]
             loc_info = invoked[3]
@@ -282,9 +283,7 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
         else:
             assert False
 
-    if not isinstance(node, cb.CallNode):
-        assert False
-    assert isinstance(node, cb.CallNode)
+    assert isinstance(node, ct.CallNode)
 
     invoked = node.invoked
     clz, msig = invoked[1], invoked[2]

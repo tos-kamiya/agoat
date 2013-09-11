@@ -2,9 +2,9 @@
 
 import sys
 
-import andor_tree as at
 import jimp_parser as jp
 import _jimp_code_body_to_tree_elem as jcbte
+import calltree as ct
 from _jimp_code_body_to_tree_elem import NOTREE, inss_to_tree, inss_to_tree_in_class_table  # re-export
 
 def extract_class_hierarchy(class_table, include_indirect_decendants=True):
@@ -198,26 +198,6 @@ def find_entry_points(class_table, target_class_names=None):
     return entry_points
 
 
-class CallNode(object):
-    def __init__(self, invoked, recursive_cxt, body):
-        self.invoked = invoked
-        self.recursive_cxt = recursive_cxt
-        self.body = body
-
-    def __repr__(self):
-        return "CallNode(%s,%s,%s)" % (repr(self.invoked), repr(self.recursive_cxt), repr(self.body))
-
-    # def __hash__(self):
-    #     return hash(self.invoked) + hash(self.recursive_cxt) + hash(self.body)
-
-    def __eq__(self, other):
-        if not isinstance(other, CallNode):
-            return False
-        return self.invoked == other.invoked and \
-                self.recursive_cxt == other.recursive_cxt and \
-                self.body == other.body
-
-
 def build_call_andor_tree(entry_point, resolver, methods_ircc, call_node_memo={}):
     # entry_point  # (str, MethodSig)
     # methods_ircc  # set of (str, MethodSig)
@@ -227,7 +207,7 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc, call_node_memo={}
         if isinstance(aot, list):
             assert aot
             aot0 = aot[0]
-            if aot0 in (at.ORDERED_AND, at.ORDERED_OR, jcbte.BLOCK):
+            if aot0 in (ct.ORDERED_AND, ct.ORDERED_OR, jcbte.BLOCK):
                 n = [aot0]
                 for item in aot[1:]:
                     v = dig_node(item, recursive_context, clz_msig)
@@ -269,26 +249,26 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc, call_node_memo={}
         cand_methods = resolver(recv_msig, static_method=(cmd == jp.SPECIALINVOKE))
         if not cand_methods:
             return None
-        dispatch_node = [at.ORDERED_OR]
+        dispatch_node = [ct.ORDERED_OR]
         for clz_method, md in cand_methods:
             rc = recursive_context
             if rc is None and clz_method in methods_ircc:
                 rc = clz_method
-            cn = CallNode((cmd, clz_method[0], clz_method[1], loc_info), rc, None)
+            cn = ct.CallNode((cmd, clz_method[0], clz_method[1], loc_info), rc, None)
             node_label = (clz_method[0], clz_method[1], rc)
             v = call_node_memo.get(node_label)
             if v is None:
-                if md.code != jcbte.NOTREE:
+                if md.code != NOTREE:
                     if clz_method in digging_calls:
                         if rc is None:
                             assert clz_method == digging_calls[-1]  # direct recursion
-                        v = [at.ORDERED_AND]
+                        v = [ct.ORDERED_AND]
                     else:
                         digging_calls.append(clz_method)
                         v = dig_node(md.code, rc, clz_method)
                         digging_calls.pop()
                 else:
-                    v = jcbte.NOTREE  # can't expand
+                    v = NOTREE  # can't expand
                 call_node_memo[node_label] = v
             cn.body = v
             dispatch_node.append(cn)
