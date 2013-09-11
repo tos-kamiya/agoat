@@ -5,7 +5,7 @@ import itertools
 
 import jimp_parser as jp
 from andor_tree import ORDERED_AND, ORDERED_OR
-from andor_tree_query import Uncontributing, LengthNotDefined  # re-export
+from andor_tree_query import Uncontributing # re-export
 from calltree_builder import CallNode
 import andor_tree_query as atq
 import node_summarizer as ns
