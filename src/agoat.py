@@ -8,7 +8,6 @@ import pprint
 
 from _utilities import open_w_default
 
-import andor_tree_query as atq
 import jimp_parser as jp
 import jimp_code_term_extractor as jcte
 import calltree as ct
@@ -123,7 +122,6 @@ def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_fi
     node_summary_table = {}
     for call_tree in call_trees:
         node_summary_table = cs.extract_node_summary_table(call_tree, summary_memo=node_summary_table)
-        assert None not in node_summary_table  # debug
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
         pickle.dump((call_trees, node_summary_table), out)
@@ -144,34 +142,59 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
 
 def mark_uncontributing_nodes_w_call_wo_memo(call_node, query_patterns):
     len_query_patterns = len(query_patterns)
-    def predicate_func(node):
-        if isinstance(node, ct.CallNode):
+    def mark_i(node):
+        if node is None:
+            return False, None
+        elif isinstance(node, list):
+            assert node
+            n0 = node[0]
+            if n0 in (ct.ORDERED_AND, ct.ORDERED_OR):
+                t = [n0]
+                contributing_count = 0
+                for item in node[1:]:
+                    c, r = mark_i(item)
+                    if c:
+                        contributing_count += 1
+                        t.append(r)
+                if contributing_count == 0:
+                    return False, cq.Uncontributing(node)
+                else:
+                    return True, t
+            else:
+                assert False
+        elif isinstance(node, ct.CallNode):
             invoked = node.invoked
             clz_msig = invoked[1], invoked[2]
             literals = invoked[3]
-            b = mark_uncontributing_nodes_w_call_i(node.body)
-            recv_body_contributing = not isinstance(b, cq.Uncontributing)
-            if recv_body_contributing:
-                n = ct.CallNode(invoked, node.recursive_cxt, b)
-            else:
-                terms = [clz_msig]
-                literals and terms.extend(literals)
-                if len(cq.missing_query_patterns(terms, query_patterns)) < len_query_patterns:
-                    n = ct.CallNode(invoked, node.recursive_cxt, cq.Uncontributing([ct.ORDERED_AND]))
+            invoked_clz_msig_contributing = len(cq.missing_query_patterns([clz_msig], query_patterns)) < len_query_patterns
+            invoked_literal_contributing = literals and len(cq.missing_query_patterns(literals, query_patterns)) < len_query_patterns
+            recv_body_contributing, b = mark_i(node.body)
+            if not invoked_literal_contributing:
+                invoked = (invoked[0], invoked[1], invoked[2], None, invoked[4])
+            if not recv_body_contributing:
+                if not (invoked_clz_msig_contributing or invoked_literal_contributing):
+                    return False, cq.Uncontributing(node)
                 else:
-                    n = cq.Uncontributing(node)
-            return atq.HookResult(n)
-        elif isinstance(node, tuple) and node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE):
-            clz_msig = node[1], node[2]
-            literals = node[3]
-            terms = [clz_msig]
-            literals and terms.extend(literals)
-            return len(cq.missing_query_patterns(terms, query_patterns)) < len_query_patterns
+                    return True, invoked
+            else:
+                return True, ct.CallNode(invoked, node.recursive_cxt, b)
+        elif isinstance(node, tuple):
+            assert node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
+            invoked = node
+            clz_msig = invoked[1], invoked[2]
+            literals = invoked[3]
+            invoked_clz_msig_contributing = len(cq.missing_query_patterns([clz_msig], query_patterns)) < len_query_patterns
+            invoked_literal_contributing = literals and len(cq.missing_query_patterns(literals, query_patterns)) < len_query_patterns
+            if not invoked_literal_contributing:
+                invoked = (invoked[0], invoked[1], invoked[2], None, invoked[4])
+            if not (invoked_clz_msig_contributing or invoked_literal_contributing):
+                return False, cq.Uncontributing(node)
+            else:
+                return True, invoked
         else:
-            return atq.Undecided
-    def mark_uncontributing_nodes_w_call_i(node):
-        return atq.mark_uncontributing_nodes(node, predicate_func)
-    return mark_uncontributing_nodes_w_call_i(call_node)
+            assert False
+
+    return mark_i(call_node)[1]
 
 
 def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2conversion=None):
@@ -217,7 +240,10 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
             clz, msig, loc_info = invoked[1], invoked[2], invoked[4]
             indent_str = indent_step_str * indent
             out.write('%s%s\t%s\n' % (indent_str, format_clz_msig(clz, msig), format_loc_info(loc_info)))
-            body = node[3]
+            lits = invoked[3]
+            if lits:
+                out.write('%s    %s\n' % (indent_str, ', '.join(lits)))
+            body = node.body
             if not (isinstance(body, cq.Uncontributing) or isinstance(body, list) and len(body) <= 1):
                 out.write('%s{\n' % indent_str)
                 format_i(body, indent + 1)
@@ -228,6 +254,9 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
             assert n0 in (jp.INVOKE, jp.SPECIALINVOKE)
             clz, msig, loc_info = invoked[1], invoked[2], invoked[4]
             out.write('%s%s\t%s\n' % (indent_step_str * indent, format_clz_msig(clz, msig), format_loc_info(loc_info)))
+            lits = node[3]
+            if lits:
+                out.write('%s    %s\n' % (indent_str, ', '.join(lits)))
         elif isinstance(node, cq.Uncontributing):
             assert False
         else:
@@ -269,6 +298,11 @@ def format_call_tree_node(node, out=sys.stdout, indent_width=2, clz_msig2convers
 
 
 def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig2conversion=None):
+    def label_w_lit(invoked, recursive_cxt):
+        items = [recursive_cxt, invoked[1], invoked[2]]
+        invoked[3] and items.extend(invoked[3])
+        return tuple(items)
+
     if clz_msig2conversion:
         def format_loc_info(loc_info):
             if loc_info is None:
@@ -282,7 +316,49 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
         def format_loc_info(loc_info):
             return ""
 
-    printed_node_labels = set()
+    printed_node_label_w_lits = set()
+
+    def put_callnode(node, loc_info_str=None):
+        invoked = node.invoked
+        clz, msig = invoked[1], invoked[2]
+        if loc_info_str is None:
+            loc_info = invoked[4]
+            loc_info_str = format_loc_info(loc_info)
+        lits = invoked[3]
+        node_label = label_w_lit(invoked, node.recursive_cxt)
+        if node_label not in printed_node_label_w_lits:
+            printed_node_label_w_lits.add(node_label)
+            buf = [(0, '%s {' % format_clz_msig(clz, msig), loc_info_str)]
+            if lits:
+                buf.append((0, '    %s' % ', '.join(lits), ''))
+            b = format_i(node.body)
+            if b:
+                for p in b:
+                    buf.append((p[0] + 1, p[1], p[2]))
+                buf.append((0, '}', ''))
+            else:
+                p = buf[-1]
+                buf[-1] = (p[0], p[1] + '}', p[2])
+            return buf
+        return None
+
+    def put_tuple(node, loc_info_str=None):
+        assert node
+        n0 = node[0]
+        assert n0 in (jp.INVOKE, jp.SPECIALINVOKE)
+        clz, msig = node[1], node[2]
+        if loc_info_str is None:
+            loc_info = node[4]
+            loc_info_str = format_loc_info(loc_info)
+        lits = node[3]
+        node_label = label_w_lit(node, None)  # context unknown, use non-context as default
+        if node_label not in printed_node_label_w_lits:
+            printed_node_label_w_lits.add(node_label)
+            buf = [(0, format_clz_msig(clz, msig), loc_info_str)]
+            if lits:
+                buf.append((0, '    %s' % ', '.join(lits), ''))
+            return buf
+        return None
 
     def format_i(node):
         if isinstance(node, list):
@@ -315,50 +391,24 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
             else:
                 assert False
         elif isinstance(node, ct.CallNode):
-            invoked = node.invoked
-            clz, msig, loc_info = invoked[1], invoked[2], invoked[4]
-            node_label = cb.callnode_label(node)
-            if node_label not in printed_node_labels:
-                printed_node_labels.add(node_label)
-                buf = [(0, '%s {' % format_clz_msig(clz, msig), format_loc_info(loc_info))]
-                b = format_i(node.body)
-                if b:
-                    for p in b:
-                        buf.append((p[0] + 1, p[1], p[2]))
-                    buf.append((0, '}', ''))
-                else:
-                    p = buf[-1]
-                    buf[-1] = (p[0], p[1] + '}', p[2])
-                return buf
-            return None
+            return put_callnode(node)
         elif isinstance(node, tuple):
-            assert node
-            n0 = node[0]
-            assert n0 in (jp.INVOKE, jp.SPECIALINVOKE)
-            clz, msig, loc_info = node[1], node[2], node[4]
-            node_label = (clz, msig, None)  # context unknown, use non-context as default
-            if node_label not in printed_node_labels:
-                printed_node_labels.add(node_label)
-                return [(0, format_clz_msig(clz, msig), format_loc_info(loc_info))]
-            return None
+            return put_tuple(node)
         elif isinstance(node, cq.Uncontributing):
             return None
         else:
             assert False
 
-    assert isinstance(node, ct.CallNode)
-    clz, msig = node.invoked[1], node.invoked[2]
-    node_label = cb.callnode_label(node)
-    printed_node_labels.add(node_label)
-    line_depth_body_locinfos = [(0, '%s {' % format_clz_msig(clz, msig), '')]
-    buf = format_i(node.body)
-    if buf:
-        for p in buf:
-            line_depth_body_locinfos.append((p[0] + 1, p[1], p[2]))
-    line_depth_body_locinfos.append((0, '}', ''))
+    if isinstance(node, ct.CallNode):
+        buf = put_callnode(node, loc_info_str='')
+    elif isinstance(node, tuple):
+        buf = put_tuple(node, loc_info_str='')
+    else:
+        assert False
 
+    assert buf is not None
     indent_step_str = '  '
-    for d, b, locinfo in line_depth_body_locinfos:
+    for d, b, locinfo in buf:
         out.write('%s%s\t%s\n' % (indent_step_str * d, b, locinfo))
 
 

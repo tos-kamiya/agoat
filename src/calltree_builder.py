@@ -251,26 +251,26 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc, call_node_memo={}
         dispatch_node = [ct.ORDERED_OR]
         for clz_method, md in cand_methods:
             rc = recursive_context
-            if rc is None and clz_method in methods_ircc:
-                rc = clz_method
-            cn = ct.CallNode((cmd, clz_method[0], clz_method[1], literals, loc_info), rc, None)
-            node_label = callnode_label(cn)
-            v = call_node_memo.get(node_label)
-            if v is None:
-                if md.code != NOTREE:
-                    if clz_method in digging_calls:
-                        if rc is None:
-                            assert clz_method == digging_calls[-1]  # direct recursion
-                        v = [ct.ORDERED_AND]
-                    else:
+            if clz_method in digging_calls:
+                # a recursive call is always a leaf node
+                dispatch_node.append((cmd, clz_method[0], clz_method[1], literals, loc_info))
+            else:
+                if rc is None and clz_method in methods_ircc:
+                    rc = clz_method
+                cn = ct.CallNode((cmd, clz_method[0], clz_method[1], literals, loc_info), rc, None)
+                node_label = callnode_label(cn)
+                v = call_node_memo.get(node_label)
+                if v is None:
+                    if md.code != NOTREE:
+                        assert clz_method not in digging_calls  # assert this call is not a recursive one
                         digging_calls.append(clz_method)
                         v = dig_node(md.code, rc, clz_method)
                         digging_calls.pop()
-                else:
-                    v = NOTREE  # can't expand
-                call_node_memo[node_label] = v
-            cn.body = v
-            dispatch_node.append(cn)
+                    else:
+                        v = NOTREE  # can't expand
+                    call_node_memo[node_label] = v
+                cn.body = v
+                dispatch_node.append(cn)
         len_dispatch_node = len(dispatch_node)
         if len_dispatch_node == 1:
             return None

@@ -73,39 +73,71 @@ def build_query_pattern_list(query_words, ignore_case=False):
 
 
 def find_lower_call_nodes(query_patterns, call_trees, node_summary_table):
-    already_searched = set()
-    def predicate_func(node):
-        if isinstance(node, ct.CallNode):
-            invoked = node.invoked
-            node_label = cb.callnode_label(node)
-            if node_label in already_searched:
-                return False
-            already_searched.add(node_label)
-            summary = node_summary_table.get(node_label)
-            if summary is None:
-                return False
-            if not missing_query_patterns(summary, query_patterns):
-                lower_bound_nodes = atq.find_lower_bound_nodes(node.body, predicate_func)
-                return atq.HookResult(lower_bound_nodes if lower_bound_nodes else [node])
-            else:
-                return atq.HookResult(atq.find_lower_bound_nodes(node.body, predicate_func))
-        else:
-            return atq.Undecided
-
     def get_recv_msig(call_node):
         assert isinstance(call_node, ct.CallNode)
         invoked = call_node.invoked
         clz, msig = invoked[1], invoked[2]
         return (clz, msig)
 
-    call_nodes = []
+    search_memo = {}
+    def fullfills_query(call_node):
+        assert isinstance(call_node, ct.CallNode)
+        node_label = cb.callnode_label(call_node)
+        r = search_memo.get(node_label)
+        if r is not None:
+            return r
+
+        summary = node_summary_table.get(node_label)
+        if summary is None:
+            result = False
+        else:
+            result = not missing_query_patterns(summary, query_patterns)
+        search_memo[node_label] = result
+        return result
+
+    def get_direct_sub_callnodes(node):
+        if isinstance(node, list):
+            assert node
+            n0 = node[0]
+            if n0 in (ct.ORDERED_AND, ct.ORDERED_OR):
+                scs = []
+                for subn in node[1:]:
+                    scs.extend(get_direct_sub_callnodes(subn))
+                return scs
+            else:
+                assert False
+        elif isinstance(node, ct.CallNode):
+            return [node]
+        else:
+            return []
+
+    already_searched_call_node_labels = set()
+    lower_call_nodes = []
+    def search_i(call_node):
+        node_label = cb.callnode_label(call_node)
+        if node_label in already_searched_call_node_labels:
+            return
+        subcs = get_direct_sub_callnodes(call_node.body)
+        any_subc_fullfill_query = False
+        for subc in subcs:
+            if fullfills_query(subc):
+                any_subc_fullfill_query = True
+                search_i(subc)
+        if not any_subc_fullfill_query:
+            lower_call_nodes.append(call_node)
+        already_searched_call_node_labels.add(node_label)
+
     for call_tree in call_trees:
-        call_nodes.extend(atq.find_lower_bound_nodes(call_tree, predicate_func))
-    call_nodes.sort(key=get_recv_msig)
-    uniq_call_nodes = []
-    for k, g in itertools.groupby(call_nodes, key=get_recv_msig):
-        uniq_call_nodes.append(g.next())
-    return uniq_call_nodes
+        assert isinstance(call_tree, ct.CallNode)
+        if fullfills_query(call_tree):
+            search_i(call_tree)
+
+    uniq_lower_call_nodes = []
+    for k, g in itertools.groupby(lower_call_nodes, key=cb.callnode_label):
+        uniq_lower_call_nodes.append(g.next())
+    for t in uniq_lower_call_nodes:  #debug
+        assert fullfills_query(t)  #debug
+    return uniq_lower_call_nodes
 
 
 def treecut(node, depth, has_further_deep_nodes=[None]):
@@ -143,11 +175,14 @@ def extract_shallowest_treecut(call_node, query_patterns, max_depth=-1):
         m = missing_query_patterns(summary, query_patterns)
         if not m:
             return tc
+        if not has_further_deep_nodes[0]:  #debug
+            print cb.callnode_label(call_node)  # debug
         assert has_further_deep_nodes[0]
         depth += 1
 
     # not found
     return None
+
 
 def mark_uncontributing_nodes_w_call(call_node, query_patterns):
     len_query_patterns = len(query_patterns)

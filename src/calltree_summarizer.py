@@ -57,8 +57,8 @@ def extract_node_summary_table(call_andor_tree, summary_memo={}):
         assert node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
         clz = node[1]
         msig = node[2]
-        assert clz is not None  # debug
         return (clz, msig)
+
     def dig_node(node):
         if isinstance(node, list):
             n0 = node[0]

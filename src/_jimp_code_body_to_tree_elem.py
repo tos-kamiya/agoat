@@ -101,7 +101,6 @@ def resolve_type(inss, method_data, class_data):
             lit and literals.add(lit)
             msig = method_sig_intern(jp.MethodSig(rretv, method_name, rargs))
             literals = tuple(sorted(literals))
-            assert rrecv is not None  # debug
             resolved_inss.append((cmd, rrecv, msig, literals, linenum))
         else:
             resolved_inss.append(ins)
@@ -174,7 +173,6 @@ def convert_to_execution_paths(inss):
                 b.extend(convert_to_execution_paths(ins[1:]))
                 path.append(b)
             elif cmd in (jp.SPECIALINVOKE, jp.INVOKE):
-                assert inss[1] is not None  # debug
                 is_repetitive = path and path[-1][:-1] == ins[:-1]
                 # cmd, receiver, method_name, args, retv, linenum = ins
                 if not is_repetitive:

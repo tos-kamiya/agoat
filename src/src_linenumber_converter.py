@@ -260,8 +260,6 @@ def make_invocationindex_to_src_linenum_table(javap_asm_dir):
     for typ, values in get_asm_info_iter(javap_asm_dir):
         if typ == METHOD_CODE:
             claz_sig, code, etbl, ltbl = values
-            if "getNextToken" in claz_sig[1]:
-                assert True
             invocationindex2linenum = []
             lineseq, indexseq = scan_linumber_table(ltbl)
             for L in code:
