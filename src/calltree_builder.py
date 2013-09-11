@@ -7,6 +7,12 @@ import _jimp_code_body_to_tree_elem as jcbte
 import calltree as ct
 from _jimp_code_body_to_tree_elem import NOTREE, inss_to_tree, inss_to_tree_in_class_table  # re-export
 
+
+def callnode_label(call_node):
+    node_label = (call_node.invoked[1], call_node.invoked[2], call_node.recursive_cxt)
+    return node_label
+
+
 def extract_class_hierarchy(class_table, include_indirect_decendants=True):
     # class_table  # str -> ClassData
     class_to_descendants = {}  # str -> set of str
@@ -255,7 +261,7 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc, call_node_memo={}
             if rc is None and clz_method in methods_ircc:
                 rc = clz_method
             cn = ct.CallNode((cmd, clz_method[0], clz_method[1], loc_info), rc, None)
-            node_label = (clz_method[0], clz_method[1], rc)
+            node_label = callnode_label(cn)
             v = call_node_memo.get(node_label)
             if v is None:
                 if md.code != NOTREE:

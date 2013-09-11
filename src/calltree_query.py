@@ -7,6 +7,7 @@ import jimp_parser as jp
 import calltree as ct
 from andor_tree_query import Uncontributing # re-export
 import andor_tree_query as atq
+import calltree_builder as cb
 import calltree_summarizer as cs
 
 def missing_query_words(summary, query_patterns):
@@ -42,8 +43,7 @@ def find_lower_call_nodes(query_patterns, call_trees, node_summary_table):
     def predicate_func(node):
         if isinstance(node, ct.CallNode):
             invoked = node.invoked
-            clz, msig = invoked[1], invoked[2]
-            node_label = (clz, msig, node.recursive_cxt)
+            node_label = cb.callnode_label(node)
             if node_label in already_searched:
                 return False
             already_searched.add(node_label)
@@ -121,8 +121,8 @@ def mark_uncontributing_nodes_w_call(call_node, query_patterns):
     def predicate_func(node):
         if isinstance(node, ct.CallNode):
             invoked = node.invoked
-            clz, msig = invoked[1], invoked[2]
-            node_label = (clz, msig, node.recursive_cxt)
+            clz_msig = invoked[1], invoked[2]
+            node_label = cb.callnode_label(node)
             v = call_node_memo.get(node_label)
             if v is None:
                 b = mark_uncontributing_nodes_w_call_i(node.body)
@@ -130,7 +130,7 @@ def mark_uncontributing_nodes_w_call(call_node, query_patterns):
                 if recv_body_contributing:
                     v = ct.CallNode(node.invoked, node.recursive_cxt, b)
                 else:
-                    if len(missing_query_words([(clz, msig)], query_patterns)) < len_query_patterns:
+                    if len(missing_query_words([(clz_msig)], query_patterns)) < len_query_patterns:
                         v = ct.CallNode(node.invoked, node.recursive_cxt, Uncontributing([ct.ORDERED_AND]))
                     else:
                         v = Uncontributing(node)

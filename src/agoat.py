@@ -250,10 +250,8 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
             else:
                 assert False
         elif isinstance(node, ct.CallNode):
-            invoked = node.invoked
-            clz, msig = invoked[1], invoked[2]
-            loc_info = invoked[3]
-            node_label = (clz, msig, node.recursive_cxt)
+            _, clz, msig, loc_info = node.invoked
+            node_label = cb.callnode_label(node)
             if node_label not in printed_node_labels:
                 printed_node_labels.add(node_label)
                 buf = [(0, '%s {' % format_clz_msig(clz, msig), format_loc_info(loc_info))]
@@ -271,8 +269,7 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
             assert node
             n0 = node[0]
             assert n0 in (jp.INVOKE, jp.SPECIALINVOKE)
-            clz, msig = node[1], node[2]
-            loc_info = node[3]
+            _, clz, msig, loc_info = node
             node_label = (clz, msig, None)  # context unknown, use non-context as default
             if node_label not in printed_node_labels:
                 printed_node_labels.add(node_label)
@@ -284,11 +281,8 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
             assert False
 
     assert isinstance(node, ct.CallNode)
-
-    invoked = node.invoked
-    clz, msig = invoked[1], invoked[2]
-    # loc_info = invoked[3]
-    node_label = (clz, msig, node.recursive_cxt)
+    _, clz, msig, _ = node.invoked
+    node_label = cb.callnode_label(node)
     printed_node_labels.add(node_label)
     line_depth_body_locinfos = [(0, '%s {' % format_clz_msig(clz, msig), '')]
     buf = format_i(node.body)
