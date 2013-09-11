@@ -109,10 +109,7 @@ def extract_shallowest_treecut(call_node, query_patterns, max_depth=-1):
         m = missing_query_words(summary, query_patterns)
         if not m:
             return tc
-        if not has_further_deep_nodes[0]:
-            print "summary =", repr(summary)  # debug
-            print "missing_query_words =", repr(m)  # debug
-            assert False
+        assert has_further_deep_nodes[0]
         depth += 1
 
     # not found

@@ -9,8 +9,6 @@ import jimp_parser as jp
 
 def summarize_node(node):
     def scan_invocation(node):
-        if not isinstance(node, tuple):
-            assert False  # debug
         assert isinstance(node, tuple)
         assert node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
         clz = node[1]
@@ -40,6 +38,8 @@ def summarize_node(node):
                 pass
             elif isinstance(subnode, (list, ct.CallNode)):
                 dig_node(subnode)
+            else:
+                summary.add(scan_invocation(subnode))
         else:
             summary.add(scan_invocation(node))
 
