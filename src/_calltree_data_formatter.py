@@ -105,8 +105,8 @@ def pretty_print_pickle_data(data, out):
 def make_custom_formatters(contribution_data, fully_qualified_package_name, ansi_color):
     _, cont_clzs, cont_msigs, cont_literals = contribution_data
 
-    c_red = colorama.Fore.RED
-    c_reset = colorama.Fore.RESET
+    a_enhanced = colorama.Fore.RED + colorama.Style.BRIGHT
+    a_reset = colorama.Fore.RESET + colorama.Style.RESET_ALL
 
     if fully_qualified_package_name:
         fmt_clz, fmt_msig = format_clz, format_msig
@@ -116,10 +116,10 @@ def make_custom_formatters(contribution_data, fully_qualified_package_name, ansi
         old_fmt_clz, old_fmt_msig = fmt_clz, fmt_msig
         def fmt_clz_w_coloring(clz):
             s = old_fmt_clz(clz)
-            return (c_red + s + c_reset) if clz in cont_clzs else s
+            return (a_enhanced + s + a_reset) if clz in cont_clzs else s
         def fmt_msig_w_coloring(msig):
             s = old_fmt_msig(msig)
-            return (c_red + s + c_reset) if msig in cont_msigs else s
+            return (a_enhanced + s + a_reset) if msig in cont_msigs else s
         fmt_clz, fmt_msig = fmt_clz_w_coloring, fmt_msig_w_coloring
 
     if ansi_color:
@@ -127,7 +127,7 @@ def make_custom_formatters(contribution_data, fully_qualified_package_name, ansi
             if lits not in cont_literals:
                 return None
             s = ', '.join(lits)
-            return c_red + s + c_reset
+            return a_enhanced + s + a_reset
     else:
         def fmt_lits(lits):
             if lits not in cont_literals:
