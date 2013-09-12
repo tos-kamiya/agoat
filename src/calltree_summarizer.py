@@ -22,8 +22,6 @@ def get_node_summary(node):
             if n0 in (ct.ORDERED_AND, ct.ORDERED_OR):
                 for subn in node[1:]:
                     dig_node(subn)
-            elif n0 == cb.NOTREE:
-                raise ValueError("NOTREE not yet supported")
             else:
                 assert False
         elif isinstance(node, ct.CallNode):
@@ -33,8 +31,6 @@ def get_node_summary(node):
             summary.add(clz_msig)
             invoked[3] and summary.update(invoked[3])
             subnode = node.body
-            if subnode == cb.NOTREE:
-                raise ValueError("NOTREE not yet supported")
             if subnode is None:
                 pass
             elif isinstance(subnode, (list, ct.CallNode)):
@@ -67,8 +63,6 @@ def extract_node_summary_table(call_andor_tree, summary_memo={}):
                 for subn in node[1:]:
                     subsum.update(dig_node(subn))
                 return sorted(subsum)
-            elif n0 == cb.NOTREE:
-                raise ValueError("NOTREE not yet supported")
             else:
                 assert False
         elif isinstance(node, ct.CallNode):
@@ -80,8 +74,6 @@ def extract_node_summary_table(call_andor_tree, summary_memo={}):
             k = (clz, msig, node.recursive_cxt)
             if k not in summary_memo:
                 subnode = node.body
-                if subnode == cb.NOTREE:
-                    raise ValueError("NOTREE not yet supported")
                 if subnode is None:
                     pass
                 elif isinstance(subnode, (list, ct.CallNode)):

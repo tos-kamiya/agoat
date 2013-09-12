@@ -5,7 +5,7 @@ import sys
 import jimp_parser as jp
 import _jimp_code_body_to_tree_elem as jcbte
 import calltree as ct
-from _jimp_code_body_to_tree_elem import NOTREE, inss_to_tree, inss_to_tree_in_class_table  # re-export
+from _jimp_code_body_to_tree_elem import inss_to_tree, inss_to_tree_in_class_table  # re-export
 
 
 def callnode_label(call_node):
@@ -261,13 +261,10 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc, call_node_memo={}
                 node_label = callnode_label(cn)
                 v = call_node_memo.get(node_label)
                 if v is None:
-                    if md.code != NOTREE:
-                        assert clz_method not in digging_calls  # assert this call is not a recursive one
-                        digging_calls.append(clz_method)
-                        v = dig_node(md.code, rc, clz_method)
-                        digging_calls.pop()
-                    else:
-                        v = NOTREE  # can't expand
+                    assert clz_method not in digging_calls  # assert this call is not a recursive one
+                    digging_calls.append(clz_method)
+                    v = dig_node(md.code, rc, clz_method)
+                    digging_calls.pop()
                     call_node_memo[node_label] = v
                 cn.body = v
                 dispatch_node.append(cn)
