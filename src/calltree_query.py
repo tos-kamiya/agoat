@@ -177,6 +177,11 @@ def extract_shallowest_treecut(call_node, query_patterns, max_depth=-1):
 
 
 def mark_uncontributing_nodes_w_call(call_node, query_patterns):
+    """
+    Encloses uncontributing node with Uncontributing object.
+    This function depends on call-node label, that is,
+    two nodes with the same call-node label have to have the same sub-(sub-)nodes to each other.
+    """
     len_query_patterns = len(query_patterns)
     call_node_memo = {}
     def predicate_func(node):
