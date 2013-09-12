@@ -14,7 +14,7 @@ import calltree_builder as cb
 import calltree_summarizer as cs
 import calltree_query as cq
 import src_linenumber_converter as slc
-from _calltree_data_formatter import format_clz, format_msig, format_clz_msig
+from _calltree_data_formatter import format_clz_msig
 from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
 from _calltree_data_formatter import pretty_print_pickle_data, format_call_tree_node_compact, init_ansi_color
 
