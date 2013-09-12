@@ -2,6 +2,7 @@
 
 import sys
 
+import _utilities
 import jimp_parser as jp
 import _jimp_code_body_to_tree_elem as jcbte
 import calltree as ct
@@ -49,53 +50,76 @@ def extract_class_hierarchy(class_table, include_indirect_decendants=True):
 #     return iterface_to_classes
 
 
-def make_dispatch_table(class_to_methods, class_to_descendants, iterface_to_classes=None):
+def methodsig_mnamc(msig):
+    return jp.methodsig_name(msig), len(jp.methodsig_params(msig))
+
+
+def make_dispatch_table(class_to_methods, class_to_descendants):
     # class_to_descendants  # str -> set of str
     # class_to_methods  # str -> [MethodSig]
     # interface_to_classes  # str -> set of str
-    assert iterface_to_classes is None  # not yet implemented
 
-    recv_method_to_defs = {}
-    # recv_method_to_defs  # (str, MethodSig) -> [str]
+    recv_method_to_defs = {}  # recv_method_to_defs  # (clz, mnamc) -> [(clz, MethodSig)]
     for clz_mtds in class_to_methods.iteritems():
         clz, mtds = clz_mtds
+        mnamcs = _utilities.sort_uniq([methodsig_mnamc(msig) for msig in mtds])
         assert clz
         cands = [clz]
         descends = class_to_descendants.get(clz)
         if descends:
             cands.extend(descends)
         for d in cands:
-            for mtd in mtds:
-                if mtd in class_to_methods.get(d, []):
-                    recv_method_to_defs.setdefault((clz, mtd), []).append(d)
-    for cs in recv_method_to_defs.itervalues():
-        cs.sort()
+            for mnamc in mnamcs:
+                for dmsig in class_to_methods.get(d, []):
+                    if methodsig_mnamc(dmsig) == mnamc:
+                        recv_method_to_defs.setdefault((clz, mnamc), []).append((d, dmsig))
+    for cms in recv_method_to_defs.itervalues():
+        cms.sort()
     return recv_method_to_defs
 
 
-def make_method_call_resolver(class_table, recv_method_to_defs):
+def make_method_call_resolver(class_table, class_to_descendants, recv_method_to_defs):
     # class_table  # str -> ClassData
-    # recv_method_to_defs  # (str, MethodSig) -> [str]
+    # recv_method_to_defs  # recv_method_to_defs  # (clz, mnamc) -> [(clz, MethodSig)]
     def resolver(recv_msig, static_method=False):
         resolved = []
         recv, msig = recv_msig
-        cands = [recv] if static_method else recv_method_to_defs.get(recv_msig, [])
-        for clz in cands:
-            cd = class_table.get(clz)
+        mnamc = methodsig_mnamc(msig)
+        cands = recv_method_to_defs.get((recv, mnamc))
+        if cands is None:
+            return resolved
+        for cclz, cmsig in cands:
+            if static_method and cclz != recv:
+                continue  # cclz, cmsig
+            unmatch = False
+            for p, cp in zip(jp.methodsig_params(msig), jp.methodsig_params(cmsig)):
+                if p == 'null':
+                    if cp in ('byte', 'short', 'int', 'long', 'boolean', 'char', 'float', 'double'):
+                        unmatch = True
+                        break  # for p, cp
+                else:
+                    if not (p == cp or p in class_to_descendants.get(cp, ())):
+                        unmatch = True
+                        break  # for p, cp
+            if unmatch:
+                continue  # cclz, cmsig
+            retv, cretv = jp.methodsig_retv(msig), jp.methodsig_retv(cmsig)
+            if not (retv == cretv or cretv in class_to_descendants.get(retv, ())):
+                continue  # cclz, cmsig 
+
+            # TODO: Narrow down with inheritance hierachy
+            # e.g. if two methods "void someMethod(Object)" and "void someMethod(String)" exist,
+            # a method call someMethod("abc") is resolved the latter, not the former.
+            # The current implementation returns both ones as possible dispatches.
+
+            cd = class_table.get(cclz)
             if cd:
-                md = cd.methods.get(msig)
+                md = cd.methods.get(cmsig)
                 if md:
                     c_m = cd.class_name, md.method_sig
                     resolved.append((c_m, md))
         return resolved
     return resolver
-
-# def generate_call_andor_tree(class_table, method_table, recv_method_to_defs, entry_point):
-# class_table  # str -> ClassData
-# method_table  # (str, MethodSig) -> aot
-# recv_method_to_defs  # (str, MethodSig) -> [str]
-# entry_point  # (str, MethodSig)
-#     pass
 
 
 def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
@@ -129,9 +153,8 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
                     else:
                         r = resolver(rc_mtd, static_method=True)
                         if r:
-                            assert len(r) == 1
-                            _, md = r[0]
-                            dig_call(rc_mtd, md, stack)
+                            for rc_mtd, md in r:
+                                dig_call(rc_mtd, md, stack)
                 elif cmd == jp.INVOKE:
                     receiver_class, mtd = node[1], node[2]
                     rc_mtd = (receiver_class, mtd)
@@ -286,7 +309,7 @@ def extract_call_andor_trees(class_table, entry_points):
 
     recv_method_to_defs = make_dispatch_table(class_to_methods, class_to_descendants)
 
-    resolver = make_method_call_resolver(class_table, recv_method_to_defs)
+    resolver = make_method_call_resolver(class_table, class_to_descendants, recv_method_to_defs)
 
     methods_ircc = set()
     for entry_point in entry_points:
@@ -365,7 +388,7 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
         class_to_methods, class_to_descendants)
 
     logout and logout.write("> find recursive\n")
-    resolver = make_method_call_resolver(class_table, recv_method_to_defs)
+    resolver = make_method_call_resolver(class_table, class_to_descendants, recv_method_to_defs)
     methods_ircc = find_methods_involved_in_recursive_call_chain(
             entry_point, resolver)
 

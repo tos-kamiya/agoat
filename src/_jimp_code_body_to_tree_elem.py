@@ -46,7 +46,7 @@ else:
 def gen_resolver(method_data, class_data):
     def resolve(name):
         if name == 'null':
-            return 'java.lang.Object', None  # unknown
+            return 'null', None
         if name is None:
             return None, None
         if name.startswith("class "):
