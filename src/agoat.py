@@ -17,6 +17,8 @@ import calltree_query as cq
 import src_linenumber_converter as slc
 
 
+VERSION = "0.5.0"
+
 # def replace_callnode_with_tuple(L):
 # #     object_ids = set()
 # #     duplidate_object_ids = set()
@@ -473,6 +475,7 @@ def main(argv):
     defalut_max_depth_of_subtree = 5
 
     psr = argparse.ArgumentParser(description='agoat command-line')
+    psr.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
     subpsrs = psr.add_subparsers(dest='command', help='commands')
 
     psr_ep = subpsrs.add_parser('le', help='listing entry point classes')
