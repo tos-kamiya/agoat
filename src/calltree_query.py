@@ -22,18 +22,15 @@ class QueryPattern(object):
 
     @staticmethod
     def compile(query_word, ignore_case=False):
-        if ignore_case:
-            def re_compile(w): return re.compile(w, re.IGNORECASE)
-        else:
-            def re_compile(w): return re.compile(w)
-
         if query_word.startswith('"'):
             if query_word.endswith('"'): query_word = query_word[:-1]
             target = TARGET_LITERAL
         else:
             target = TARGET_INVOKED
+        pat = re.compile(query_word, re.IGNORECASE) if ignore_case else \
+            re.compile(query_word)
+        return QueryPattern(target, query_word, pat)
 
-        return QueryPattern(target, query_word, re_compile(query_word))
 
 class Query(object):
     def __init__(self, query_patterns):
@@ -52,23 +49,19 @@ class Query(object):
         return not self.unmatched_patterns(summary)
 
     def unmatched_patterns(self, summary):
-        remaining_is = self._invoked_patterns[:]
-        remaining_ls = self._literal_patterns[:]
+        invokeds = []
+        literals = []
         for s in summary:
             if isinstance(s, tuple):
                 c, m = s
-                for i, p in enumerate(remaining_is):
-                    assert p.target == TARGET_INVOKED
-                    if c and p.regex.search(c) or m and p.regex.search(m):
-                        del remaining_is[i]
-                        break  # for i, p
+                invokeds.append(c)
+                invokeds.append(m)
             else:
-                for i, p in enumerate(remaining_ls):
-                    assert p.target == TARGET_LITERAL
-                    if p.regex.search(s):
-                        del remaining_ls[i]
-                        break  # for i, p
-        return remaining_is + remaining_ls
+                literals.append(s)
+
+        unmatched_is = [p for p in self._invoked_patterns if not any(p.regex.search(w) for w in invokeds)]
+        unmatched_ls = [p for p in self._literal_patterns if not any(p.regex.search(w) for w in literals)]
+        return unmatched_is + unmatched_ls
 
     def matches_invoked(self, clz, msig):
         for p in self._invoked_patterns:
