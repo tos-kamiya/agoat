@@ -102,21 +102,16 @@ def pretty_print_pickle_data(data, out):
             out.write("\n")
 
 
-def format_call_tree_node_compact(node, out, contribution_data, indent_width=2, clz_msig2conversion=None, 
-        fully_qualified_package_name=False, ansi_color=False):
+def make_custom_formatters(contribution_data, fully_qualified_package_name, ansi_color):
+    _, cont_clzs, cont_msigs, cont_literals = contribution_data
+
     c_red = colorama.Fore.RED
     c_reset = colorama.Fore.RESET
 
-    node_id_to_cont, cont_clzs, cont_msigs, cont_literals = contribution_data
-
-    def label_w_lit(invoked, recursive_cxt):
-        items = [recursive_cxt, invoked[1], invoked[2]]
-        invoked[3] and items.extend(invoked[3])
-        return tuple(items)
-
-    fmt_clz, fmt_msig = format_clz_with_omitting_trivial_pakcage, format_msig_with_omitting_trivial_pakcage
     if fully_qualified_package_name:
         fmt_clz, fmt_msig = format_clz, format_msig
+    else:
+        fmt_clz, fmt_msig = format_clz_with_omitting_trivial_pakcage, format_msig_with_omitting_trivial_pakcage
     if ansi_color:
         old_fmt_clz, old_fmt_msig = fmt_clz, fmt_msig
         def fmt_clz_w_coloring(clz):
@@ -128,10 +123,30 @@ def format_call_tree_node_compact(node, out, contribution_data, indent_width=2, 
         fmt_clz, fmt_msig = fmt_clz_w_coloring, fmt_msig_w_coloring
 
     if ansi_color:
-        def coloring(s):
+        def fmt_lits(lits):
+            if lits not in cont_literals:
+                return None
+            s = ', '.join(lits)
             return c_red + s + c_reset
     else:
-        def coloring(s): return s
+        def fmt_lits(lits):
+            if lits not in cont_literals:
+                return None
+            return ', '.join(lits)
+
+    return fmt_clz, fmt_msig, fmt_lits
+
+
+def format_call_tree_node_compact(node, out, contribution_data, indent_width=2, clz_msig2conversion=None, 
+        fully_qualified_package_name=False, ansi_color=False):
+    node_id_to_cont, cont_clzs, cont_msigs, _ = contribution_data
+
+    fmt_clz, fmt_msig, fmt_lits = make_custom_formatters(contribution_data, fully_qualified_package_name, ansi_color)
+
+    def label_w_lit(invoked, recursive_cxt):
+        items = [recursive_cxt, invoked[1], invoked[2]]
+        invoked[3] and items.extend(invoked[3])
+        return tuple(items)
 
     if clz_msig2conversion:
         def format_loc_info(loc_info):
@@ -148,24 +163,20 @@ def format_call_tree_node_compact(node, out, contribution_data, indent_width=2, 
 
     printed_node_label_w_lits = set()
 
-    def put_callnode(node, loc_info_str=None):
+    def put_callnode(node, loc_info_str):
         invoked = node.invoked
-        clz_msig = clz, msig = invoked[1], invoked[2]
+        clz, msig = invoked[1], invoked[2]
         if loc_info_str is None:
-            loc_info = invoked[4]
-            loc_info_str = format_loc_info(loc_info)
-        lits = invoked[3]
-        if lits not in cont_literals:
-            lits = None
+            loc_info_str = format_loc_info(invoked[4])
         node_label = label_w_lit(invoked, node.recursive_cxt)
         if node_label not in printed_node_label_w_lits:
             buf = [(0, '%s %s {' % (fmt_clz(clz), fmt_msig(msig)), loc_info_str)]
-            if lits:
-                buf.append((0, '    %s' % coloring(', '.join(lits)), ''))
+            s = fmt_lits(invoked[3])
+            if s:
+                buf.append((0, '    ' + s, ''))
             b = format_i(node.body)
             if b:
-                for p in b:
-                    buf.append((p[0] + 1, p[1], p[2]))
+                buf.extend((p[0] + 1, p[1], p[2]) for p in b)
                 buf.append((0, '}', ''))
             elif clz in cont_clzs or msig in cont_msigs:
                 p = buf[-1]
@@ -176,71 +187,54 @@ def format_call_tree_node_compact(node, out, contribution_data, indent_width=2, 
             return buf
         return None
 
-    def put_tuple(node, loc_info_str=None):
+    def put_tuple(node, loc_info_str):
         assert node
-        n0 = node[0]
-        assert n0 in (jp.INVOKE, jp.SPECIALINVOKE)
-        clz, msig = node[1], node[2]
+        assert node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
         if loc_info_str is None:
-            loc_info = node[4]
-            loc_info_str = format_loc_info(loc_info)
-        lits = node[3]
-        if lits not in cont_literals:
-            lits = None
+            loc_info_str = format_loc_info(node[4])
         node_label = label_w_lit(node, None)  # context unknown, use non-context as default
         if node_label not in printed_node_label_w_lits:
             printed_node_label_w_lits.add(node_label)
-            buf = [(0, '%s %s' % (fmt_clz(clz), fmt_msig(msig)), loc_info_str)]
-            if lits:
-                buf.append((0, '    %s' % coloring(', '.join(lits)), ''))
+            buf = [(0, '%s %s' % (fmt_clz(node[1]), fmt_msig(node[2])), loc_info_str)]
+            s = fmt_lits(node[3])
+            if s:
+                buf.append((0, '    ' + s, ''))
             return buf
         return None
 
     def format_i(node):
-        if not node or node is None:
-            return None
-        if not node_id_to_cont[id(node)]:
+        if not node or node is None or not node_id_to_cont[id(node)]:
             return None
         if isinstance(node, list):
             assert node
             n0 = node[0]
-            if n0 == ct.ORDERED_OR:
-                subouts = []
-                for subn in node[1:]:
-                    b = format_i(subn)
-                    if b:
-                        subouts.append(b)
-                if len(subouts) >= 2:
-                    r = [(0, '||', '')]
-                    for buf in subouts:
-                        for p in buf:
-                            r.append((p[0] + 1, p[1], p[2]))
-                    return r
-                elif len(subouts) == 1:
-                    return subouts[0]
-                return None
-            elif n0 == ct.ORDERED_AND:
+            if n0 in (ct.ORDERED_AND, ct.ORDERED_OR):
+                count_of_valid_subitems = 0
                 buf = []
                 for subn in node[1:]:
                     b = format_i(subn)
                     if b:
+                        count_of_valid_subitems += 1
                         buf.extend(b)
-                if buf:
-                    return buf
-                return None
-            else:
-                assert False
+                if n0 == ct.ORDERED_OR:
+                    if count_of_valid_subitems >= 2:
+                        t = [(0, '||', '')]
+                        t.extend((p[0] + 1, p[1], p[2]) for p in buf)
+                        return t
+                    elif count_of_valid_subitems == 0:
+                        return None
+                return buf
         elif isinstance(node, ct.CallNode):
-            return put_callnode(node)
+            return put_callnode(node, None)
         elif isinstance(node, tuple):
-            return put_tuple(node)
+            return put_tuple(node, None)
         else:
-            assert False
+            assert None
 
     if isinstance(node, ct.CallNode):
-        buf = put_callnode(node, loc_info_str='')
+        buf = put_callnode(node, '')
     elif isinstance(node, tuple):
-        buf = put_tuple(node, loc_info_str='')
+        buf = put_tuple(node, '')
     else:
         assert False
 
@@ -248,3 +242,4 @@ def format_call_tree_node_compact(node, out, contribution_data, indent_width=2, 
     indent_step_str = '  '
     for d, b, locinfo in buf:
         out.write('%s%s\t%s\n' % (indent_step_str * d, b, locinfo))
+
