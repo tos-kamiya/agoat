@@ -175,7 +175,7 @@ def mark_uncontributing_nodes_w_call_wo_memo(call_node, query_patterns):
                 if not (invoked_clz_msig_contributing or invoked_literal_contributing):
                     return False, cq.Uncontributing(node)
                 else:
-                    return True, invoked
+                    return True, ct.CallNode(invoked, node.recursive_cxt, b)
             else:
                 return True, ct.CallNode(invoked, node.recursive_cxt, b)
         elif isinstance(node, tuple):
@@ -394,7 +394,7 @@ def format_call_tree_node_compact(node, out=sys.stdout, indent_width=2, clz_msig
             return put_callnode(node)
         elif isinstance(node, tuple):
             return put_tuple(node)
-        elif isinstance(node, cq.Uncontributing):
+        elif isinstance(node, cq.Uncontributing) or node is None:
             return None
         else:
             assert False
@@ -446,6 +446,8 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
     query_patterns = cq.build_query_pattern_list(query_words, ignore_case=ignore_case)
     call_nodes = cq.find_lower_call_nodes(query_patterns, call_trees, node_summary_table)
     shallowers = filter(None, (cq.extract_shallowest_treecut(call_node, query_patterns, max_depth) for call_node in call_nodes))
+    if call_nodes and not shallowers:
+        sys.stderr.write("> warning: All found results are filtered out by limitation of max call-tree depth (option -D).\n")
     markeds = [mark_uncontributing_nodes_w_call_wo_memo(cn, query_patterns) for cn in shallowers]
     contextlesses = [remove_outermost_loc_info(remove_recursive_contexts(cn)) for cn in markeds]
     call_node_wo_rcs = sort_uniq(contextlesses, key=cb.callnode_label)
