@@ -114,6 +114,31 @@ def remove_outermost_loc_info(call_node):
     return ct.CallNode((invoked[0], invoked[1], invoked[2], invoked[3], None), call_node.recursive_cxt, call_node.body)
 
 
+class NoResultsBecauseOfMaxDepth(ValueError):
+    pass
+
+
+def search_method_bodies_iter(query, call_trees, node_summary_table, max_depth):
+    pred = cq.make_callnode_fullfill_query_predicate_w_memo(query, node_summary_table)
+    call_nodes = cq.get_lower_bound_call_nodes(call_trees, pred)
+
+    pred = cq.make_treecut_fullfill_query_predicate(query)
+    shallowers = filter(None, (cq.extract_shallowest_treecut(call_node, pred, max_depth) for call_node in call_nodes))
+    if call_nodes and not shallowers:
+        raise NoResultsBecauseOfMaxDepth()
+
+    contextlesses = [remove_outermost_loc_info(remove_recursive_contexts(cn)) for cn in shallowers]
+    call_node_wo_rcs = sort_uniq(contextlesses, key=cb.callnode_label)
+
+    node_id_to_cont, cont_clzs, cont_msigs, cont_literals = \
+            contribution_data = cq.extract_node_contributions(call_node_wo_rcs, query)
+    for cn in call_node_wo_rcs:
+        assert node_id_to_cont[id(cn)]
+
+    for cn in call_node_wo_rcs:
+        yield cn, contribution_data
+
+
 def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=False, line_number_table=None, 
         max_depth=-1, fully_qualified_package_name=False, ansi_color=False):
     with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
@@ -133,28 +158,14 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
     query_patterns = [cq.QueryPattern.compile(w, ignore_case=ignore_case) for w in query_words]
     query = cq.Query(query_patterns)
 
-    pred = cq.make_callnode_fullfill_query_predicate_w_memo(query, node_summary_table)
-    call_nodes = cq.get_lower_bound_call_nodes(call_trees, pred)
-
-    pred = cq.make_treecut_fullfill_query_predicate(query)
-    shallowers = filter(None, (cq.extract_shallowest_treecut(call_node, pred, max_depth) for call_node in call_nodes))
-    if call_nodes and not shallowers:
-        sys.stderr.write("> warning: All found results are filtered out by limitation of max call-tree depth (option -D).\n")
-
-    contextlesses = [remove_outermost_loc_info(remove_recursive_contexts(cn)) for cn in shallowers]
-    call_node_wo_rcs = sort_uniq(contextlesses, key=cb.callnode_label)
-
-    node_id_to_cont, cont_clzs, cont_msigs, cont_literals = \
-            contribution_data = cq.extract_node_contributions(call_node_wo_rcs, query)
-    for cn in call_node_wo_rcs:
-        assert node_id_to_cont[id(cn)]
-
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        for cn in call_node_wo_rcs:
-            out.write("---\n")
-            format_call_tree_node_compact(cn, out, contribution_data, clz_msig2conversion=clz_msig2conversion,
-                    fully_qualified_package_name=fully_qualified_package_name, ansi_color=ansi_color)
-
+        try:
+            for cn, contribution_data in search_method_bodies_iter(query, call_trees, node_summary_table, max_depth):
+                out.write("---\n")
+                format_call_tree_node_compact(cn, out, contribution_data, clz_msig2conversion=clz_msig2conversion,
+                        fully_qualified_package_name=fully_qualified_package_name, ansi_color=ansi_color)
+        except NoResultsBecauseOfMaxDepth:
+            sys.stderr.write("> warning: All found results are filtered out by limitation of max call-tree depth (option -D).\n")
 
 def main(argv):
     default_calltree_path = 'agoat.calltree'
