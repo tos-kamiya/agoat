@@ -98,69 +98,69 @@ class CalltreeBuilderTest(unittest.TestCase):
             ('P', 'b'): ['P'], ('P', 'q'): ['P']
         })
 
-    def test_find_methods_involved_in_recursive_call_chain_direct(self):
-        class_table = {
-            'A': ClassDataStubOnlyMethods('A', {
-                'main': MethodDataStubOnlyCode('main', [at.ORDERED_AND,
-                    (jp.INVOKE, 'B', 'b')
-                ])
-            }),
-            'B': ClassDataStubOnlyMethods('B', {
-                'b': MethodDataStubOnlyCode('b', [at.ORDERED_AND,
-                    (jp.INVOKE, 'B', 'b')
-                ])
-            }),
-        }
-        recv_method_to_defs = {
-            ('A', 'main'): ['A'],
-            ('B', 'b'): ['B'],
-        }
-        resolver = cb.make_method_call_resolver(
-            class_table, recv_method_to_defs)
-        entry_point = ('A', 'main')
-        methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
-            entry_point, resolver,
-            include_direct_recursive_calls=True)
-        self.assertEqual(methods_ircc, [('B', 'b')])
-        methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
-            entry_point, resolver,
-            include_direct_recursive_calls=False)
-        self.assertEqual(methods_ircc, [])
-
-    def test_find_methods_involved_in_recursive_call_chain_indirect(self):
-        class_table = {
-            'A': ClassDataStubOnlyMethods('A', {
-                'main': MethodDataStubOnlyCode('main', [at.ORDERED_AND,
-                    (jp.INVOKE, 'B', 'b')
-                ])
-            }),
-            'B': ClassDataStubOnlyMethods('B', {
-                'b': MethodDataStubOnlyCode('b', [at.ORDERED_AND,
-                    (jp.INVOKE, 'C', 'c')
-                ])
-            }),
-            'C': ClassDataStubOnlyMethods('C', {
-                'c': MethodDataStubOnlyCode('c', [at.ORDERED_AND,
-                    (jp.INVOKE, 'B', 'b')
-                ])
-            }),
-        }
-        recv_method_to_defs = {
-            ('A', 'main'): ['A'],
-            ('B', 'b'): ['B'],
-            ('C', 'c'): ['C'],
-        }
-        resolver = cb.make_method_call_resolver(
-            class_table, recv_method_to_defs)
-        entry_point = ('A', 'main')
-        methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
-            entry_point, resolver,
-            include_direct_recursive_calls=True)
-        self.assertEqual(methods_ircc, [('B', 'b'), ('C', 'c')])
-        methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
-            entry_point, resolver,
-            include_direct_recursive_calls=False)
-        self.assertEqual(methods_ircc, [('B', 'b'), ('C', 'c')])
+#     def test_find_methods_involved_in_recursive_call_chain_direct(self):
+#         class_table = {
+#             'A': ClassDataStubOnlyMethods('A', {
+#                 'main': MethodDataStubOnlyCode('main', [at.ORDERED_AND,
+#                     (jp.INVOKE, 'B', 'b')
+#                 ])
+#             }),
+#             'B': ClassDataStubOnlyMethods('B', {
+#                 'b': MethodDataStubOnlyCode('b', [at.ORDERED_AND,
+#                     (jp.INVOKE, 'B', 'b')
+#                 ])
+#             }),
+#         }
+#         recv_method_to_defs = {
+#             ('A', 'main'): ['A'],
+#             ('B', 'b'): ['B'],
+#         }
+#         resolver = cb.make_method_call_resolver(
+#             class_table, recv_method_to_defs)
+#         entry_point = ('A', 'main')
+#         methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
+#             entry_point, resolver,
+#             include_direct_recursive_calls=True)
+#         self.assertEqual(methods_ircc, [('B', 'b')])
+#         methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
+#             entry_point, resolver,
+#             include_direct_recursive_calls=False)
+#         self.assertEqual(methods_ircc, [])
+# 
+#     def test_find_methods_involved_in_recursive_call_chain_indirect(self):
+#         class_table = {
+#             'A': ClassDataStubOnlyMethods('A', {
+#                 'main': MethodDataStubOnlyCode('main', [at.ORDERED_AND,
+#                     (jp.INVOKE, 'B', 'b')
+#                 ])
+#             }),
+#             'B': ClassDataStubOnlyMethods('B', {
+#                 'b': MethodDataStubOnlyCode('b', [at.ORDERED_AND,
+#                     (jp.INVOKE, 'C', 'c')
+#                 ])
+#             }),
+#             'C': ClassDataStubOnlyMethods('C', {
+#                 'c': MethodDataStubOnlyCode('c', [at.ORDERED_AND,
+#                     (jp.INVOKE, 'B', 'b')
+#                 ])
+#             }),
+#         }
+#         recv_method_to_defs = {
+#             ('A', 'main'): ['A'],
+#             ('B', 'b'): ['B'],
+#             ('C', 'c'): ['C'],
+#         }
+#         resolver = cb.make_method_call_resolver(
+#             class_table, recv_method_to_defs)
+#         entry_point = ('A', 'main')
+#         methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
+#             entry_point, resolver,
+#             include_direct_recursive_calls=True)
+#         self.assertEqual(methods_ircc, [('B', 'b'), ('C', 'c')])
+#         methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
+#             entry_point, resolver,
+#             include_direct_recursive_calls=False)
+#         self.assertEqual(methods_ircc, [('B', 'b'), ('C', 'c')])
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
