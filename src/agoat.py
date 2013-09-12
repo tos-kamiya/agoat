@@ -1,10 +1,9 @@
 #coding: utf-8
 
+import argparse
 import os
 import sys
-import argparse
 import pickle
-import jsonpickle
 import pprint
 
 from _utilities import open_w_default, sort_uniq
@@ -20,58 +19,66 @@ import src_linenumber_converter as slc
 
 VERSION = "0.5.0"
 
-# def replace_callnode_with_tuple(L):
-# #     object_ids = set()
-# #     duplidate_object_ids = set()
-# #     def found_duplicate_objects(L):
-# #         if not isinstance(L, (list, ct.CallNode)):
-# #             return
-# # 
-# #         i = id(L)
-# #         if i in object_ids:
-# #             duplidate_object_ids.add(i)
-# #         else:
-# #             object_ids.add(i)
-# #             if isinstance(L, list):
-# #                 for item in L:
-# #                     found_duplicate_objects(item)
-# #             else:
-# #                 # assert isinstance(L, ct.CallNode)
-# #                 for item in L.body:
-# #                     found_duplicate_objects(item)
-# 
-#     object_ids = set()
-#     def replace_i(L):
-#         if isinstance(L, (list, ct.CallNode)):
-#             i = id(L)
-#             if i in object_ids:
-#                 return "id/%d" % i
-#             object_ids.add(i)
-#         if isinstance(L, list):
-#             return [replace_callnode_with_tuple(item) for item in L]
-#         if isinstance(L, tuple):
-#             return tuple(replace_callnode_with_tuple(item) for item in L)
-#         if isinstance(L, ct.CallNode):
-#             return ('CallNode', L.invoked, L.recursive_cxt, replace_callnode_with_tuple(L.body))
-#         return L
-# 
-#     return replace_i(L)
+DATATAG_CALL_TREES = "call_trees"
+DATATAG_NODE_SUMMARY = "node_summary_table"
+DATATAG_LINENUMBER_TABLE = "linenumber_table"
 
+def replace_callnode_body_with_label(node, label_to_body_tbl={}):
+    # label_to_body_tbl  # node_label -> (object id of original body, transformed body)
+    def replace_i(node):
+        if isinstance(node, list):
+            assert node
+            assert node[0] in (ct.ORDERED_AND, ct.ORDERED_OR)
+            t = [node[0]]
+            for subn in node[1:]:
+                t.append(replace_i(subn))
+            return t
+        elif isinstance(node, ct.CallNode):
+            node_label = cb.callnode_label(node)
+            e = label_to_body_tbl.get(node_label)
+            if not e:
+                body = node.body
+                if not body or isinstance(body, tuple):
+                    label_to_body_tbl[node_label] = id(body), body
+                elif isinstance(body, (list, ct.CallNode)):
+                    label_to_body_tbl[node_label] = id(body), replace_i(body)
+                else:
+                    assert False
+            else:
+                original_body_id, transformed_body = e
+                if original_body_id != id(node.body):
+                    assert False  #debug
+                assert original_body_id == id(node.body)
+            return ct.CallNode(node.invoked, node.recursive_cxt, ct.Node(node_label))
+        else:
+            return node
+    return replace_i(node), label_to_body_tbl
 
 def pretty_print_pickle_data(data_file, out=sys.stdout):
     with open_w_default(data_file, "rb", sys.stdin) as inp:
         data = pickle.load(inp)
-#         data = replace_callnode_with_tuple(data)
+
     pp = pprint.PrettyPrinter(indent=4, stream=out)
-    pp.pprint(data)
 
+    call_trees = data.get(DATATAG_CALL_TREES)
+    if call_trees:
+        label_to_body_tbl = {}
+        for call_tree in call_trees:
+            n = replace_callnode_body_with_label(call_tree, label_to_body_tbl)[0]
+            out.write("root node:\n")
+            pp.pprint(n)
+            out.write("\n")
+        for node_label, (original_body_id, transformed_body) in sorted(label_to_body_tbl.iteritems(), key=lambda l_id_b: repr(l_id_b[0])):
+            out.write("node:\n")
+            pp.pprint((node_label, transformed_body))
+            out.write("\n")
 
-def repr_print_pickle_data(data_file, out=sys.stdout):
-    with open_w_default(data_file, "rb", sys.stdin) as inp:
-        data = pickle.load(inp)
-#     data = replace_callnode_with_tuple(data)
-    out.write(jsonpickle.encode(data))
-    out.write('\n')
+    node_summary = data.get(DATATAG_NODE_SUMMARY)
+    if node_summary:
+        for node_label, summary in node_summary.iteritems():
+            out.write("node summary:\n")
+            pp.pprint((node_label, summary))
+            out.write("\n")
 
 
 def format_clz_msig(clz, msig):
@@ -127,7 +134,7 @@ def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_fi
         node_summary_table = cs.extract_node_summary_table(call_tree, summary_memo=node_summary_table)
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        pickle.dump({"call_trees": call_trees, "node_summary_table": node_summary_table}, out)
+        pickle.dump({DATATAG_CALL_TREES: call_trees, DATATAG_NODE_SUMMARY: node_summary_table}, out)
 
 
 def generate_linenumber_table(soot_dir, javap_dir, output_file):
@@ -140,7 +147,7 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
     clz_msig2conversion = slc.jimp_linnum_to_src_linenum_table(class_table, claz_msig2invocationindex2linenum)
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        pickle.dump({"linenumber_table": clz_msig2conversion}, out)
+        pickle.dump({DATATAG_LINENUMBER_TABLE: clz_msig2conversion}, out)
 
 
 def mark_uncontributing_nodes_w_call_and_simplify_wo_memoization(call_node, query_patterns):
@@ -440,15 +447,15 @@ def remove_outermost_loc_info(call_node):
 def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=False, line_number_table=None, max_depth=-1):
     with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
         data = pickle.load(inp)
-    call_trees = data["call_trees"]
-    node_summary_table = data["node_summary_table"]
+    call_trees = data[DATATAG_CALL_TREES]
+    node_summary_table = data[DATATAG_NODE_SUMMARY]
     del data
 
     clz_msig2conversion = None
     if line_number_table is not None:
         with open_w_default(line_number_table, "rb", sys.stdin) as inp:
             data = pickle.load(inp)
-            clz_msig2conversion = data["linenumber_table"]
+            clz_msig2conversion = data[DATATAG_LINENUMBER_TABLE]
         del data
 
     query_patterns = cq.build_query_pattern_list(query_words, ignore_case=ignore_case)
@@ -528,7 +535,6 @@ def main(argv):
 
     psr_db = subpsrs.add_parser('debug', help='debug function')
     psr_db.add_argument('-p', '--pretty-print', action='store', help='pretty print internal data')
-    psr_db.add_argument('-r', '--repr', action='store', help="print raw repr()'d text of internal data")
 
     args = psr.parse_args(argv[1:])
     if args.command == 'le':
@@ -552,8 +558,6 @@ def main(argv):
     elif args.command == 'debug':
         if args.pretty_print:
             pretty_print_pickle_data(args.pretty_print)
-        elif args.repr:
-            repr_print_pickle_data(args.repr)
     else:
         assert False
 

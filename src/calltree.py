@@ -1,6 +1,30 @@
 #coding: utf-8
 
+import functools
+
 from andor_tree import ORDERED_AND, ORDERED_OR  # re-export
+
+
+@functools.total_ordering
+class Node(object):
+    def __init__(self, label):
+        self.label = label
+
+    def __repr__(self):
+        return "Node(%s)" % repr(self.label)
+
+    def __hash__(self):
+        return hash(self.label)
+
+    def __eq__(self, other):
+        if not isinstance(other, Node):
+            return False
+        return self.label == other.label
+
+    def __lt__(self, other):
+        if not isinstance(other, Node):
+            assert False
+        return self.label < other.label
 
 
 class CallNode(object):
@@ -11,7 +35,10 @@ class CallNode(object):
 
     def __repr__(self):
         #return "CallNode(%s,%s,%s)" % (repr(self.invoked), repr(self.recursive_cxt), repr(self.body))
-        return "CallNode(%s,%s,*)" % (repr(self.invoked), repr(self.recursive_cxt))
+        if isinstance(self.body, Node):
+            return "CallNode(%s,%s,%s)" % (repr(self.invoked), repr(self.recursive_cxt), repr(self.body))
+        else:
+            return "CallNode(%s,%s,*)" % (repr(self.invoked), repr(self.recursive_cxt))
 
     # def __hash__(self):
     #     return hash(self.invoked) + hash(self.recursive_cxt) + hash(self.body)
