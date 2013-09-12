@@ -17,6 +17,25 @@ def format_clz_msig(clz, msig):
     return "%s %s %s(%s)" % (clz, jp.methodsig_retv(msig), jp.methodsig_name(msig), ','.join(jp.methodsig_params(msig)))
 
 
+OMITTED_PACKAGES = ["java.lang."]
+_OMITTING_TABLE = [(p, len(p)) for p in OMITTED_PACKAGES]
+
+
+def omit_trivial_pakcage(s):
+    for p, lp in _OMITTING_TABLE:
+        if s.startswith(p):
+            return s[lp:]
+    return s
+
+
+def format_clz_msig_with_omitting_trivial_pakcage(clz, msig):
+    return "%s %s %s(%s)" % (omit_trivial_pakcage(clz), 
+        omit_trivial_pakcage(jp.methodsig_retv(msig)), 
+        jp.methodsig_name(msig), 
+        ','.join(omit_trivial_pakcage(t) for t in jp.methodsig_params(msig))
+    )
+
+
 def replace_callnode_body_with_label(node, label_to_body_tbl={}):
     # label_to_body_tbl  # node_label -> (object id of original body, transformed body)
     def replace_i(node):
@@ -141,11 +160,16 @@ def format_call_tree_node(node, out, indent_width=2, clz_msig2conversion=None):
     return format_i(node, 0)
 
 
-def format_call_tree_node_compact(node, out, indent_width=2, clz_msig2conversion=None):
+def format_call_tree_node_compact(node, out, indent_width=2, clz_msig2conversion=None, 
+        fully_qualified_package_name=False):
     def label_w_lit(invoked, recursive_cxt):
         items = [recursive_cxt, invoked[1], invoked[2]]
         invoked[3] and items.extend(invoked[3])
         return tuple(items)
+
+    fmt = format_clz_msig_with_omitting_trivial_pakcage
+    if fully_qualified_package_name:
+        fmt = format_clz_msig 
 
     if clz_msig2conversion:
         def format_loc_info(loc_info):
@@ -172,7 +196,7 @@ def format_call_tree_node_compact(node, out, indent_width=2, clz_msig2conversion
         node_label = label_w_lit(invoked, node.recursive_cxt)
         if node_label not in printed_node_label_w_lits:
             printed_node_label_w_lits.add(node_label)
-            buf = [(0, '%s {' % format_clz_msig(clz, msig), loc_info_str)]
+            buf = [(0, '%s {' % fmt(clz, msig), loc_info_str)]
             if lits:
                 buf.append((0, '    %s' % ', '.join(lits), ''))
             b = format_i(node.body)
@@ -198,7 +222,7 @@ def format_call_tree_node_compact(node, out, indent_width=2, clz_msig2conversion
         node_label = label_w_lit(node, None)  # context unknown, use non-context as default
         if node_label not in printed_node_label_w_lits:
             printed_node_label_w_lits.add(node_label)
-            buf = [(0, format_clz_msig(clz, msig), loc_info_str)]
+            buf = [(0, fmt(clz, msig), loc_info_str)]
             if lits:
                 buf.append((0, '    %s' % ', '.join(lits), ''))
             return buf

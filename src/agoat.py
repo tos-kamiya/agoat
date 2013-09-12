@@ -171,7 +171,8 @@ def remove_outermost_loc_info(call_node):
     return ct.CallNode((invoked[0], invoked[1], invoked[2], invoked[3], None), call_node.recursive_cxt, call_node.body)
 
 
-def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=False, line_number_table=None, max_depth=-1):
+def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=False, line_number_table=None, 
+        max_depth=-1, fully_qualified_package_name=False):
     with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
         data = pickle.load(inp)
     call_trees = data[DATATAG_CALL_TREES]
@@ -202,7 +203,8 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
     with open_w_default(output_file, "wb", sys.stdout) as out:
         for cn in call_node_wo_rcs:
             out.write("---\n")
-            format_call_tree_node_compact(cn, out, clz_msig2conversion=clz_msig2conversion)
+            format_call_tree_node_compact(cn, out, clz_msig2conversion=clz_msig2conversion, 
+                    fully_qualified_package_name=fully_qualified_package_name)
 #         pp = pprint.PrettyPrinter(indent=4, stream=out)
 #         for call_node in sorted(call_nodes):
 #             out.write("---\n")
@@ -264,6 +266,7 @@ def main(argv):
     psr_q.add_argument('-D', '--max-depth', action='store', type=int, 
             help="max depth of subtree. -1 for unlimited depth. (default is '%d')" % defalut_max_depth_of_subtree,
             default=defalut_max_depth_of_subtree)
+    psr_q.add_argument('-F', '--fully-qualified-package-name', action='store_true', default=False)
 
     psr_db = subpsrs.add_parser('debug', help='debug function')
     psr_db.add_argument('-p', '--pretty-print', action='store', help='pretty print internal data')
@@ -286,7 +289,8 @@ def main(argv):
         else:
             if os.path.exists(default_linenumbertable_path):
                 line_number_table = default_linenumbertable_path
-        search_method_bodies(args.call_tree, args.queryword, args.output, args.ignore_case, line_number_table, args.max_depth)
+        search_method_bodies(args.call_tree, args.queryword, args.output, args.ignore_case, line_number_table, 
+                args.max_depth, args.fully_qualified_package_name)
     elif args.command == 'debug':
         if args.pretty_print:
             pretty_print_pickle_data_file(args.pretty_print)
