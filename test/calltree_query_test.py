@@ -48,63 +48,65 @@ def A_PREDICATE(call_node):
 class CalltreeQueryTest(unittest.TestCase):
 
     def test_missing_query_patterns_of_methods(self):
-        qp = [cq.QueryPattern(cq.TARGET_METHOD, "w", re.compile("w")), cq.QueryPattern(cq.TARGET_METHOD, "x", re.compile("x"))]
+        qp = [cq.QueryPattern(cq.TARGET_INVOKED, "w", re.compile("w")), cq.QueryPattern(cq.TARGET_INVOKED, "x", re.compile("x"))]
+        query = cq.Query(qp)
         summary = []
-        missings = cq.missing_query_patterns(summary, qp)
+        missings = query.unmatched_patterns(summary)
         self.assertEqual(len(missings), 2)
         self.assertEqual(missings[0].word, "w")
         self.assertEqual(missings[1].word, "x")
-        
+
         summary = [("AClass", "void\tsomeMehtod")]
-        missings = cq.missing_query_patterns(summary, qp)
+        missings = query.unmatched_patterns(summary)
         self.assertEqual(len(missings), 2)
         self.assertEqual(missings[0].word, "w")
         self.assertEqual(missings[1].word, "x")
 
         summary = [("A", "w")]
-        missings = cq.missing_query_patterns(summary, qp)
+        missings = query.unmatched_patterns(summary)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "x")
 
         summary = [("B", "x")]
-        missings = cq.missing_query_patterns(summary, qp)
+        missings = query.unmatched_patterns(summary)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "w")
 
         summary = [("A", "w"), ("B", "x")]
-        missings = cq.missing_query_patterns(summary, qp)
+        missings = query.unmatched_patterns(summary)
         self.assertEqual(len(missings), 0)
 
         summary = ['"w x someliteral string"']
-        missings = cq.missing_query_patterns(summary, qp)
+        missings = query.unmatched_patterns(summary)
         self.assertEqual(len(missings), 2)
 
     def test_missing_query_patterns_of_literals(self):
         qp = [cq.QueryPattern(cq.TARGET_LITERAL, "w", re.compile("w")), cq.QueryPattern(cq.TARGET_LITERAL, "x", re.compile("x"))]
+        query = cq.Query(qp)
         summary = []
-        missings = cq.missing_query_patterns(summary, qp)
+        missings = query.unmatched_patterns(summary)
         self.assertEqual(len(missings), 2)
         self.assertEqual(missings[0].word, "w")
         self.assertEqual(missings[1].word, "x")
         
         summary = [("AClass", "void\tsomeMehtod")]
-        missings = cq.missing_query_patterns(summary, qp)
+        missings = query.unmatched_patterns(summary)
         self.assertEqual(len(missings), 2)
         self.assertEqual(missings[0].word, "w")
         self.assertEqual(missings[1].word, "x")
 
         summary = ['"x"']
-        missings = cq.missing_query_patterns(summary, qp)
+        missings = query.unmatched_patterns(summary)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "w")
 
         summary = ['"w"']
-        missings = cq.missing_query_patterns(summary, qp)
+        missings = query.unmatched_patterns(summary)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "x")
 
         summary = ['"x"', '"w"']
-        missings = cq.missing_query_patterns(summary, qp)
+        missings = query.unmatched_patterns(summary)
         self.assertEqual(len(missings), 0)
     
     def test_get_direct_sub_callnodes_of_body_node(self):

@@ -91,7 +91,7 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
         pickle.dump({DATATAG_LINENUMBER_TABLE: clz_msig2conversion}, out)
 
 
-def extract_node_contribution(call_node, query_patterns):
+def extract_node_contribution(call_node, query):
     node_id_to_cont = {}
     cont_clzs = set()
     cont_msigs = set()
@@ -99,15 +99,14 @@ def extract_node_contribution(call_node, query_patterns):
 
     def update_about_invoked(invoked):
         clz, msig, literals = invoked[1], invoked[2], invoked[3]
-        clz_cont = clz in cont_clzs or len(cq.missing_query_patterns([(clz, '')], query_patterns)) < len_query_patterns
+        clz_cont = clz in cont_clzs or query.matches_invoked(clz, None)
         clz_cont and cont_clzs.add(clz)
-        msig_cont = msig in cont_msigs or len(cq.missing_query_patterns([('', msig)], query_patterns)) < len_query_patterns
+        msig_cont = msig in cont_msigs or query.matches_invoked(None, msig)
         msig_cont and cont_msigs.add(msig)
-        literal_cont = (not not literals) and len(cq.missing_query_patterns(literals, query_patterns)) < len_query_patterns
+        literal_cont = (not not literals) and query.matches_literals(literals)
         literal_cont and cont_literals.add(literals)
         return clz_cont, msig_cont, literal_cont
 
-    len_query_patterns = len(query_patterns)
     def mark_i(node):
         if node is None:
             return False  # None is always uncontributing
@@ -176,12 +175,14 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
             clz_msig2conversion = data[DATATAG_LINENUMBER_TABLE]
         del data
 
-    query_patterns = cq.build_query_pattern_list(query_words, ignore_case=ignore_case)
+    cq.check_query_word_list(query_words)
+    query_patterns = [cq.QueryPattern.compile(w, ignore_case=ignore_case) for w in query_words]
+    query = cq.Query(query_patterns)
 
-    pred = cq.make_callnode_fullfill_query_predicate_w_memo(query_patterns, node_summary_table)
+    pred = cq.make_callnode_fullfill_query_predicate_w_memo(query, node_summary_table)
     call_nodes = cq.get_lower_bound_call_nodes(call_trees, pred)
 
-    pred = cq.make_treecut_fullfill_query_predicate(query_patterns)
+    pred = cq.make_treecut_fullfill_query_predicate(query)
     shallowers = filter(None, (cq.extract_shallowest_treecut(call_node, pred, max_depth) for call_node in call_nodes))
     if call_nodes and not shallowers:
         sys.stderr.write("> warning: All found results are filtered out by limitation of max call-tree depth (option -D).\n")
@@ -196,7 +197,7 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
     cont_literals = set()
     contribution_data = (node_id_to_cont, cont_clzs, cont_msigs, cont_literals)
     for cn in call_node_wo_rcs:
-        ni2c, cc, cm, cl = extract_node_contribution(cn, query_patterns)
+        ni2c, cc, cm, cl = extract_node_contribution(cn, query)
         if ni2c[id(cn)]:
             markeds.append(cn)
             node_id_to_cont.update(ni2c.iteritems())
@@ -209,15 +210,7 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
             out.write("---\n")
             format_call_tree_node_compact(cn, out, contribution_data, clz_msig2conversion=clz_msig2conversion,
                     fully_qualified_package_name=fully_qualified_package_name, ansi_color=ansi_color)
-#         pp = pprint.PrettyPrinter(indent=4, stream=out)
-#         for call_node in sorted(call_nodes):
-#             out.write("---\n")
-#             recursive_context = call_node[1]
-#             invoked = call_node[2]
-#             clz, msig = invoked[1], invoked[2]
-#             out.write("%s\t%s\t%s\n" % (clz, msig, recursive_context))
-#             marked = cq.mark_uncontributing_nodes_w_call(call_node, query_patterns)
-#             pp.pprint(marked)
+
 
 def main(argv):
     default_calltree_path = 'agoat.calltree'
