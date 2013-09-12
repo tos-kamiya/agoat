@@ -4,6 +4,7 @@ import os
 import sys
 import argparse
 import pickle
+import jsonpickle
 import pprint
 
 from _utilities import open_w_default, sort_uniq
@@ -60,7 +61,7 @@ VERSION = "0.5.0"
 def pretty_print_pickle_data(data_file, out=sys.stdout):
     with open_w_default(data_file, "rb", sys.stdin) as inp:
         data = pickle.load(inp)
-#     data = replace_callnode_with_tuple(data)
+#         data = replace_callnode_with_tuple(data)
     pp = pprint.PrettyPrinter(indent=4, stream=out)
     pp.pprint(data)
 
@@ -69,7 +70,7 @@ def repr_print_pickle_data(data_file, out=sys.stdout):
     with open_w_default(data_file, "rb", sys.stdin) as inp:
         data = pickle.load(inp)
 #     data = replace_callnode_with_tuple(data)
-    out.write(repr(data))
+    out.write(jsonpickle.encode(data))
     out.write('\n')
 
 
@@ -126,7 +127,7 @@ def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_fi
         node_summary_table = cs.extract_node_summary_table(call_tree, summary_memo=node_summary_table)
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        pickle.dump((call_trees, node_summary_table), out)
+        pickle.dump({"call_trees": call_trees, "node_summary_table": node_summary_table}, out)
 
 
 def generate_linenumber_table(soot_dir, javap_dir, output_file):
@@ -139,10 +140,10 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
     clz_msig2conversion = slc.jimp_linnum_to_src_linenum_table(class_table, claz_msig2invocationindex2linenum)
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        pickle.dump(clz_msig2conversion, out)
+        pickle.dump({"linenumber_table": clz_msig2conversion}, out)
 
 
-def mark_uncontributing_nodes_w_call_wo_memo(call_node, query_patterns):
+def mark_uncontributing_nodes_w_call_and_simplify_wo_memoization(call_node, query_patterns):
     len_query_patterns = len(query_patterns)
     def mark_i(node):
         if node is None:
@@ -438,19 +439,24 @@ def remove_outermost_loc_info(call_node):
 
 def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=False, line_number_table=None, max_depth=-1):
     with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
-        call_trees, node_summary_table = pickle.load(inp)
+        data = pickle.load(inp)
+    call_trees = data["call_trees"]
+    node_summary_table = data["node_summary_table"]
+    del data
 
     clz_msig2conversion = None
     if line_number_table is not None:
         with open_w_default(line_number_table, "rb", sys.stdin) as inp:
-            clz_msig2conversion = pickle.load(inp)
+            data = pickle.load(inp)
+            clz_msig2conversion = data["linenumber_table"]
+        del data
 
     query_patterns = cq.build_query_pattern_list(query_words, ignore_case=ignore_case)
     call_nodes = cq.find_lower_call_nodes(query_patterns, call_trees, node_summary_table)
     shallowers = filter(None, (cq.extract_shallowest_treecut(call_node, query_patterns, max_depth) for call_node in call_nodes))
     if call_nodes and not shallowers:
         sys.stderr.write("> warning: All found results are filtered out by limitation of max call-tree depth (option -D).\n")
-    markeds = [mark_uncontributing_nodes_w_call_wo_memo(cn, query_patterns) for cn in shallowers]
+    markeds = [mark_uncontributing_nodes_w_call_and_simplify_wo_memoization(cn, query_patterns) for cn in shallowers]
     contextlesses = [remove_outermost_loc_info(remove_recursive_contexts(cn)) for cn in markeds]
     call_node_wo_rcs = sort_uniq(contextlesses, key=cb.callnode_label)
 
