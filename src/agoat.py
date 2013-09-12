@@ -475,27 +475,27 @@ def main(argv):
     psr = argparse.ArgumentParser(description='agoat command-line')
     subpsrs = psr.add_subparsers(dest='command', help='commands')
 
-    psr_ep = subpsrs.add_parser('e', help='listing entry point classes')
+    psr_ep = subpsrs.add_parser('le', help='listing entry point classes')
     psr_ep.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_ep.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
     psr_ep.add_argument('-m', '--method-sig', action='store_true', help="output method signatures")
 
-    psr_mt = subpsrs.add_parser('m', help='listing methods (defined methods and used ones)')
+    psr_mt = subpsrs.add_parser('lm', help='listing methods (defined methods and used ones)')
     psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_mt.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
 
-    psr_mt = subpsrs.add_parser('L', help='listing literals')
+    psr_mt = subpsrs.add_parser('ll', help='listing literals')
     psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_mt.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
 
-    psr_sl = subpsrs.add_parser('l', help='generate line number table')
+    psr_sl = subpsrs.add_parser('gl', help='generate line number table')
     psr_sl.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_sl.add_argument('-j', '--javap-dir', action='store', default=default_javap_dir_path)
     psr_sl.add_argument('-o', '--output', action='store', 
             help="output file. '-' for standard output. (default '%s')" % default_linenumbertable_path, 
             default=default_linenumbertable_path)
 
-    psr_ct = subpsrs.add_parser('c', help='generate call tree and node summary table')
+    psr_ct = subpsrs.add_parser('gc', help='generate call tree and node summary table')
     psr_ct.add_argument('-e', '--entry-point', action='store', nargs='*', dest='entrypointclasses',
             help='entry-point class. If not given, all possible classes will be regarded as entry points')
     psr_ct.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
@@ -522,15 +522,15 @@ def main(argv):
     psr_db.add_argument('-r', '--repr', action='store', help="print raw repr()'d text of internal data")
 
     args = psr.parse_args(argv[1:])
-    if args.command == 'e':
+    if args.command == 'le':
         list_entry_points(args.soot_dir, args.output, args.method_sig)
-    elif args.command == 'm':
+    elif args.command == 'lm':
         list_methods(args.soot_dir, args.output)
-    elif args.command == 'L':
+    elif args.command == 'll':
         list_literals(args.soot_dir, args.output)
-    elif args.command == 'l':
+    elif args.command == 'gl':
         generate_linenumber_table(args.soot_dir, args.javap_dir, args.output)
-    elif args.command == 'c':
+    elif args.command == 'gc':
         generate_call_tree_and_node_summary(args.entrypointclasses, args.soot_dir, args.output)
     elif args.command == 'q':
         line_number_table = None
