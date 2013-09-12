@@ -247,7 +247,7 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc, call_node_memo={}
     def dig_dispatch(cmd, recv_msig, recursive_context, literals, loc_info):
         cand_methods = resolver(recv_msig, static_method=(cmd == jp.SPECIALINVOKE))
         if not cand_methods:
-            return None
+            return (cmd, recv_msig[0], recv_msig[1], literals, loc_info)
         dispatch_node = [ct.ORDERED_OR]
         for clz_method, md in cand_methods:
             rc = recursive_context
