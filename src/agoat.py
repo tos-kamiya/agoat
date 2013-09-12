@@ -188,10 +188,15 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
         del data
 
     query_patterns = cq.build_query_pattern_list(query_words, ignore_case=ignore_case)
-    call_nodes = cq.find_lower_call_nodes(query_patterns, call_trees, node_summary_table)
-    shallowers = filter(None, (cq.extract_shallowest_treecut(call_node, query_patterns, max_depth) for call_node in call_nodes))
+
+    pred = cq.make_callnode_fullfill_query_predicate_w_memo(query_patterns, node_summary_table)
+    call_nodes = cq.get_lower_bound_call_nodes(call_trees, pred)
+
+    pred = cq.make_treecut_fullfill_query_predicate(query_patterns)
+    shallowers = filter(None, (cq.extract_shallowest_treecut(call_node, pred, max_depth) for call_node in call_nodes))
     if call_nodes and not shallowers:
         sys.stderr.write("> warning: All found results are filtered out by limitation of max call-tree depth (option -D).\n")
+
     markeds = [mark_uncontributing_nodes_w_call_and_simplify_wo_memoization(cn, query_patterns) for cn in shallowers]
     contextlesses = [remove_outermost_loc_info(remove_recursive_contexts(cn)) for cn in markeds]
     call_node_wo_rcs = sort_uniq(contextlesses, key=cb.callnode_label)

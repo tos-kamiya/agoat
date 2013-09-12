@@ -71,44 +71,48 @@ def build_query_pattern_list(query_words, ignore_case=False):
     return query_patterns
 
 
-def find_lower_call_nodes(query_patterns, call_trees, node_summary_table):
-    def get_recv_msig(call_node):
-        assert isinstance(call_node, ct.CallNode)
-        invoked = call_node.invoked
-        clz, msig = invoked[1], invoked[2]
-        return (clz, msig)
+def get_direct_sub_callnodes_of_body_node(body_node):
+    if isinstance(body_node, list):
+        assert body_node
+        n0 = body_node[0]
+        if n0 in (ct.ORDERED_AND, ct.ORDERED_OR):
+            scs = []
+            for subn in body_node[1:]:
+                scs.extend(get_direct_sub_callnodes_of_body_node(subn))
+            return scs
+        else:
+            assert False
+    elif isinstance(body_node, ct.CallNode):
+        return [body_node]
+    else:
+        return []
 
+
+def make_callnode_fullfill_query_predicate_w_memo(query_patterns, node_summary_table):
     search_memo = {}
-    def fullfills_query(call_node):
+    def predicate(call_node):
         assert isinstance(call_node, ct.CallNode)
         node_label = cb.callnode_label(call_node)
         r = search_memo.get(node_label)
         if r is not None:
             return r
-
         summary = node_summary_table.get(node_label)
         if summary is None:
             result = False
         else:
             result = not missing_query_patterns(summary, query_patterns)
-        search_memo[node_label] = result
-        return result
+        r = search_memo[node_label] = result
+        return r
 
-    def get_direct_sub_callnodes(node):
-        if isinstance(node, list):
-            assert node
-            n0 = node[0]
-            if n0 in (ct.ORDERED_AND, ct.ORDERED_OR):
-                scs = []
-                for subn in node[1:]:
-                    scs.extend(get_direct_sub_callnodes(subn))
-                return scs
-            else:
-                assert False
-        elif isinstance(node, ct.CallNode):
-            return [node]
-        else:
-            return []
+    return predicate
+
+
+def get_lower_bound_call_nodes(call_trees, predicate):
+    def get_recv_msig(call_node):
+        assert isinstance(call_node, ct.CallNode)
+        invoked = call_node.invoked
+        clz, msig = invoked[1], invoked[2]
+        return (clz, msig)
 
     already_searched_call_node_labels = set()
     lower_call_nodes = []
@@ -116,10 +120,10 @@ def find_lower_call_nodes(query_patterns, call_trees, node_summary_table):
         node_label = cb.callnode_label(call_node)
         if node_label in already_searched_call_node_labels:
             return
-        subcs = get_direct_sub_callnodes(call_node.body)
+        subcs = get_direct_sub_callnodes_of_body_node(call_node.body)
         any_subc_fullfill_query = False
         for subc in subcs:
-            if fullfills_query(subc):
+            if predicate(subc):
                 any_subc_fullfill_query = True
                 search_i(subc)
         if not any_subc_fullfill_query:
@@ -128,13 +132,13 @@ def find_lower_call_nodes(query_patterns, call_trees, node_summary_table):
 
     for call_tree in call_trees:
         assert isinstance(call_tree, ct.CallNode)
-        if fullfills_query(call_tree):
+        if predicate(call_tree):
             search_i(call_tree)
 
     return lower_call_nodes
 
 
-def treecut(node, depth, has_further_deep_nodes=[None]):
+def treecut_with_callnode_depth(node, depth, has_deeper_nodes=[None]):
     def treecut_i(node, remaining_depth):
         if isinstance(node, list):
             assert node
@@ -151,23 +155,30 @@ def treecut(node, depth, has_further_deep_nodes=[None]):
                 cn = ct.CallNode(node.invoked, node.recursive_cxt, treecut_i(node.body, remaining_depth - 1))
                 return cn
             else:
-                has_further_deep_nodes[0] = True
+                has_deeper_nodes[0] = True
                 return node.invoked
         else:
             return node
     return treecut_i(node, depth)
 
 
-def extract_shallowest_treecut(call_node, query_patterns, max_depth=-1):
+def make_treecut_fullfill_query_predicate(query_patterns):
+    def predicate(treecut_with_callnode_depth):
+        summary = cs.get_node_summary(treecut_with_callnode_depth)
+        missings = missing_query_patterns(summary, query_patterns)
+        return not missings
+
+    return predicate
+
+
+def extract_shallowest_treecut(call_node, predicate, max_depth=-1):
     assert isinstance(call_node, ct.CallNode)
 
     depth = 1
     while max_depth < 0 or depth < max_depth:
         has_further_deep_nodes = [False]
-        tc = treecut(call_node, depth, has_further_deep_nodes)
-        summary = cs.get_node_summary(tc)
-        m = missing_query_patterns(summary, query_patterns)
-        if not m:
+        tc = treecut_with_callnode_depth(call_node, depth, has_further_deep_nodes)
+        if predicate(tc):
             return tc
         assert has_further_deep_nodes[0]
         depth += 1
