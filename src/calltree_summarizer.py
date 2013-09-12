@@ -2,96 +2,79 @@
 
 import sys
 
+from _utilities import sort_uniq
+
 import calltree as ct
 import calltree_builder as cb
 import jimp_parser as jp
 
 
-def get_node_summary(node):
+def get_node_summary(node, summary_table):
+    """
+    Get summary of a node.
+    In case of summary_table parameter given, caluclate summary with memorization.
+    Otherwise (without memorization), if two child nodes of a node is the same node,
+    then calculate the summary twice (for each child node).
+    """
+
+    # summary_table = {}  # (clz, MethodSig, recursive_context) -> list of (clz, MethodSig)
     def scan_invocation(node):
         assert isinstance(node, tuple)
         assert node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
-        clz = node[1]
-        msig = node[2]
-        return (clz, msig)
-
-    summary = set()
-    def dig_node(node):
-        if isinstance(node, list):
-            n0 = node[0]
-            if n0 in (ct.ORDERED_AND, ct.ORDERED_OR):
-                for subn in node[1:]:
-                    dig_node(subn)
-            else:
-                assert False
-        elif isinstance(node, ct.CallNode):
-            invoked = node.invoked
-            assert invoked[0] in (jp.INVOKE, jp.SPECIALINVOKE)
-            clz_msig = invoked[1], invoked[2]
-            summary.add(clz_msig)
-            invoked[3] and summary.update(invoked[3])
-            subnode = node.body
-            if subnode is None:
-                pass
-            elif isinstance(subnode, (list, ct.CallNode)):
-                dig_node(subnode)
-            else:
-                summary.add(scan_invocation(subnode))
-                subnode[3] and summary.update(subnode[3])
-        else:
-            summary.add(scan_invocation(node))
-            node[3] and summary.update(node[3])
-
-    dig_node(node)
-    return sorted(summary)
-
-
-def extract_node_summary_table(call_andor_tree, summary_memo={}):
-    # summary_memo = {}  # (clz, MethodSig, recursive_context) -> list of (clz, MethodSig)
-    def scan_invocation(node):
-        assert isinstance(node, tuple)
-        assert node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
-        clz = node[1]
-        msig = node[2]
-        return (clz, msig)
+        return (node[1], node[2])
 
     def dig_node(node):
-        if isinstance(node, list):
+        if node is None:
+            return []
+        elif isinstance(node, list):
             n0 = node[0]
             if n0 in (ct.ORDERED_AND, ct.ORDERED_OR):
-                subsum = set()
+                nodesum = set()
                 for subn in node[1:]:
-                    subsum.update(dig_node(subn))
-                return sorted(subsum)
+                    nodesum.update(dig_node(subn))
+                return sorted(nodesum)
             else:
                 assert False
         elif isinstance(node, ct.CallNode):
             invoked = node.invoked
             assert invoked[0] in (jp.INVOKE, jp.SPECIALINVOKE)
             clz_msig = clz, msig = invoked[1], invoked[2]
-            subsum = set([clz_msig])
-            invoked[3] and subsum.update(invoked[3])
             k = (clz, msig, node.recursive_cxt)
-            if k not in summary_memo:
+            if summary_table is not None and k in summary_table:
+                nodesum = set(summary_table[k])
+            else:
+                nodesum = set()
                 subnode = node.body
                 if subnode is None:
                     pass
                 elif isinstance(subnode, (list, ct.CallNode)):
-                    subsum.update(dig_node(subnode))
+                    nodesum.update(dig_node(subnode))
                 else:
-                    subsum.add(scan_invocation(subnode))
-                    subnode[3] and subsum.update(subnode[3])
-                sorted_subsum = summary_memo[k] = sorted(subsum)
-            else:
-                sorted_subsum = summary_memo[k]
-            return sorted_subsum
+                    nodesum.add(scan_invocation(subnode))
+                    subnode[3] and nodesum.update(subnode[3])
+                if summary_table is not None:
+                    summary_table[k] = sorted(nodesum)
+            parnetsum = nodesum
+            parnetsum.add(clz_msig)
+            invoked[3] and parnetsum.update(invoked[3])
+            return parnetsum
         else:
             s = [scan_invocation(node)]
             node[3] and s.extend(node[3])
-            return s
+            return sort_uniq(s)
 
-    dig_node(call_andor_tree)
-    return summary_memo
+    return dig_node(node)
+
+
+def get_node_summary_wo_memoization(node):
+    return get_node_summary(node, summary_table=None)
+
+
+def extract_node_summary_table(nodes):
+    summary_table = {}
+    for node in nodes:
+        get_node_summary(node, summary_table)
+    return summary_table
 
 
 def main(argv, out=sys.stdout, logout=sys.stderr):
@@ -114,7 +97,7 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
 #     pp = pprint.PrettyPrinter(indent=4, stream=out)
 #     pp.pprint(call_andor_tree)
 
-    node_summary_table = extract_node_summary_table(call_andor_tree)
+    node_summary_table = extract_node_summary_table([call_andor_tree])
     pp = pprint.PrettyPrinter(indent=4, stream=out)
     pp.pprint(node_summary_table)
 

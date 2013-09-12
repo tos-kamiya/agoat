@@ -9,14 +9,15 @@ import os.path
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
+import jimp_parser as jp
 import calltree as ct
 import calltree_query as cq
 
 def new_invoked(clz, msig):
-    return (clz, msig, (), None, None)
+    return (jp.SPECIALINVOKE, clz, msig, (), None)
 
 def new_callnode(clz, msig, body):
-    return ct.CallNode((clz, msig, (), None, None), None, body)
+    return ct.CallNode((jp.SPECIALINVOKE, clz, msig, (), None), None, body)
 
 A_CALL_TREE = new_callnode("A", "a", 
     [ct.ORDERED_AND,
@@ -41,7 +42,7 @@ A_CALL_TREE = new_callnode("A", "a",
 
 
 def A_PREDICATE(call_node):
-    return call_node.invoked[0] in ('A', 'B', 'C', 'F')
+    return call_node.invoked[1] in ('A', 'B', 'C', 'F')
 
 
 class CalltreeQueryTest(unittest.TestCase):

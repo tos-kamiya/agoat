@@ -164,7 +164,7 @@ def treecut_with_callnode_depth(node, depth, has_deeper_nodes=[None]):
 
 def make_treecut_fullfill_query_predicate(query_patterns):
     def predicate(treecut_with_callnode_depth):
-        summary = cs.get_node_summary(treecut_with_callnode_depth)
+        summary = cs.get_node_summary_wo_memoization(treecut_with_callnode_depth)
         missings = missing_query_patterns(summary, query_patterns)
         return not missings
 

@@ -72,9 +72,7 @@ def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_fi
 
     class_table = cb.inss_to_tree_in_class_table(class_table)
     call_trees = cb.extract_call_andor_trees(class_table, entry_points)
-    node_summary_table = {}
-    for call_tree in call_trees:
-        node_summary_table = cs.extract_node_summary_table(call_tree, summary_memo=node_summary_table)
+    node_summary_table = cs.extract_node_summary_table(call_trees)
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
         pickle.dump({DATATAG_CALL_TREES: call_trees, DATATAG_NODE_SUMMARY: node_summary_table}, out)
