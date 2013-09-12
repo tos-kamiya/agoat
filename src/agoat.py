@@ -91,52 +91,6 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
         pickle.dump({DATATAG_LINENUMBER_TABLE: clz_msig2conversion}, out)
 
 
-def extract_node_contribution(call_node, query):
-    node_id_to_cont = {}
-    cont_clzs = set()
-    cont_msigs = set()
-    cont_literals = set()
-
-    def update_about_invoked(invoked):
-        clz, msig, literals = invoked[1], invoked[2], invoked[3]
-        clz_cont = clz in cont_clzs or query.matches_invoked(clz, None)
-        clz_cont and cont_clzs.add(clz)
-        msig_cont = msig in cont_msigs or query.matches_invoked(None, msig)
-        msig_cont and cont_msigs.add(msig)
-        literal_cont = (not not literals) and query.matches_literals(literals)
-        literal_cont and cont_literals.add(literals)
-        return clz_cont, msig_cont, literal_cont
-
-    def mark_i(node):
-        if node is None:
-            return False  # None is always uncontributing
-        elif isinstance(node, list):
-            assert node
-            n0 = node[0]
-            assert n0 in (ct.ORDERED_AND, ct.ORDERED_OR)
-            node_cont = False
-            for item in node[1:]:
-                if mark_i(item):
-                    node_cont = True
-                    #  don't break for item
-        elif isinstance(node, ct.CallNode):
-            invoked = node.invoked
-            clz_cont, msig_cont, literal_cont = update_about_invoked(invoked)
-            recv_body_cont = mark_i(node.body)
-            node_cont = clz_cont or msig_cont or literal_cont or recv_body_cont
-        elif isinstance(node, tuple):
-            assert node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
-            clz_cont, msig_cont, literal_cont = update_about_invoked(node)
-            node_cont = clz_cont or msig_cont or literal_cont
-        else:
-            assert False
-        node_id_to_cont[id(node)] = node_cont
-        return node_cont
-
-    mark_i(call_node)
-    return node_id_to_cont, cont_clzs, cont_msigs, cont_literals
-
-
 def remove_recursive_contexts(call_node):
     def remove_rc_i(node):
         if isinstance(node, list):
@@ -190,23 +144,13 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
     contextlesses = [remove_outermost_loc_info(remove_recursive_contexts(cn)) for cn in shallowers]
     call_node_wo_rcs = sort_uniq(contextlesses, key=cb.callnode_label)
 
-    markeds = []
-    node_id_to_cont = {}
-    cont_clzs = set()
-    cont_msigs = set()
-    cont_literals = set()
-    contribution_data = (node_id_to_cont, cont_clzs, cont_msigs, cont_literals)
+    node_id_to_cont, cont_clzs, cont_msigs, cont_literals = \
+            contribution_data = cq.extract_node_contributions(call_node_wo_rcs, query)
     for cn in call_node_wo_rcs:
-        ni2c, cc, cm, cl = extract_node_contribution(cn, query)
-        if ni2c[id(cn)]:
-            markeds.append(cn)
-            node_id_to_cont.update(ni2c.iteritems())
-            cont_clzs.update(cc)
-            cont_msigs.update(cm)
-            cont_literals.update(cl)
+        assert node_id_to_cont[id(cn)]
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        for cn in markeds:
+        for cn in call_node_wo_rcs:
             out.write("---\n")
             format_call_tree_node_compact(cn, out, contribution_data, clz_msig2conversion=clz_msig2conversion,
                     fully_qualified_package_name=fully_qualified_package_name, ansi_color=ansi_color)
