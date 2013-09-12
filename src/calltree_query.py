@@ -2,10 +2,7 @@
 
 import re
 
-import jimp_parser as jp
 import calltree as ct
-from andor_tree_query import Uncontributing # re-export
-import andor_tree_query as atq
 import calltree_builder as cb
 import calltree_summarizer as cs
 
@@ -185,54 +182,3 @@ def extract_shallowest_treecut(call_node, predicate, max_depth=-1):
 
     # not found
     return None
-
-
-def mark_uncontributing_nodes_w_call(call_node, query_patterns):
-    """
-    Encloses uncontributing node with Uncontributing object.
-    This function depends on call-node label, that is,
-    two nodes with the same call-node label have to have the same sub-(sub-)nodes to each other.
-    """
-    len_query_patterns = len(query_patterns)
-    call_node_memo = {}
-    def predicate_func(node):
-        if isinstance(node, ct.CallNode):
-            invoked = node.invoked
-            clz_msig = invoked[1], invoked[2]
-            node_label = cb.callnode_label(node)
-            v = call_node_memo.get(node_label)
-            if v is None:
-                b = mark_uncontributing_nodes_w_call_i(node.body)
-                recv_body_contributing = not isinstance(b, Uncontributing)
-                if recv_body_contributing:
-                    v = ct.CallNode(node.invoked, node.recursive_cxt, b)
-                else:
-                    if len(missing_query_patterns([(clz_msig)], query_patterns)) < len_query_patterns:
-                        v = ct.CallNode(node.invoked, node.recursive_cxt, Uncontributing([ct.ORDERED_AND]))
-                    else:
-                        v = Uncontributing(node)
-                call_node_memo[node_label] = v
-            return atq.HookResult(v)
-        elif isinstance(node, tuple) and node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE):
-            clz, msig = node[1], node[2]
-            return len(missing_query_patterns([(clz, msig)], query_patterns)) < len_query_patterns
-        else:
-            return atq.Undecided
-    def mark_uncontributing_nodes_w_call_i(node):
-        return atq.mark_uncontributing_nodes(node, predicate_func)
-    return mark_uncontributing_nodes_w_call_i(call_node)
-
-
-# def path_length(node):
-#     def weighting_func(node):
-#         if isinstance(node, list):
-#             assert node
-#             n0 = node[0]
-#             if n0 == CALL:
-#                 return 1
-#             else:
-#                 assert n0 in (ORDERED_AND, ORDERED_OR)
-#                 return None
-#         else:
-#             return 1
-#     return atq.path_min_length(node, weighting_func)

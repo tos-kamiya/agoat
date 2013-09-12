@@ -14,9 +14,9 @@ import calltree_builder as cb
 import calltree_summarizer as cs
 import calltree_query as cq
 import src_linenumber_converter as slc
-from _calltree_data_formatter import format_clz_msig
+from _calltree_data_formatter import format_clz, format_msig, format_clz_msig
 from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
-from _calltree_data_formatter import pretty_print_pickle_data, format_call_tree_node, format_call_tree_node_compact
+from _calltree_data_formatter import pretty_print_pickle_data, format_call_tree_node_compact, init_ansi_color
 
 
 VERSION = "0.5.0"
@@ -91,61 +91,51 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
         pickle.dump({DATATAG_LINENUMBER_TABLE: clz_msig2conversion}, out)
 
 
-def mark_uncontributing_nodes_w_call_and_simplify_wo_memoization(call_node, query_patterns):
+def extract_node_contribution(call_node, query_patterns):
+    node_id_to_cont = {}
+    cont_clzs = set()
+    cont_msigs = set()
+    cont_literals = set()
+
+    def update_about_invoked(invoked):
+        clz, msig, literals = invoked[1], invoked[2], invoked[3]
+        clz_cont = clz in cont_clzs or len(cq.missing_query_patterns([(clz, '')], query_patterns)) < len_query_patterns
+        clz_cont and cont_clzs.add(clz)
+        msig_cont = msig in cont_msigs or len(cq.missing_query_patterns([('', msig)], query_patterns)) < len_query_patterns
+        msig_cont and cont_msigs.add(msig)
+        literal_cont = (not not literals) and len(cq.missing_query_patterns(literals, query_patterns)) < len_query_patterns
+        literal_cont and cont_literals.add(literals)
+        return clz_cont, msig_cont, literal_cont
+
     len_query_patterns = len(query_patterns)
     def mark_i(node):
         if node is None:
-            return False, None
+            return False  # None is always uncontributing
         elif isinstance(node, list):
             assert node
             n0 = node[0]
-            if n0 in (ct.ORDERED_AND, ct.ORDERED_OR):
-                t = [n0]
-                contributing_count = 0
-                for item in node[1:]:
-                    c, r = mark_i(item)
-                    if c:
-                        contributing_count += 1
-                        t.append(r)
-                if contributing_count == 0:
-                    return False, cq.Uncontributing(node)
-                else:
-                    return True, t
-            else:
-                assert False
+            assert n0 in (ct.ORDERED_AND, ct.ORDERED_OR)
+            node_cont = False
+            for item in node[1:]:
+                if mark_i(item):
+                    node_cont = True
+                    #  don't break for item
         elif isinstance(node, ct.CallNode):
             invoked = node.invoked
-            clz_msig = invoked[1], invoked[2]
-            literals = invoked[3]
-            invoked_clz_msig_contributing = len(cq.missing_query_patterns([clz_msig], query_patterns)) < len_query_patterns
-            invoked_literal_contributing = literals and len(cq.missing_query_patterns(literals, query_patterns)) < len_query_patterns
-            recv_body_contributing, b = mark_i(node.body)
-            if not invoked_literal_contributing:
-                invoked = (invoked[0], invoked[1], invoked[2], None, invoked[4])
-            if not recv_body_contributing:
-                if not (invoked_clz_msig_contributing or invoked_literal_contributing):
-                    return False, cq.Uncontributing(node)
-                else:
-                    return True, ct.CallNode(invoked, node.recursive_cxt, b)
-            else:
-                return True, ct.CallNode(invoked, node.recursive_cxt, b)
+            clz_cont, msig_cont, literal_cont = update_about_invoked(invoked)
+            recv_body_cont = mark_i(node.body)
+            node_cont = clz_cont or msig_cont or literal_cont or recv_body_cont
         elif isinstance(node, tuple):
             assert node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
-            invoked = node
-            clz_msig = invoked[1], invoked[2]
-            literals = invoked[3]
-            invoked_clz_msig_contributing = len(cq.missing_query_patterns([clz_msig], query_patterns)) < len_query_patterns
-            invoked_literal_contributing = literals and len(cq.missing_query_patterns(literals, query_patterns)) < len_query_patterns
-            if not invoked_literal_contributing:
-                invoked = (invoked[0], invoked[1], invoked[2], None, invoked[4])
-            if not (invoked_clz_msig_contributing or invoked_literal_contributing):
-                return False, cq.Uncontributing(node)
-            else:
-                return True, invoked
+            clz_cont, msig_cont, literal_cont = update_about_invoked(node)
+            node_cont = clz_cont or msig_cont or literal_cont
         else:
             assert False
+        node_id_to_cont[id(node)] = node_cont
+        return node_cont
 
-    return mark_i(call_node)[1]
+    mark_i(call_node)
+    return node_id_to_cont, cont_clzs, cont_msigs, cont_literals
 
 
 def remove_recursive_contexts(call_node):
@@ -172,7 +162,7 @@ def remove_outermost_loc_info(call_node):
 
 
 def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=False, line_number_table=None, 
-        max_depth=-1, fully_qualified_package_name=False):
+        max_depth=-1, fully_qualified_package_name=False, ansi_color=False):
     with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
         data = pickle.load(inp)
     call_trees = data[DATATAG_CALL_TREES]
@@ -196,15 +186,29 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
     if call_nodes and not shallowers:
         sys.stderr.write("> warning: All found results are filtered out by limitation of max call-tree depth (option -D).\n")
 
-    markeds = [mark_uncontributing_nodes_w_call_and_simplify_wo_memoization(cn, query_patterns) for cn in shallowers]
-    contextlesses = [remove_outermost_loc_info(remove_recursive_contexts(cn)) for cn in markeds]
+    contextlesses = [remove_outermost_loc_info(remove_recursive_contexts(cn)) for cn in shallowers]
     call_node_wo_rcs = sort_uniq(contextlesses, key=cb.callnode_label)
 
+    markeds = []
+    node_id_to_cont = {}
+    cont_clzs = set()
+    cont_msigs = set()
+    cont_literals = set()
+    contribution_data = (node_id_to_cont, cont_clzs, cont_msigs, cont_literals)
+    for cn in call_node_wo_rcs:
+        ni2c, cc, cm, cl = extract_node_contribution(cn, query_patterns)
+        if ni2c[id(cn)]:
+            markeds.append(cn)
+            node_id_to_cont.update(ni2c.iteritems())
+            cont_clzs.update(cc)
+            cont_msigs.update(cm)
+            cont_literals.update(cl)
+
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        for cn in call_node_wo_rcs:
+        for cn in markeds:
             out.write("---\n")
-            format_call_tree_node_compact(cn, out, clz_msig2conversion=clz_msig2conversion, 
-                    fully_qualified_package_name=fully_qualified_package_name)
+            format_call_tree_node_compact(cn, out, contribution_data, clz_msig2conversion=clz_msig2conversion,
+                    fully_qualified_package_name=fully_qualified_package_name, ansi_color=ansi_color)
 #         pp = pprint.PrettyPrinter(indent=4, stream=out)
 #         for call_node in sorted(call_nodes):
 #             out.write("---\n")
@@ -263,6 +267,7 @@ def main(argv):
     psr_q.add_argument('-l', '--line-number-table', action='store', 
             help="line-number table file. '-' for standard input. (default '%s')" % default_linenumbertable_path,
             default=None)
+    psr_q.add_argument('-a', '--ansi-color', action='store_true', default=False)
     psr_q.add_argument('-D', '--max-depth', action='store', type=int, 
             help="max depth of subtree. -1 for unlimited depth. (default is '%d')" % defalut_max_depth_of_subtree,
             default=defalut_max_depth_of_subtree)
@@ -289,8 +294,10 @@ def main(argv):
         else:
             if os.path.exists(default_linenumbertable_path):
                 line_number_table = default_linenumbertable_path
+        if args.ansi_color:
+            init_ansi_color()
         search_method_bodies(args.call_tree, args.queryword, args.output, args.ignore_case, line_number_table, 
-                args.max_depth, args.fully_qualified_package_name)
+                args.max_depth, args.fully_qualified_package_name, args.ansi_color)
     elif args.command == 'debug':
         if args.pretty_print:
             pretty_print_pickle_data_file(args.pretty_print)

@@ -93,36 +93,6 @@ class AndOrTreeQueryTest(unittest.TestCase):
         lbns = atq.find_lower_bound_nodes(tree, pred)
         self.assertSequenceEqual(lbns, [[at.ORDERED_AND, 1, 2, 3]])
 
-    def test_mark_uncontributing_nodes_empty_tree(self):
-        def pred(node):
-            if node == 1 or node == 3:
-                return True
-            else:
-                return atq.Undecided
-        tree = [at.ORDERED_AND]
-        unm = atq.mark_uncontributing_nodes(tree, pred)
-        self.assertEqual(unm, atq.Uncontributing(tree))
-
-    def test_mark_uncontributing_nodes_single_depth_tree(self):
-        def pred(node):
-            if node == 1 or node == 3:
-                return True
-            else:
-                return atq.Undecided
-        tree = [at.ORDERED_AND, 1, 2, 3]
-        unm = atq.mark_uncontributing_nodes(tree, pred)
-        self.assertSequenceEqual(unm, [at.ORDERED_AND, 1, atq.Uncontributing(2), 3])
-
-    def test_mark_uncontributing_nodes_multiple_depth_tree(self):
-        def pred(node):
-            if node == 1 or node == 3:
-                return True
-            else:
-                return atq.Undecided
-        tree = [at.ORDERED_AND, 1, 2, [at.ORDERED_OR, 3, 4]]
-        unm = atq.mark_uncontributing_nodes(tree, pred)
-        self.assertSequenceEqual(unm, [at.ORDERED_AND, 1, atq.Uncontributing(2), [at.ORDERED_OR, 3, atq.Uncontributing(4)]])
-
     def test_path_min_length_empty(self):
         tree = [at.ORDERED_AND]
         L = atq.path_min_length(tree)
