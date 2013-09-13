@@ -167,6 +167,7 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
         except NoResultsBecauseOfMaxDepth:
             sys.stderr.write("> warning: All found results are filtered out by limitation of max call-tree depth (option -D).\n")
 
+
 def main(argv):
     default_calltree_path = 'agoat.calltree'
     default_linenumbertable_path = 'agoat.linenumbertable'
@@ -182,7 +183,7 @@ def main(argv):
     psr_ep.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
     psr_ep.add_argument('-m', '--method-sig', action='store_true', help="output method signatures")
 
-    psr_mt = subpsrs.add_parser('lm', help='listing methods (defined methods and used ones)')
+    psr_mt = subpsrs.add_parser('lm', help='listing methods which are defined within the target code')
     psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_mt.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
 

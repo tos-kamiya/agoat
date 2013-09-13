@@ -1,6 +1,7 @@
 # coding: utf-8
 
 import sys
+import collections
 
 import _utilities
 import jimp_parser as jp
@@ -16,28 +17,26 @@ def callnode_label(call_node):
 
 def extract_class_hierarchy(class_table, include_indirect_decendants=True):
     # class_table  # str -> ClassData
-    class_to_descendants = {}  # str -> set of str
+    class_to_descendants = collections.defaultdict(dict)  # str -> str -> int, that is, clz -> descendant_clz -> distance
     for clz, class_data in class_table.iteritems():
         if class_data.base_name:
-            class_to_descendants.setdefault(class_data.base_name, set()).add(clz)
+            class_to_descendants[class_data.base_name][clz] = 1
         if class_data.interf_names:
             for interf in class_data.interf_names:
-                class_to_descendants.setdefault(interf, set()).add(clz)
+                class_to_descendants[interf][clz] = 1
 
     if include_indirect_decendants:
-        emptyset = set()
         while True:
-            something_expanded = False
-            for ds in class_to_descendants.itervalues():
-                prev_size = len(ds)
-                ds_expanded = set(ds)
-                for d in ds:
-                    ds_expanded.update(class_to_descendants.get(d, emptyset))
-                if len(ds_expanded) != prev_size:
-                    something_expanded = True
-                ds.update(ds_expanded)
-            if not something_expanded:
+            added_dds = []
+            for clz, d_depths in class_to_descendants.iteritems():
+                for d, d_dep in d_depths.iteritems():
+                    for dd, dd_dep in class_to_descendants.get(d, {}).iteritems():
+                        if dd not in d_depths:
+                            added_dds.append((clz, dd, d_dep + dd_dep))
+            if not added_dds:
                 break  # while True
+            for clz, dd, dd_dep in added_dds:
+                class_to_descendants[clz][dd] = dd_dep
 
     return class_to_descendants
 
@@ -55,30 +54,74 @@ def methodsig_mnamc(msig):
 
 
 def make_dispatch_table(class_to_methods, class_to_descendants):
-    # class_to_descendants  # str -> set of str
+    # class_to_descendants  # str -> str -> int
     # class_to_methods  # str -> [MethodSig]
-    # interface_to_classes  # str -> set of str
 
     recv_method_to_defs = {}  # recv_method_to_defs  # (clz, mnamc) -> [(clz, MethodSig)]
+
+    # expand towards descendants
+    # Overriding methods (child class's methods) are possible to be dispatched
+    # in case of parent class's method call.
     for clz_mtds in class_to_methods.iteritems():
         clz, mtds = clz_mtds
         mnamcs = _utilities.sort_uniq([methodsig_mnamc(msig) for msig in mtds])
         assert clz
-        cands = [clz]
+
+        cands = [clz]  # clz and its all descendant classes
         descends = class_to_descendants.get(clz)
         if descends:
-            cands.extend(descends)
+            cands.extend(descends.keys())
+
         for d in cands:
             for mnamc in mnamcs:
                 for dmsig in class_to_methods.get(d, []):
                     if methodsig_mnamc(dmsig) == mnamc:
                         recv_method_to_defs.setdefault((clz, mnamc), []).append((d, dmsig))
+
+    # expand towards ascendants
+    # When methods are defined in a class but not in its child class,
+    # such methods are possible to be dispatched in case of child class's method call
+    depth = 0
+    max_depth = 1
+    while depth < max_depth:
+        depth += 1
+        for clz, d_deps in class_to_descendants.iteritems():
+            for des, d in d_deps.iteritems():
+                if d != depth: 
+                    if d > max_depth:
+                        max_depth = d  # found deeper inheritance
+                    continue  # for des, d
+                clz_msigs = class_to_methods.get(clz, [])
+                if not clz_msigs: continue  # for des, d
+                des_msigs = set(class_to_methods.get(des, []))
+                for clz_msig in clz_msigs:
+                    if clz_msig not in des_msigs:  # if method defined in clz but not in des
+                        recv_method_to_defs.setdefault((des, methodsig_mnamc(clz_msig)), []).append((clz, clz_msig))
+
     for cms in recv_method_to_defs.itervalues():
         cms.sort()
     return recv_method_to_defs
 
 
-def make_method_call_resolver(class_table, class_to_descendants, recv_method_to_defs):
+def java_is_a(type_a, type_b, class_to_descendants):
+    if type_a == 'null':
+        if type_b in ('byte', 'short', 'int', 'long', 'boolean', 'char', 'float', 'double'):
+            return -1
+        else:
+            return 0
+    while type_a.endswith('[]'):
+        if not type_b.endswith('[]'):
+            return -1
+        type_a = type_a[:-2]
+        type_b = type_b[:-2]
+    if type_a == type_b:
+        return 0
+    des2dis = class_to_descendants.get(type_b, {})
+    dis = des2dis.get(type_a)
+    return dis if dis is not None else -1
+
+
+def gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_to_defs):
     # class_table  # str -> ClassData
     # recv_method_to_defs  # recv_method_to_defs  # (clz, mnamc) -> [(clz, MethodSig)]
     def resolver(recv_msig, static_method=False):
@@ -92,20 +135,20 @@ def make_method_call_resolver(class_table, class_to_descendants, recv_method_to_
             if static_method and cclz != recv:
                 continue  # cclz, cmsig
             unmatch = False
+            total_distance = 0
             for p, cp in zip(jp.methodsig_params(msig), jp.methodsig_params(cmsig)):
-                if p == 'null':
-                    if cp in ('byte', 'short', 'int', 'long', 'boolean', 'char', 'float', 'double'):
-                        unmatch = True
-                        break  # for p, cp
-                else:
-                    if not (p == cp or p in class_to_descendants.get(cp, ())):
-                        unmatch = True
-                        break  # for p, cp
+                d = java_is_a(p, cp, class_to_descendants)
+                if d < 0:
+                    unmatch = True
+                    break  # for p, cp
+                total_distance += d
             if unmatch:
                 continue  # cclz, cmsig
             retv, cretv = jp.methodsig_retv(msig), jp.methodsig_retv(cmsig)
-            if not (retv == cretv or cretv in class_to_descendants.get(retv, ())):
+            d = java_is_a(cretv, retv, class_to_descendants)
+            if d < 0:
                 continue  # cclz, cmsig 
+            total_distance += d
 
             # TODO: Narrow down with inheritance hierachy
             # e.g. if two methods "void someMethod(Object)" and "void someMethod(String)" exist,
@@ -309,7 +352,7 @@ def extract_call_andor_trees(class_table, entry_points):
 
     recv_method_to_defs = make_dispatch_table(class_to_methods, class_to_descendants)
 
-    resolver = make_method_call_resolver(class_table, class_to_descendants, recv_method_to_defs)
+    resolver = gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_to_defs)
 
     methods_ircc = set()
     for entry_point in entry_points:
@@ -388,7 +431,7 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
         class_to_methods, class_to_descendants)
 
     logout and logout.write("> find recursive\n")
-    resolver = make_method_call_resolver(class_table, class_to_descendants, recv_method_to_defs)
+    resolver = gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_to_defs)
     methods_ircc = find_methods_involved_in_recursive_call_chain(
             entry_point, resolver)
 
