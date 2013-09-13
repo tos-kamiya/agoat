@@ -183,7 +183,7 @@ def main(argv):
     psr_ep.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
     psr_ep.add_argument('-m', '--method-sig', action='store_true', help="output method signatures")
 
-    psr_mt = subpsrs.add_parser('lm', help='listing methods which are defined within the target code')
+    psr_mt = subpsrs.add_parser('lm', help='listing methods defined within the target code')
     psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_mt.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
 
@@ -207,7 +207,8 @@ def main(argv):
             default=default_calltree_path)
 
     psr_q = subpsrs.add_parser('q', help='search query words in call tree')
-    psr_q.add_argument('queryword', action='store', nargs='+', help="query words")
+    psr_q.add_argument('queryword', action='store', nargs='+', 
+            help="""query words. put double quote(") before a word to search the word in string literals.""")
     psr_q.add_argument('-c', '--call-tree', action='store', 
             help="call-tree file. '-' for standard input. (default '%s')" % default_calltree_path,
             default=default_calltree_path)
@@ -216,9 +217,12 @@ def main(argv):
     psr_q.add_argument('-l', '--line-number-table', action='store', 
             help="line-number table file. '-' for standard input. (default '%s')" % default_linenumbertable_path,
             default=None)
-    psr_q.add_argument('-a', '--ansi-color', action='store_true', default=False)
+    color_choices=('always', 'never', 'auto')
+    psr_q.add_argument('--color', '--colour', action='store', choices=color_choices, dest='color', 
+            help="hilighting with ANSI color.",
+            default='auto')
     psr_q.add_argument('-D', '--max-depth', action='store', type=int, 
-            help="max depth of subtree. -1 for unlimited depth. (default is '%d')" % defalut_max_depth_of_subtree,
+            help="max depth of subtree. -1 for unlimited depth. (default '%d')" % defalut_max_depth_of_subtree,
             default=defalut_max_depth_of_subtree)
     psr_q.add_argument('-F', '--fully-qualified-package-name', action='store_true', default=False)
 
@@ -243,10 +247,11 @@ def main(argv):
         else:
             if os.path.exists(default_linenumbertable_path):
                 line_number_table = default_linenumbertable_path
-        if args.ansi_color:
+        ansi_color = sys.stdout.isatty() if args.color == 'auto' else args.color == 'always'
+        if ansi_color:
             init_ansi_color()
         search_method_bodies(args.call_tree, args.queryword, args.output, args.ignore_case, line_number_table, 
-                args.max_depth, args.fully_qualified_package_name, args.ansi_color)
+                args.max_depth, args.fully_qualified_package_name, ansi_color)
     elif args.command == 'debug':
         if args.pretty_print:
             pretty_print_pickle_data_file(args.pretty_print)
