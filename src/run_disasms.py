@@ -23,8 +23,8 @@ def find_classes(target_dir):
         for root, dirs, files in os.walk(os.curdir):
             for f in files:
                 if f.endswith(".class"):
-                    class_filename_to_class_name(os.path.join(root, f))
-                    clzs.append()
+                    clz = class_filename_to_class_name(os.path.join(root, f))
+                    clzs.append(clz)
     finally:
         os.chdir(cur_dir)
     clzs.sort()
@@ -36,7 +36,8 @@ def main(argv):
     args = argv[1:]
     if not args or args[0] in ('-h', '--help'):
         sys.stdout.write("usage: run_disasms target_dir\n")
-    if len(argv) > 1:
+        return
+    if len(args) > 1:
         sys.exit("too many command-line arguments")
     target_dir = args[0]
 
@@ -46,4 +47,4 @@ def main(argv):
 
 
 if __name__ == '__main__':
-    pass
+    main(sys.argv)
