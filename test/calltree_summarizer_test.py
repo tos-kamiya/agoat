@@ -2,8 +2,6 @@
 
 import unittest
 
-import re
-
 import sys
 import os.path
 sys.path.insert(
