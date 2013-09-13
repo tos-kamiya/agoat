@@ -5,7 +5,7 @@ import pprint
 try:
     import colorama
 except:
-    colorama = None  # go w/o colorama
+    colorama = None  # O.K., goes w/o colorama
 
 import jimp_parser as jp
 import calltree as ct
@@ -18,8 +18,7 @@ DATATAG_LINENUMBER_TABLE = "linenumber_table"
 
 
 def init_ansi_color():
-    if not colorama:
-        import colorama  # will raise an import error
+    import colorama  # ensure colorama is loaded. othewise, runtime error
     colorama.init()
 
 
