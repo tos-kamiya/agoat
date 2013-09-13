@@ -1,7 +1,11 @@
 #coding: utf-8
 
 import pprint
-import colorama
+
+try:
+    import colorama
+except:
+    colorama = None  # go w/o colorama
 
 import jimp_parser as jp
 import calltree as ct
@@ -14,6 +18,8 @@ DATATAG_LINENUMBER_TABLE = "linenumber_table"
 
 
 def init_ansi_color():
+    if not colorama:
+        import colorama  # will raise an import error
     colorama.init()
 
 
@@ -105,8 +111,9 @@ def pretty_print_pickle_data(data, out):
 def make_custom_formatters(contribution_data, fully_qualified_package_name, ansi_color):
     _, cont_clzs, cont_msigs, cont_literals = contribution_data
 
-    a_enhanced = colorama.Fore.RED + colorama.Style.BRIGHT
-    a_reset = colorama.Fore.RESET + colorama.Style.RESET_ALL
+    if ansi_color:
+        a_enhanced = colorama.Fore.RED + colorama.Style.BRIGHT
+        a_reset = colorama.Fore.RESET + colorama.Style.RESET_ALL
 
     if fully_qualified_package_name:
         fmt_clz, fmt_msig = format_clz, format_msig
