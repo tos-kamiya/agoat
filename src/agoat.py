@@ -165,7 +165,7 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
                 format_call_tree_node_compact(cn, out, contribution_data, clz_msig2conversion=clz_msig2conversion,
                         fully_qualified_package_name=fully_qualified_package_name, ansi_color=ansi_color)
         except NoResultsBecauseOfMaxDepth:
-            sys.stderr.write("> warning: All found results are filtered out by limitation of max call-tree depth (option -D).\n")
+            sys.stderr.write("> warning: all found code exceeds max call-tree depth. give option -D explicitly to show these code.\n")
 
 
 def main(argv):
@@ -180,22 +180,22 @@ def main(argv):
 
     psr_ep = subpsrs.add_parser('le', help='listing entry point classes')
     psr_ep.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
-    psr_ep.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
+    psr_ep.add_argument('-o', '--output', action='store', default='-')
     psr_ep.add_argument('-m', '--method-sig', action='store_true', help="output method signatures")
 
     psr_mt = subpsrs.add_parser('lm', help='listing methods defined within the target code')
     psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
-    psr_mt.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
+    psr_mt.add_argument('-o', '--output', action='store', default='-')
 
     psr_mt = subpsrs.add_parser('ll', help='listing literals')
     psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
-    psr_mt.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
+    psr_mt.add_argument('-o', '--output', action='store', default='-')
 
     psr_sl = subpsrs.add_parser('gl', help='generate line number table')
     psr_sl.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_sl.add_argument('-j', '--javap-dir', action='store', default=default_javap_dir_path)
     psr_sl.add_argument('-o', '--output', action='store', 
-            help="output file. '-' for standard output. (default '%s')" % default_linenumbertable_path, 
+            help="output file. (default '%s')" % default_linenumbertable_path, 
             default=default_linenumbertable_path)
 
     psr_ct = subpsrs.add_parser('gc', help='generate call tree and node summary table')
@@ -203,7 +203,7 @@ def main(argv):
             help='entry-point class. If not given, all possible classes will be regarded as entry points')
     psr_ct.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_ct.add_argument('-o', '--output', action='store', 
-            help="output file. '-' for standard output. (default '%s')" % default_calltree_path, 
+            help="output file. (default '%s')" % default_calltree_path, 
             default=default_calltree_path)
 
     psr_q = subpsrs.add_parser('q', help='search query words in call tree')
@@ -213,7 +213,7 @@ def main(argv):
             help="call-tree file. '-' for standard input. (default '%s')" % default_calltree_path,
             default=default_calltree_path)
     psr_q.add_argument('-I', '--ignore-case', action='store_true')
-    psr_q.add_argument('-o', '--output', action='store', help="output file. '-' for standard output", default='-')
+    psr_q.add_argument('-o', '--output', action='store', default='-')
     psr_q.add_argument('-l', '--line-number-table', action='store', 
             help="line-number table file. '-' for standard input. (default '%s')" % default_linenumbertable_path,
             default=None)
