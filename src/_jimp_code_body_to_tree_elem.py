@@ -8,6 +8,7 @@ except:
 import sys
 import pprint
 from collections import Counter
+import itertools
 
 from _utilities import sort_uniq
 import jimp_parser as jp
@@ -230,89 +231,79 @@ def convert_to_execution_paths(inss):
 
 
 def paths_to_ordred_andor_tree(paths):
-    def ptoat_i(paths):
-        if not paths:
-            return [ORDERED_AND]
-        t = [ORDERED_OR]
-        for p in paths:
-            pt = [ORDERED_AND]
-            for i in p:
-                if isinstance(i, list):
-                    assert i
-                    if i[0] == BOX:
-                        pt.append(ptoat_i(i[1:]))
-                    else:
-                        assert i[0] == BLOCK
-                        pt.append(i)
-                else:
-                    pt.append(i)
-            t.append(pt)
-        return normalize_tree(t)
-    return ptoat_i(paths)
+    if not paths:
+        return [ORDERED_AND]
 
-# def paths_to_ordred_andor_tree(paths):
-#     def get_prefix(paths):
-#         assert paths
-#         prefix = []
-#         for items in zip(*paths):
-#             c = items[0]
-#             if any(i != c for i in items[1:]):
-#                 break
-#             prefix.append(c)
-#         return prefix
-#     def get_postfix(paths):
-#         assert paths
-#         postfix = []
-#         for items in zip(*map(reversed, paths)):
-#             c = items[0]
-#             if any(i != c for i in items[1:]):
-#                 break
-#             postfix.append(c)
-#         return list(reversed(postfix))
-#
-#     if len(paths) == 0:
-#         return [ORDERED_AND]
-#
-#     if len(paths) == 1:
-#         return [ORDERED_AND] + paths[0]
-#
-#     emptyG, multipleG = [], []
-#     for p in paths:
-#         lenp = len(p)
-#         (emptyG if lenp == 0 else \
-#             multipleG).append(p)
-#     t = [ORDERED_OR]
-#     if emptyG:
-#         t.append([ORDERED_AND])
-#     multipleG = sort_uniq(multipleG)
-#     prefix_division = [list(g) for k, g in groupby(multipleG, key=lambda p: p[0])]
-#     postfix_division = [list(g) for k, g in groupby(multipleG, key=lambda p: p[-1])]
-#     if len(prefix_division) <= len(postfix_division):
-#         for g in prefix_division:
-#             if len(g) == 1:
-#                 t.append([ORDERED_AND] + g[0])
-#             else:
-#                 prefix = get_prefix(g)
-#                 pt = [ORDERED_AND]
-#                 t.append(pt)
-#                 pt.extend(prefix)
-#                 len_prefix = len(prefix)
-#                 tails = [p[len_prefix:] for p in g]
-#                 pt.append(paths_to_ordred_andor_tree(tails))
-#     else:
-#         for g in postfix_division:
-#             if len(g) == 1:
-#                 t.append([ORDERED_AND] + g[0])
-#             else:
-#                 postfix = get_postfix(g)
-#                 len_postfix = len(postfix)
-#                 heads = [p[:-len_postfix] for p in g]
-#                 pt = [ORDERED_AND]
-#                 t.append(pt)
-#                 pt.append(paths_to_ordred_andor_tree(heads))
-#                 pt.extend(postfix)
-#
-#     return normalize_tree(t)
+    def keyfunc(path):
+        len_path = len(path)
+        if len_path >= 2:
+            return id(path[0]), id(path[-1])
+        elif len_path == 1:
+            return id(path), None
+        else:
+            return None, None
+
+    def have_same_id(items):
+        assert items
+        id0 = id(items[0])
+        return all(id(item) == id0 for item in items[1:])
+
+    def split_prefix(paths):
+        if len(paths) == 1:
+            return paths[0], [[]]
+        prefix = []
+        for items in zip(*paths):
+            if have_same_id(items):
+                prefix.append(items[0])
+            else:
+                break  # for items
+        len_prefix = len(prefix)
+        paths = [p[len_prefix:] for p in paths]
+        return prefix, paths
+
+    if len(paths) == 1:
+        converted = [ORDERED_AND] + paths[0]
+    else:
+        converted = [ORDERED_OR]
+        for k, g in itertools.groupby(sorted(paths, key=keyfunc), key=keyfunc):
+            pths = list(g)
+            if len(pths) == 1:
+                converted.append([ORDERED_AND] + pths[0])
+            else:
+                prefix = []
+                if k[0] is not None:
+                    prefix, pths = split_prefix(pths)
+                postfix = []
+                if all(len(p) > 0 for p in pths):
+                    if k[1] is not None:
+                        pths = [list(reversed(p)) for p in pths]
+                        postfix, pths = split_prefix(pths)
+                        postfix = list(reversed(postfix))
+                        pths = [list(reversed(p)) for p in pths]
+                t = [ORDERED_AND]
+                t.extend(prefix)
+                t.append([ORDERED_OR] + [[ORDERED_AND] + p for p in pths])
+                t.extend(postfix)
+                converted.append(t)
+
+    def convert_internal_box(node):
+        if isinstance(node, list):
+            assert node
+            n0 = node[0]
+            if n0 == BOX:
+                return paths_to_ordred_andor_tree(node[1:])
+            if n0 in (ORDERED_AND, ORDERED_OR):
+                t = [n0]
+                t.extend(convert_internal_box(n) for n in node[1:])
+                return t
+            else:
+                assert n0 == BLOCK
+                return node
+        else:
+            return node
+
+    internal_box_converted = convert_internal_box(converted)
+    return normalize_tree(internal_box_converted)
 
 
 def expand_blocks(node):

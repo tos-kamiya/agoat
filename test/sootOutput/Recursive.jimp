@@ -1,0 +1,49 @@
+public class Recursive extends java.lang.Object
+{
+
+    public void <init>()
+    {
+        Recursive r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        return;
+    }
+
+    public int calc(int)
+    {
+        Recursive r0;
+        int i0, $i1, $i2, $i3, $i4;
+
+        r0 := @this;
+        i0 := @parameter0;
+        if i0 > 1 goto label0;
+
+        return i0;
+
+     label0:
+        $i1 = i0 % 2;
+        if $i1 != 0 goto label1;
+
+        $i2 = i0 / 2;
+        $i3 = r0.calc($i2);
+        return $i3;
+
+     label1:
+        $i4 = r0.calc2(i0);
+        return $i4;
+    }
+
+    public int calc2(int)
+    {
+        Recursive r0;
+        int i0, $i1, $i2, $i3;
+
+        r0 := @this;
+        i0 := @parameter0;
+        $i1 = i0 * 3;
+        $i2 = $i1 + 1;
+        $i3 = r0.calc($i2);
+        return $i3;
+    }
+}
