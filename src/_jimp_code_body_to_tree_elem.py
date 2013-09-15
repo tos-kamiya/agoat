@@ -44,7 +44,7 @@ else:
         return intern(msig)
 
 
-def gen_resolver(method_data, class_data):
+def gen_type_resolver(method_data, class_data):
     def resolve(name):
         if name == 'null':
             return 'null', None
@@ -78,10 +78,10 @@ def gen_resolver(method_data, class_data):
     return resolve
 
 
-def resolve_type(inss, method_data, class_data):
+def resolve_types_in_code(inss, method_data, class_data):
     assert inss is not None
 
-    resolve = gen_resolver(method_data, class_data)
+    resolve = gen_type_resolver(method_data, class_data)
     resolved_inss = []
     for ins in inss:
         cmd = ins[0]
@@ -331,7 +331,7 @@ class BranchCountExceedingLimitation(ValueError):
 
 
 def inss_to_tree(method_data, class_data, branches_atmost=None):
-    inss = resolve_type(method_data.code, method_data, class_data)
+    inss = resolve_types_in_code(method_data.code, method_data, class_data)
     bis = _jimp_code_box_generator.make_block_and_box(inss)
     obis = jco.optimize_ins_seq(bis)
     nbranch = get_max_branches_of_boxes(obis)
@@ -375,7 +375,7 @@ def main(argv, out=sys.stdout):
         if target_method_name_pattern and jp.methodsig_name(method_sig).find(target_method_name_pattern) < 0:
             continue
         out.write("method: %s\n" % method_sig)
-        inss = resolve_type(md.code, md, cd)
+        inss = resolve_types_in_code(md.code, md, cd)
 #         out.write("%s, %s:\n" % (clz, method_sig))
 #         for ins in inss:
 #             out.write("  %s\n" % repr(ins))

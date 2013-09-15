@@ -124,7 +124,8 @@ def java_is_a(type_a, type_b, class_to_descendants):
 def gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_to_defs):
     # class_table  # str -> ClassData
     # recv_method_to_defs  # recv_method_to_defs  # (clz, mnamc) -> [(clz, MethodSig)]
-    def resolver(recv_msig, static_method=False):
+    def resolve(invoke_cmd, recv_msig):
+        static_method = invoke_cmd == jp.SPECIALINVOKE
         resolved = []
         recv, msig = recv_msig
         mnamc = methodsig_mnamc(msig)
@@ -162,7 +163,7 @@ def gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_
                     c_m = cd.class_name, md.method_sig
                     resolved.append((c_m, md))
         return resolved
-    return resolver
+    return resolve
 
 
 def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
@@ -174,7 +175,7 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
     methods_ircc = set()
 
     clz0, mtd0 = entry_point
-    e = resolver(entry_point, static_method=True)
+    e = resolver(jp.SPECIALINVOKE, entry_point)
     if not e:
         raise ValueError("entry_point not found")
     c_m0, md0 = e[0]
@@ -188,23 +189,13 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
             if isinstance(node, tuple):
                 assert node
                 cmd = node[0]
-                if cmd == jp.SPECIALINVOKE:
+                if cmd in (jp.SPECIALINVOKE, jp.INVOKE):
                     receiver_class, mtd = node[1], node[2]
                     rc_mtd = (receiver_class, mtd)
                     if not include_direct_recursive_calls and rc_mtd == stack[-1]:
                         pass
                     else:
-                        r = resolver(rc_mtd, static_method=True)
-                        if r:
-                            for rc_mtd, md in r:
-                                dig_call(rc_mtd, md, stack)
-                elif cmd == jp.INVOKE:
-                    receiver_class, mtd = node[1], node[2]
-                    rc_mtd = (receiver_class, mtd)
-                    if not include_direct_recursive_calls and rc_mtd == stack[-1]:
-                        pass
-                    else:
-                        r = resolver(rc_mtd)
+                        r = resolver(cmd, rc_mtd)
                         for rc_mtd, md in r:
                             dig_call(rc_mtd, md, stack)
                 elif cmd in (jp.LABEL, jp.RETURN, jp.THROW):

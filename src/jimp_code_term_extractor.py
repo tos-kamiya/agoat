@@ -9,7 +9,7 @@ import _jimp_code_body_to_tree_elem as jcbte
 
 
 def extract_referred_literals(inss, method_data, class_data):
-    resolve = jcbte.gen_resolver(method_data, class_data)
+    resolve = jcbte.gen_type_resolver(method_data, class_data)
 
     literals = set()
     for ins in inss:
@@ -27,7 +27,7 @@ def extract_referred_literals(inss, method_data, class_data):
 
 
 # def extract_invoked_methods(inss, method_data, class_data):
-#     resolve = jcbte.gen_resolver(method_data, class_data)
+#     resolve = jcbte.gen_type_resolver(method_data, class_data)
 # 
 #     invoked_recv_msigs = []
 #     for ins in inss:
