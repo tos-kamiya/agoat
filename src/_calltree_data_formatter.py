@@ -107,7 +107,7 @@ def pretty_print_pickle_data(data, out):
             out.write("\n")
 
 
-def make_custom_formatters(contribution_data, fully_qualified_package_name, ansi_color):
+def gen_custom_formatters(contribution_data, fully_qualified_package_name, ansi_color):
     _, cont_clzs, cont_msigs, cont_literals = contribution_data
 
     if ansi_color:
@@ -147,7 +147,7 @@ def format_call_tree_node_compact(node, out, contribution_data, indent_width=2, 
         fully_qualified_package_name=False, ansi_color=False):
     node_id_to_cont, cont_clzs, cont_msigs, _ = contribution_data
 
-    fmt_clz, fmt_msig, fmt_lits = make_custom_formatters(contribution_data, fully_qualified_package_name, ansi_color)
+    fmt_clz, fmt_msig, fmt_lits = gen_custom_formatters(contribution_data, fully_qualified_package_name, ansi_color)
 
     def label_w_lit(invoked, recursive_cxt):
         items = [recursive_cxt, invoked[1], invoked[2]]
