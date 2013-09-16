@@ -194,22 +194,35 @@ def extract_shallowest_treecut(call_node, predicate, max_depth=-1):
 
 def extract_node_contribution(call_node, query):
     node_id_to_cont = {}
-    cont_clzs = set()
-    cont_msigs = set()
+    cont_types = set()
+    cont_method_names = set()
     cont_literals = set()
 
     def update_about_invoked(invoked):
         clz, msig, literals = invoked[1], invoked[2], invoked[3]
-        clz_cont = clz in cont_clzs or query.matches_receiver(clz)
-        clz_cont and cont_clzs.add(clz)
-        msig_cont = msig in cont_msigs or query.matches_msig(msig)
-        msig_cont and cont_msigs.add(msig)
-        literal_cont = False
-        for lit in literals:
-            if query.matches_literal(lit):
-                literal_cont = True
-                cont_literals.add(lit)
-        return clz_cont, msig_cont, literal_cont
+        appeared_types = [clz, jp.methodsig_retv(msig)]
+        appeared_types.extend(jp.methodsig_params(msig))
+        invoked_cont = False
+        for typ in appeared_types:
+            if typ in cont_types:
+                invoked_cont = True
+            else:
+                if query.matches_receiver(typ):
+                    invoked_cont = True
+                    cont_types.add(typ)
+        m = jp.methodsig_name(msig)
+        if m in cont_method_names:
+            invoked_cont = True
+        else:
+            if query.matches_msig(m):
+                invoked_cont = True
+                cont_method_names.add(m)
+        if literals:
+            for lit in literals:
+                if query.matches_literal(lit):
+                    invoked_cont = True
+                    cont_literals.add(lit)
+        return invoked_cont
 
     def mark_i(node):
         if node is None:
@@ -225,33 +238,32 @@ def extract_node_contribution(call_node, query):
                     #  don't break for item
         elif isinstance(node, ct.CallNode):
             invoked = node.invoked
-            clz_cont, msig_cont, literal_cont = update_about_invoked(invoked)
-            recv_body_cont = mark_i(node.body)
-            node_cont = clz_cont or msig_cont or literal_cont or recv_body_cont
+            invoked_cont = update_about_invoked(invoked)
+            body_cont = mark_i(node.body)
+            node_cont = invoked_cont or body_cont
         elif isinstance(node, tuple):
             assert node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
-            clz_cont, msig_cont, literal_cont = update_about_invoked(node)
-            node_cont = clz_cont or msig_cont or literal_cont
+            node_cont = update_about_invoked(node)
         else:
             assert False
         node_id_to_cont[id(node)] = node_cont
         return node_cont
 
     mark_i(call_node)
-    return node_id_to_cont, cont_clzs, cont_msigs, cont_literals
+    return node_id_to_cont, cont_types, cont_method_names, cont_literals
 
 
 def extract_node_contributions(call_nodes, query):
     node_id_to_cont = {}
-    cont_clzs = set()
-    cont_msigs = set()
+    cont_types = set()
+    cont_method_names = set()
     cont_literals = set()
-    contribution_data = (node_id_to_cont, cont_clzs, cont_msigs, cont_literals)
+    contribution_data = (node_id_to_cont, cont_types, cont_method_names, cont_literals)
     for cn in call_nodes:
-        ni2c, cc, cm, cl = extract_node_contribution(cn, query)
+        ni2c, ct, cm, cl = extract_node_contribution(cn, query)
         if ni2c[id(cn)]:
             node_id_to_cont.update(ni2c.iteritems())
-            cont_clzs.update(cc)
-            cont_msigs.update(cm)
+            cont_types.update(ct)
+            cont_method_names.update(cm)
             cont_literals.update(cl)
     return contribution_data

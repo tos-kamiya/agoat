@@ -24,8 +24,6 @@ def init_ansi_color():
 
 def format_clz_msig(clz, msig):
     return "%s %s %s(%s)" % (clz, jp.methodsig_retv(msig), jp.methodsig_name(msig), ','.join(jp.methodsig_params(msig)))
-def format_clz(clz): return clz
-def format_msig(msig): return "%s %s(%s)" % (jp.methodsig_retv(msig), jp.methodsig_name(msig), ','.join(jp.methodsig_params(msig)))
 
 
 OMITTED_PACKAGES = ["java.lang."]
@@ -37,20 +35,6 @@ def omit_trivial_pakcage(s):
         if s.startswith(p):
             return s[lp:]
     return s
-
-
-def format_clz_msig_with_omitting_trivial_pakcage(clz, msig):
-    return "%s %s %s(%s)" % (omit_trivial_pakcage(clz), 
-        omit_trivial_pakcage(jp.methodsig_retv(msig)), 
-        jp.methodsig_name(msig), 
-        ','.join(omit_trivial_pakcage(t) for t in jp.methodsig_params(msig))
-    )
-def format_clz_with_omitting_trivial_pakcage(clz): return omit_trivial_pakcage(clz) 
-def format_msig_with_omitting_trivial_pakcage(msig):
-    return "%s %s(%s)" % (omit_trivial_pakcage(jp.methodsig_retv(msig)), 
-        jp.methodsig_name(msig), 
-        ','.join(omit_trivial_pakcage(t) for t in jp.methodsig_params(msig))
-    )
 
 
 def replace_callnode_body_with_label(node, label_to_body_tbl={}):
@@ -108,44 +92,67 @@ def pretty_print_pickle_data(data, out):
 
 
 def gen_custom_formatters(contribution_data, fully_qualified_package_name, ansi_color):
-    _, cont_clzs, cont_msigs, cont_literals = contribution_data
+    _, cont_types, cont_method_names, cont_literals = contribution_data
 
     if ansi_color:
         a_enhanced = colorama.Fore.RED + colorama.Style.BRIGHT
         a_reset = colorama.Fore.RESET + colorama.Style.RESET_ALL
 
-    if fully_qualified_package_name:
-        fmt_clz, fmt_msig = format_clz, format_msig
+    if not fully_qualified_package_name:
+        if ansi_color:
+            def fmt_type(typ):
+                if typ in cont_types:
+                    return a_enhanced + omit_trivial_pakcage(typ) + a_reset
+                else:
+                    return omit_trivial_pakcage(typ)
+        else:
+            def fmt_type(typ):
+                return omit_trivial_pakcage(typ)
     else:
-        fmt_clz, fmt_msig = format_clz_with_omitting_trivial_pakcage, format_msig_with_omitting_trivial_pakcage
+        if ansi_color:
+            def fmt_type(typ):
+                if type in cont_types:
+                    return a_enhanced + typ + a_reset
+                else:
+                    return typ
+        else:
+            def fmt_type(typ):
+                return typ
+
     if ansi_color:
-        old_fmt_clz, old_fmt_msig = fmt_clz, fmt_msig
-        def fmt_clz_w_coloring(clz):
-            s = old_fmt_clz(clz)
-            return (a_enhanced + s + a_reset) if clz in cont_clzs else s
-        def fmt_msig_w_coloring(msig):
-            s = old_fmt_msig(msig)
-            return (a_enhanced + s + a_reset) if msig in cont_msigs else s
-        fmt_clz, fmt_msig = fmt_clz_w_coloring, fmt_msig_w_coloring
+        def fmt_method_name(m):
+            if m in cont_method_names:
+                return a_enhanced + m + a_reset
+            else:
+                return m
+    else:
+        def fmt_method_name(m):
+            return m
 
     if ansi_color:
         def fmt_lits(lits):
-            if not cont_literals.intersection(lits):
+            if not lits or not cont_literals.intersection(lits):
                 return None
             buf = [((a_enhanced + lit + a_reset) if lit in cont_literals else lit) for lit in lits]
             return ', '.join(buf)
     else:
         def fmt_lits(lits):
-            if not cont_literals.intersection(lits):
+            if not lits or not cont_literals.intersection(lits):
                 return None
             return ', '.join(lits)
 
-    return fmt_clz, fmt_msig, fmt_lits
+    def fmt_msig(msig):
+        return "%s %s(%s)" % (
+            fmt_type(jp.methodsig_retv(msig)),
+            fmt_method_name(jp.methodsig_name(msig)),
+            ','.join(fmt_type(typ) for typ in jp.methodsig_params(msig))
+        )
+    return fmt_type, fmt_msig, fmt_lits
 
 
 def format_call_tree_node_compact(node, out, contribution_data, indent_width=2, clz_msig2conversion=None, 
         fully_qualified_package_name=False, ansi_color=False):
-    node_id_to_cont, cont_clzs, cont_msigs, _ = contribution_data
+    node_id_to_cont = contribution_data[0]
 
     fmt_clz, fmt_msig, fmt_lits = gen_custom_formatters(contribution_data, fully_qualified_package_name, ansi_color)
 
@@ -184,7 +191,7 @@ def format_call_tree_node_compact(node, out, contribution_data, indent_width=2, 
             if b:
                 buf.extend((p[0] + 1, p[1], p[2]) for p in b)
                 buf.append((0, '}', ''))
-            elif clz in cont_clzs or msig in cont_msigs:
+            elif node_id_to_cont.get(id(node)):
                 p = buf[-1]
                 buf[-1] = (p[0], p[1] + '}', p[2])
             else:
