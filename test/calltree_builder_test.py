@@ -142,14 +142,14 @@ class CalltreeBuilderTest(unittest.TestCase):
             ('A', mnamc('main')): [('A', rv('main'))],
             ('B', mnamc('b')): [('B', rv('b'))],
         }
-        resolve = cb.gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_to_defs)
+        resolve_dispatch = cb.gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_to_defs)
         entry_point = ('A', rv('main'))
         methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
-            entry_point, resolve,
+            entry_point, resolve_dispatch,
             include_direct_recursive_calls=True)
         self.assertEqual(methods_ircc, [('B', rv('b'))])
         methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
-            entry_point, resolve,
+            entry_point, resolve_dispatch,
             include_direct_recursive_calls=False)
         self.assertEqual(methods_ircc, [])
  
@@ -177,14 +177,14 @@ class CalltreeBuilderTest(unittest.TestCase):
             ('C', mnamc('c')): [('C', rv('c'))],
         }
         class_to_descendants = {}
-        resolve = cb.gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_to_defs)
+        resolve_dispatch = cb.gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_to_defs)
         entry_point = ('A', rv('main'))
         methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
-            entry_point, resolve,
+            entry_point, resolve_dispatch,
             include_direct_recursive_calls=True)
         self.assertEqual(methods_ircc, [('B', rv('b')), ('C', rv('c'))])
         methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
-            entry_point, resolve,
+            entry_point, resolve_dispatch,
             include_direct_recursive_calls=False)
         self.assertEqual(methods_ircc, [('B', rv('b')), ('C', rv('c'))])
 

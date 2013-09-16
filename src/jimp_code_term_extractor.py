@@ -9,36 +9,36 @@ import _jimp_code_body_to_tree_elem as jcbte
 
 
 def extract_referred_literals(inss, method_data, class_data):
-    resolve = jcbte.gen_type_resolver(method_data, class_data)
+    resolve_type = jcbte.gen_type_resolver(method_data, class_data)
 
     literals = set()
     for ins in inss:
         cmd = ins[0]
         if cmd in (jp.SPECIALINVOKE, jp.INVOKE):
             receiver, method_name, args, retv, linenum = ins[1:]
-            recvlit = resolve(receiver)[1]
+            recvlit = resolve_type(receiver)[1]
             literals.add(recvlit)
-            arglits = tuple(resolve(a)[1] for a in args)
+            arglits = tuple(resolve_type(a)[1] for a in args)
             literals.update(arglits)
-            retvlit = resolve(retv)[1]
+            retvlit = resolve_type(retv)[1]
             literals.add(retvlit)
 
     return sorted(literals)
 
 
 # def extract_invoked_methods(inss, method_data, class_data):
-#     resolve = jcbte.gen_type_resolver(method_data, class_data)
+#     resolve_type = jcbte.gen_type_resolver(method_data, class_data)
 # 
 #     invoked_recv_msigs = []
 #     for ins in inss:
 #         cmd = ins[0]
 #         if cmd in (jp.SPECIALINVOKE, jp.INVOKE):
 #             receiver, method_name, args, retv, linenum = ins[1:]
-#             rrecv = resolve(receiver)[0]
+#             rrecv = resolve_type(receiver)[0]
 #             if rrecv is None:
 #                 rrecv = receiver
-#             rargs = tuple(resolve(a)[0] for a in args)
-#             rretv = resolve(retv)[0]
+#             rargs = tuple(resolve_type(a)[0] for a in args)
+#             rretv = resolve_type(retv)[0]
 #             msig = jcbte.method_sig_intern(jp.MethodSig(rretv, method_name, rargs))
 #             invoked_recv_msigs.append((rrecv, msig))
 # 

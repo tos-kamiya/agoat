@@ -45,7 +45,7 @@ else:
 
 
 def gen_type_resolver(method_data, class_data):
-    def resolve(name):
+    def resolve_type(name):
         if name == 'null':
             return 'null', None
         if name is None:
@@ -75,30 +75,30 @@ def gen_type_resolver(method_data, class_data):
         if t:
             return intern(t), None
         return None, None
-    return resolve
+    return resolve_type
 
 
 def resolve_types_in_code(inss, method_data, class_data):
     assert inss is not None
 
-    resolve = gen_type_resolver(method_data, class_data)
+    resolve_type = gen_type_resolver(method_data, class_data)
     resolved_inss = []
     for ins in inss:
         cmd = ins[0]
         if cmd in (jp.SPECIALINVOKE, jp.INVOKE):
             literals = set()
             receiver, method_name, args, retv, linenum = ins[1:]
-            rrecv, lit = resolve(receiver)
+            rrecv, lit = resolve_type(receiver)
             if rrecv is None:
                 rrecv = receiver
             lit and literals.add(lit)
             rargs = []
             for a in args:
-                rarg, lit = resolve(a)
+                rarg, lit = resolve_type(a)
                 lit and literals.add(lit)
                 rargs.append(rarg)
             rargs = tuple(rargs)
-            rretv, lit = resolve(retv)
+            rretv, lit = resolve_type(retv)
             lit and literals.add(lit)
             msig = method_sig_intern(jp.MethodSig(rretv, method_name, rargs))
             literals = tuple(sorted(literals))

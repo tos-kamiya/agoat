@@ -124,7 +124,7 @@ def java_is_a(type_a, type_b, class_to_descendants):
 def gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_to_defs):
     # class_table  # str -> ClassData
     # recv_method_to_defs  # recv_method_to_defs  # (clz, mnamc) -> [(clz, MethodSig)]
-    def resolve(invoke_cmd, recv_msig):
+    def resolve_type(invoke_cmd, recv_msig):
         static_method = invoke_cmd == jp.SPECIALINVOKE
         resolved = []
         recv, msig = recv_msig
@@ -163,10 +163,10 @@ def gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_
                     c_m = cd.class_name, md.method_sig
                     resolved.append((c_m, md))
         return resolved
-    return resolve
+    return resolve_type
 
 
-def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
+def find_methods_involved_in_recursive_call_chain(entry_point, resolve_dispatch,
           include_direct_recursive_calls=False):
     # entry_points  # list of (str, MethodSig)
 
@@ -175,7 +175,7 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
     methods_ircc = set()
 
     clz0, mtd0 = entry_point
-    e = resolver(jp.SPECIALINVOKE, entry_point)
+    e = resolve_dispatch(jp.SPECIALINVOKE, entry_point)
     if not e:
         raise ValueError("entry_point not found")
     c_m0, md0 = e[0]
@@ -195,7 +195,7 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolver,
                     if not include_direct_recursive_calls and rc_mtd == stack[-1]:
                         pass
                     else:
-                        r = resolver(cmd, rc_mtd)
+                        r = resolve_dispatch(cmd, rc_mtd)
                         for rc_mtd, md in r:
                             dig_call(rc_mtd, md, stack)
                 elif cmd in (jp.LABEL, jp.RETURN, jp.THROW):
@@ -261,7 +261,7 @@ def find_entry_points(class_table, target_class_names=None):
     return entry_points
 
 
-def build_call_andor_tree(entry_point, resolver, methods_ircc, call_node_memo={}):
+def build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node_memo={}):
     # entry_point  # (str, MethodSig)
     # methods_ircc  # set of (str, MethodSig)
     # call_node_memo = {}  # (str, MethodSig, recursive_context) -> node
@@ -302,7 +302,7 @@ def build_call_andor_tree(entry_point, resolver, methods_ircc, call_node_memo={}
 
     digging_calls = []
     def dig_dispatch(cmd, recv_msig, recursive_context, literals, loc_info):
-        cand_methods = resolver(cmd, recv_msig)
+        cand_methods = resolve_dispatch(cmd, recv_msig)
         if not cand_methods:
             return (cmd, recv_msig[0], recv_msig[1], literals, loc_info)
         dispatch_node = [ct.ORDERED_OR]
@@ -343,11 +343,11 @@ def extract_call_andor_trees(class_table, entry_points):
 
     recv_method_to_defs = make_dispatch_table(class_to_methods, class_to_descendants)
 
-    resolver = gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_to_defs)
+    resolve_dispatch = gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_to_defs)
 
     methods_ircc = set()
     for entry_point in entry_points:
-        ms = find_methods_involved_in_recursive_call_chain(entry_point, resolver)
+        ms = find_methods_involved_in_recursive_call_chain(entry_point, resolve_dispatch)
         methods_ircc.update(ms)
     methods_ircc = sorted(methods_ircc)
     # out.write("methods involved in recursive chain:\n")
@@ -357,7 +357,7 @@ def extract_call_andor_trees(class_table, entry_points):
     call_trees = []
     call_node_memo = {}
     for entry_point in entry_points:
-        call_tree = build_call_andor_tree(entry_point, resolver, methods_ircc, call_node_memo=call_node_memo)
+        call_tree = build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node_memo=call_node_memo)
         call_trees.append(call_tree)
     return call_trees
 
