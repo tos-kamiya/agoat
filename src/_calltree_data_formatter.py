@@ -130,13 +130,13 @@ def gen_custom_formatters(contribution_data, fully_qualified_package_name, ansi_
 
     if ansi_color:
         def fmt_lits(lits):
-            if lits not in cont_literals:
+            if not cont_literals.intersection(lits):
                 return None
-            s = ', '.join(lits)
-            return a_enhanced + s + a_reset
+            buf = [((a_enhanced + lit + a_reset) if lit in cont_literals else lit) for lit in lits]
+            return ', '.join(buf)
     else:
         def fmt_lits(lits):
-            if lits not in cont_literals:
+            if not cont_literals.intersection(lits):
                 return None
             return ', '.join(lits)
 

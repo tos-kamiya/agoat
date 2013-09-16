@@ -64,19 +64,14 @@ class Query(object):
         unmatched_ls = [p for p in self._literal_patterns if not any(p.regex.search(w) for w in literals)]
         return unmatched_is + unmatched_ls
 
-    def matches_invoked(self, clz, msig):
-        for p in self._invoked_patterns:
-            if clz and p.regex.search(clz) or msig and p.regex.search(msig):
-                return True
-        return False
+    def matches_msig(self, msig):
+        return any(p.regex.search(msig) for p in self._invoked_patterns)
 
-    def matches_literals(self, literals):
-        for lit in literals:
-            for p in self._literal_patterns:
-                if p.regex.search(lit):
-                    return True
-        return False
+    def matches_receiver(self, clz):
+        return any(p.regex.search(clz) for p in self._invoked_patterns)
 
+    def matches_literal(self, literal):
+        return any(p.regex.search(literal) for p in self._literal_patterns)
 
 def check_query_word_list(query_words):
     if len(set(query_words)) != len(query_words):
@@ -205,12 +200,15 @@ def extract_node_contribution(call_node, query):
 
     def update_about_invoked(invoked):
         clz, msig, literals = invoked[1], invoked[2], invoked[3]
-        clz_cont = clz in cont_clzs or query.matches_invoked(clz, None)
+        clz_cont = clz in cont_clzs or query.matches_receiver(clz)
         clz_cont and cont_clzs.add(clz)
-        msig_cont = msig in cont_msigs or query.matches_invoked(None, msig)
+        msig_cont = msig in cont_msigs or query.matches_msig(msig)
         msig_cont and cont_msigs.add(msig)
-        literal_cont = (not not literals) and query.matches_literals(literals)
-        literal_cont and cont_literals.add(literals)
+        literal_cont = False
+        for lit in literals:
+            if query.matches_literal(lit):
+                literal_cont = True
+                cont_literals.add(lit)
         return clz_cont, msig_cont, literal_cont
 
     def mark_i(node):
