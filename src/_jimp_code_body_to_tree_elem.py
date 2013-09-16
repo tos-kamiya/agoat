@@ -175,7 +175,7 @@ def convert_to_execution_paths(inss):
                 path.append(b)
             elif cmd in (jp.SPECIALINVOKE, jp.INVOKE):
                 is_repetitive = path and path[-1][:-1] == ins[:-1]
-                # cmd, receiver, method_name, args, retv, linenum = ins
+                # cmd, receiver, method_name, args, retv, lterals, linenum = ins
                 if not is_repetitive:
                     path.append(ins)
                     assert len(path) <= len_inss
