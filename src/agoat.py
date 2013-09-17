@@ -92,56 +92,62 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
         pickle.dump({DATATAG_LINENUMBER_TABLE: clz_msig2conversion}, out)
 
 
-def expand_call_tree_to_paths(node, treecut_fullfill_query, treecut_partially_fill_query):
-    def expand_i(node):
-        if isinstance(node, list):
-            assert node
-            n0 = node[0]
-            if n0 == ct.ORDERED_OR:
-                paths = []
-                for subn in node[1:]:
-                    paths = expand_i(subn)
-                    for p in paths:
-                        pnode = [ct.ORDERED_AND] + p
-                        if p and treecut_partially_fill_query(pnode):
-                            paths.append(p)
-                return paths
-            elif n0 == ct.ORDERED_AND:
-                pathssubs = []
-                for subn in node[1:]:
-                    paths = expand_i(subn)
-                    assert isinstance(paths, list)
-                    pathssubs.append(paths)
-                paths = [[]]
-                for pathssub in pathssubs:
-                    new_paths = []
-                    for path in paths:
-                        for p in pathssub:
-                            new_path = path[:] + p
-                            new_paths.append(new_path)
-                    paths = new_paths
-                    #paths = [(path[:] + p) for path in paths for p in pathssub]
-                return paths
-        elif isinstance(node, ct.CallNode):
-            if node.body:
-                body_paths = expand_i(node.body)
-                if body_paths:
+def gen_expander_of_call_tree_to_paths(query):
+    treecut_fullfill_query = cq.make_treecut_fullfill_query_predicate(query)
+    treecut_partially_fill_query = cq.make_treecut_partially_fill_query_predicate(query)
+
+    def expand_call_tree_to_paths(node):
+        def expand_i(node):
+            if isinstance(node, list):
+                assert node
+                n0 = node[0]
+                if n0 == ct.ORDERED_OR:
                     paths = []
-                    for bp in body_paths:
-                        nbp = at.normalize_tree([ct.ORDERED_AND] + bp)
-                        paths.append([ct.CallNode(node.invoked, node.recursive_cxt, nbp)])
+                    for subn in node[1:]:
+                        paths = expand_i(subn)
+                        for p in paths:
+                            pnode = [ct.ORDERED_AND] + p
+                            if p and treecut_partially_fill_query(pnode):
+                                paths.append(p)
                     return paths
+                elif n0 == ct.ORDERED_AND:
+                    pathssubs = []
+                    for subn in node[1:]:
+                        paths = expand_i(subn)
+                        assert isinstance(paths, list)
+                        pathssubs.append(paths)
+                    paths = [[]]
+                    for pathssub in pathssubs:
+                        new_paths = []
+                        for path in paths:
+                            for p in pathssub:
+                                new_path = path[:] + p
+                                new_paths.append(new_path)
+                        paths = new_paths
+                        #paths = [(path[:] + p) for path in paths for p in pathssub]
+                    return paths
+            elif isinstance(node, ct.CallNode):
+                if node.body:
+                    body_paths = expand_i(node.body)
+                    if body_paths:
+                        paths = []
+                        for bp in body_paths:
+                            nbp = at.normalize_tree([ct.ORDERED_AND] + bp)
+                            paths.append([ct.CallNode(node.invoked, node.recursive_cxt, nbp)])
+                        return paths
+                    else:
+                        return [[ct.CallNode(node.invoked, node.recursive_cxt, None)]]
                 else:
-                    return [[ct.CallNode(node.invoked, node.recursive_cxt, None)]]
+                    return [[node]]
             else:
                 return [[node]]
-        else:
-            return [[node]]
 
-    paths = expand_i(node)
-    paths = [at.normalize_tree([ct.ORDERED_AND] + path) for path in paths]
-    paths = [path for path in paths if treecut_fullfill_query(path)]
-    return paths
+        paths = expand_i(node)
+        paths = [at.normalize_tree([ct.ORDERED_AND] + path) for path in paths]
+        paths = [path for path in paths if treecut_fullfill_query(path)]
+        return paths
+
+    return expand_call_tree_to_paths
 
 
 def remove_recursive_contexts(call_node):
@@ -200,15 +206,15 @@ def do_search(call_tree_file, query_words, output_file, line_number_table=None, 
     cq.check_query_word_list(query_words)
     query_patterns = [cq.QueryPattern.compile(w, ignore_case=ignore_case) for w in query_words]
     query = cq.Query(query_patterns)
-    treecut_fullfill_query = cq.make_treecut_fullfill_query_predicate(query)
-    treecut_partially_fill_query = cq.make_treecut_partially_fill_query_predicate(query)
 
     removed_nodes_becauseof_limitation_of_depth = [None]
     nodes = search_in_call_trees(query, call_trees, node_summary_table, max_depth, 
             removed_nodes_becauseof_limitation_of_depth=removed_nodes_becauseof_limitation_of_depth)
-    if not nodes and removed_nodes_becauseof_limitation_of_depth[0] > 0:
-        sys.stderr.write("> warning: all found code exceeds max call-tree depth. give option -D explicitly to show these code.\n")
     if not nodes:
+        if removed_nodes_becauseof_limitation_of_depth[0] == 0:
+            sys.stderr.write("> warning: no results\n")
+        else:
+            sys.stderr.write("> warning: all found code exceeds max call-tree depth. give option -D explicitly to show these code.\n")
         return
 
     if not expand_to_path:
@@ -221,16 +227,17 @@ def do_search(call_tree_file, query_words, output_file, line_number_table=None, 
                         fully_qualified_package_name=fully_qualified_package_name, ansi_color=ansi_color)
         return
 
+    expand_call_tree_to_paths = gen_expander_of_call_tree_to_paths(query)
     path_nodes = []
     count_removed_path_becauseof_not_fullfilling_query = 0
     for node in nodes:
-        pns = expand_call_tree_to_paths(node, treecut_fullfill_query, treecut_partially_fill_query)
+        pns = expand_call_tree_to_paths(node)
         if not pns:
             count_removed_path_becauseof_not_fullfilling_query += 1
         path_nodes.extend(pns)
-    if not path_nodes and count_removed_path_becauseof_not_fullfilling_query > 0:
-        sys.stderr.write("> warning: no found paths includes all query words. give option -N to show such code instaed of path.\n")
     if not path_nodes:
+        if count_removed_path_becauseof_not_fullfilling_query > 0:
+            sys.stderr.write("> warning: no found paths includes all query words. give option -N to show such code instaed of path.\n")
         return
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
