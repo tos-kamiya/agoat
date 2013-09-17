@@ -7,7 +7,7 @@ import sys
 import pickle
 import itertools
 
-from _utilities import open_w_default, sort_uniq
+from _utilities import open_w_default, sort_uniq, progress_bar
 
 import andor_tree as at
 import jimp_parser as jp
@@ -76,16 +76,32 @@ def list_literals(soot_dir, output_file):
             out.write("%s\n" % lit)
 
 
-def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_file):
-    class_table = dict((clz, cd) \
-            for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
+def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_file, 
+        trace_invocation_via_interface=True, show_progress=False):
+    log = sys.stderr.write if show_progress else None
 
+    log and log("> reading code of classes\n")
+    class_table = dict((clz, cd) \
+            for clz, cd in jp.read_class_table_from_dir_iter(soot_dir, trace_invocation_via_interface))
     entry_points = cb.find_entry_points(class_table, target_class_names=entry_point_classes)
 
+    log and log("> building and-or call tree\n")
     class_table = cb.inss_to_tree_in_class_table(class_table)
     call_trees = cb.extract_call_andor_trees(class_table, entry_points)
-    node_summary_table = cs.extract_node_summary_table(call_trees)
 
+    if show_progress:
+        log and log("> extracting summary from each node\n")
+        invoked_set = cs.extract_callnode_invokeds_in_calltrees(call_trees)
+        with progress_bar(len(invoked_set)) as rep:
+            done_invokeds = [0]
+            def p(invoked):
+                done_invokeds[0] += 1
+                rep(done_invokeds[0])
+            node_summary_table = cs.extract_node_summary_table(call_trees, progress=p)
+    else:
+        node_summary_table = cs.extract_node_summary_table(call_trees)
+
+    log and log("> saving to file\n")
     with open_w_default(output_file, "wb", sys.stdout) as out:
         pickle.dump({DATATAG_CALL_TREES: call_trees, DATATAG_NODE_SUMMARY: node_summary_table}, out)
 
@@ -292,9 +308,14 @@ def main(argv):
     psr_ct.add_argument('-e', '--entry-point', action='store', nargs='*', dest='entrypointclasses',
             help='entry-point class. If not given, all possible classes will be regarded as entry points')
     psr_ct.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
+    psr_ct.add_argument('-I', '--ignore-method-invocation-via-interface', action='store_true',
+            default=False)
     psr_ct.add_argument('-o', '--output', action='store', 
             help="output file. (default '%s')" % default_calltree_path, 
             default=default_calltree_path)
+    psr_ct.add_argument("--progress", action='store_true',
+            help="show progress to standard output",
+            default=False)
 
     psr_q = subpsrs.add_parser('q', help='search query words in call tree')
     psr_q.add_argument('queryword', action='store', nargs='+', 
@@ -331,7 +352,9 @@ def main(argv):
     elif args.command == 'gl':
         generate_linenumber_table(args.soot_dir, args.javap_dir, args.output)
     elif args.command == 'gc':
-        generate_call_tree_and_node_summary(args.entrypointclasses, args.soot_dir, args.output)
+        generate_call_tree_and_node_summary(args.entrypointclasses, args.soot_dir, args.output, 
+            trace_invocation_via_interface=not args.ignore_method_invocation_via_interface,
+            show_progress=args.progress)
     elif args.command == 'q':
         line_number_table = None
         if args.line_number_table is not None:

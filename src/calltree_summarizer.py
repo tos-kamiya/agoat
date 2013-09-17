@@ -10,7 +10,38 @@ import calltree_builder as cb
 import jimp_parser as jp
 from _calltree_data_formatter import format_clz_msig
 
-def get_node_summary(node, summary_table):
+def _extract_callnode_invokeds_in_calltree(call_tree, invoked_set):
+    def dig_node(node):
+        if node is None:
+            return
+        elif isinstance(node, list):
+            n0 = node[0]
+            assert n0 in (ct.ORDERED_AND, ct.ORDERED_OR)
+            for subn in node[1:]:
+                dig_node(subn)
+        elif isinstance(node, ct.CallNode):
+            invoked = node.invoked
+            assert invoked[0] in (jp.INVOKE, jp.SPECIALINVOKE)
+            clz, msig = invoked[1], invoked[2]
+            k = (clz, msig, node.recursive_cxt)
+            if k in invoked_set:
+                return
+            invoked_set.add(k)
+            if node.body:
+                subnode = node.body
+                if isinstance(subnode, (list, ct.CallNode)):
+                    dig_node(subnode)
+    dig_node(call_tree)
+
+
+def extract_callnode_invokeds_in_calltrees(call_trees):
+    invoked_set = set()
+    for ct in call_trees:
+        _extract_callnode_invokeds_in_calltree(ct, invoked_set)
+    return sort_uniq(invoked_set)
+
+
+def get_node_summary(node, summary_table, progress=None):
     """
     Get summary of a node.
     In case of summary_table parameter given, caluclate summary with memorization.
@@ -50,6 +81,7 @@ def get_node_summary(node, summary_table):
             if summary_table is not None and k in summary_table:
                 nodesum = summary_table[k][:]
             else:
+                progress and progress(k)
                 nodesum = []
                 subnode = node.body
                 if subnode is None:
@@ -79,6 +111,8 @@ def get_node_summary(node, summary_table):
         pp = pprint.PrettyPrinter(indent=4, stream=sys.stderr)
         pp.pprint([format_clz_msig(clz, msig) for clz, msig, recursive_cxt in stack])
         sys.stderr.write('\n')
+        raise
+
     assert not stack
     return summary
 
@@ -87,10 +121,10 @@ def get_node_summary_wo_memoization(node):
     return get_node_summary(node, summary_table=None)
 
 
-def extract_node_summary_table(nodes):
+def extract_node_summary_table(nodes, progress=None):
     summary_table = {}
     for node in nodes:
-        get_node_summary(node, summary_table)
+        get_node_summary(node, summary_table, progress=progress)
     return summary_table
 
 
