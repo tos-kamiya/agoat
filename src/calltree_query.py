@@ -49,6 +49,9 @@ class Query(object):
     def is_fullfilled_by(self, summary):
         return not self.unmatched_patterns(summary)
 
+    def is_partially_filled_by(self, summary):
+        return self.unmatched_patterns(summary) < len(self._invoked_patterns) + len(self._literal_patterns)
+
     def unmatched_patterns(self, summary):
         invokeds = []
         literals = []
@@ -176,6 +179,14 @@ def make_treecut_fullfill_query_predicate(query):
     return predicate
 
 
+def make_treecut_partially_fill_query_predicate(query):
+    def predicate(treecut_with_callnode_depth):
+        summary = cs.get_node_summary_wo_memoization(treecut_with_callnode_depth)
+        return query.is_partially_filled_by(summary)
+
+    return predicate
+
+
 def extract_shallowest_treecut(call_node, predicate, max_depth=-1):
     assert isinstance(call_node, ct.CallNode)
 
@@ -192,37 +203,40 @@ def extract_shallowest_treecut(call_node, predicate, max_depth=-1):
     return None
 
 
+def update_cont_items_by_invoked(cont_items, invoked, query):
+    cont_types, cont_method_names, cont_literals = cont_items
+    clz, msig, literals = invoked[1], invoked[2], invoked[3]
+    appeared_types = [clz, jp.methodsig_retv(msig)]
+    appeared_types.extend(jp.methodsig_params(msig))
+    invoked_cont = False
+    for typ in appeared_types:
+        if typ in cont_types:
+            invoked_cont = True
+        else:
+            if query.matches_receiver(typ):
+                invoked_cont = True
+                cont_types.add(typ)
+    m = jp.methodsig_name(msig)
+    if m in cont_method_names:
+        invoked_cont = True
+    else:
+        if query.matches_msig(m):
+            invoked_cont = True
+            cont_method_names.add(m)
+    if literals:
+        for lit in literals:
+            if query.matches_literal(lit):
+                invoked_cont = True
+                cont_literals.add(lit)
+    return invoked_cont
+
+
 def extract_node_contribution(call_node, query):
     node_id_to_cont = {}
     cont_types = set()
     cont_method_names = set()
     cont_literals = set()
-
-    def update_about_invoked(invoked):
-        clz, msig, literals = invoked[1], invoked[2], invoked[3]
-        appeared_types = [clz, jp.methodsig_retv(msig)]
-        appeared_types.extend(jp.methodsig_params(msig))
-        invoked_cont = False
-        for typ in appeared_types:
-            if typ in cont_types:
-                invoked_cont = True
-            else:
-                if query.matches_receiver(typ):
-                    invoked_cont = True
-                    cont_types.add(typ)
-        m = jp.methodsig_name(msig)
-        if m in cont_method_names:
-            invoked_cont = True
-        else:
-            if query.matches_msig(m):
-                invoked_cont = True
-                cont_method_names.add(m)
-        if literals:
-            for lit in literals:
-                if query.matches_literal(lit):
-                    invoked_cont = True
-                    cont_literals.add(lit)
-        return invoked_cont
+    cont_items = cont_types, cont_method_names, cont_literals
 
     def mark_i(node):
         if node is None:
@@ -238,12 +252,12 @@ def extract_node_contribution(call_node, query):
                     #  don't break for item
         elif isinstance(node, ct.CallNode):
             invoked = node.invoked
-            invoked_cont = update_about_invoked(invoked)
+            invoked_cont = update_cont_items_by_invoked(cont_items, invoked, query)
             body_cont = mark_i(node.body)
             node_cont = invoked_cont or body_cont
         elif isinstance(node, tuple):
             assert node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
-            node_cont = update_about_invoked(node)
+            node_cont = update_cont_items_by_invoked(cont_items, node, query)
         else:
             assert False
         node_id_to_cont[id(node)] = node_cont
@@ -253,17 +267,17 @@ def extract_node_contribution(call_node, query):
     return node_id_to_cont, cont_types, cont_method_names, cont_literals
 
 
-def extract_node_contributions(call_nodes, query):
-    node_id_to_cont = {}
-    cont_types = set()
-    cont_method_names = set()
-    cont_literals = set()
-    contribution_data = (node_id_to_cont, cont_types, cont_method_names, cont_literals)
-    for cn in call_nodes:
-        ni2c, ct, cm, cl = extract_node_contribution(cn, query)
-        if ni2c[id(cn)]:
-            node_id_to_cont.update(ni2c.iteritems())
-            cont_types.update(ct)
-            cont_method_names.update(cm)
-            cont_literals.update(cl)
-    return contribution_data
+# def extract_node_contributions(call_nodes, query):
+#     node_id_to_cont = {}
+#     cont_types = set()
+#     cont_method_names = set()
+#     cont_literals = set()
+#     contribution_data = (node_id_to_cont, cont_types, cont_method_names, cont_literals)
+#     for cn in call_nodes:
+#         ni2c, ct, cm, cl = extract_node_contribution(cn, query)
+#         if ni2c[id(cn)]:
+#             node_id_to_cont.update(ni2c.iteritems())
+#             cont_types.update(ct)
+#             cont_method_names.update(cm)
+#             cont_literals.update(cl)
+#     return contribution_data

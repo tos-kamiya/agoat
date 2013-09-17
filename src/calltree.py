@@ -34,11 +34,14 @@ class CallNode(object):
         self.body = body
 
     def __repr__(self):
-        #return "CallNode(%s,%s,%s)" % (repr(self.invoked), repr(self.recursive_cxt), repr(self.body))
+        # return "CallNode(%s,%s,%s)" % (repr(self.invoked), repr(self.recursive_cxt), repr(self.body))  #debug
         if isinstance(self.body, Node):
             return "CallNode(%s,%s,%s)" % (repr(self.invoked), repr(self.recursive_cxt), repr(self.body))
+        if isinstance(self.invoked, tuple):
+            invoked_repr = repr(tuple(self.invoked[:3]))
         else:
-            return "CallNode(%s,%s,*)" % (repr(self.invoked), repr(self.recursive_cxt))
+            invoked_repr = repr(self.invoked),
+        return "CallNode(%s,*,*)" % (invoked_repr)
 
     # def __hash__(self):
     #     return hash(self.invoked) + hash(self.recursive_cxt) + hash(self.body)

@@ -7,6 +7,7 @@ import pickle
 
 from _utilities import open_w_default, sort_uniq
 
+import andor_tree as at
 import jimp_parser as jp
 import jimp_code_term_extractor as jcte
 import calltree as ct
@@ -91,6 +92,58 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
         pickle.dump({DATATAG_LINENUMBER_TABLE: clz_msig2conversion}, out)
 
 
+def expand_call_tree_to_paths(node, treecut_fullfill_query, treecut_partially_fill_query):
+    def expand_i(node):
+        if isinstance(node, list):
+            assert node
+            n0 = node[0]
+            if n0 == ct.ORDERED_OR:
+                paths = []
+                for subn in node[1:]:
+                    paths = expand_i(subn)
+                    for p in paths:
+                        pnode = [ct.ORDERED_AND] + p
+                        if p and treecut_partially_fill_query(pnode):
+                            paths.append(p)
+                return paths
+            elif n0 == ct.ORDERED_AND:
+                pathssubs = []
+                for subn in node[1:]:
+                    paths = expand_i(subn)
+                    assert isinstance(paths, list)
+                    pathssubs.append(paths)
+                paths = [[]]
+                for pathssub in pathssubs:
+                    new_paths = []
+                    for path in paths:
+                        for p in pathssub:
+                            new_path = path[:] + p
+                            new_paths.append(new_path)
+                    paths = new_paths
+                    #paths = [(path[:] + p) for path in paths for p in pathssub]
+                return paths
+        elif isinstance(node, ct.CallNode):
+            if node.body:
+                body_paths = expand_i(node.body)
+                if body_paths:
+                    paths = []
+                    for bp in body_paths:
+                        nbp = at.normalize_tree([ct.ORDERED_AND] + bp)
+                        paths.append([ct.CallNode(node.invoked, node.recursive_cxt, nbp)])
+                    return paths
+                else:
+                    return [[ct.CallNode(node.invoked, node.recursive_cxt, None)]]
+            else:
+                return [[node]]
+        else:
+            return [[node]]
+
+    paths = expand_i(node)
+    paths = [at.normalize_tree([ct.ORDERED_AND] + path) for path in paths]
+    paths = [path for path in paths if treecut_fullfill_query(path)]
+    return paths
+
+
 def remove_recursive_contexts(call_node):
     def remove_rc_i(node):
         if isinstance(node, list):
@@ -114,33 +167,23 @@ def remove_outermost_loc_info(call_node):
     return ct.CallNode((invoked[0], invoked[1], invoked[2], invoked[3], None), call_node.recursive_cxt, call_node.body)
 
 
-class NoResultsBecauseOfMaxDepth(ValueError):
-    pass
-
-
-def search_method_bodies_iter(query, call_trees, node_summary_table, max_depth):
+def search_in_call_trees(query, call_trees, node_summary_table, max_depth, 
+        removed_nodes_becauseof_limitation_of_depth=[None]):
     pred = cq.make_callnode_fullfill_query_predicate_w_memo(query, node_summary_table)
     call_nodes = cq.get_lower_bound_call_nodes(call_trees, pred)
 
     pred = cq.make_treecut_fullfill_query_predicate(query)
     shallowers = filter(None, (cq.extract_shallowest_treecut(call_node, pred, max_depth) for call_node in call_nodes))
-    if call_nodes and not shallowers:
-        raise NoResultsBecauseOfMaxDepth()
+    removed_nodes_becauseof_limitation_of_depth[0] = len(call_nodes) - len(shallowers)
 
     contextlesses = [remove_outermost_loc_info(remove_recursive_contexts(cn)) for cn in shallowers]
     call_node_wo_rcs = sort_uniq(contextlesses, key=cb.callnode_label)
 
-    node_id_to_cont, cont_clzs, cont_msigs, cont_literals = \
-            contribution_data = cq.extract_node_contributions(call_node_wo_rcs, query)
-    for cn in call_node_wo_rcs:
-        assert node_id_to_cont[id(cn)]
-
-    for cn in call_node_wo_rcs:
-        yield cn, contribution_data
+    return call_node_wo_rcs
 
 
-def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=False, line_number_table=None, 
-        max_depth=-1, fully_qualified_package_name=False, ansi_color=False):
+def do_search(call_tree_file, query_words, output_file, line_number_table=None, ignore_case=False,  
+        max_depth=-1, expand_to_path=True, fully_qualified_package_name=False, ansi_color=False):
     with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
         data = pickle.load(inp)
     call_trees = data[DATATAG_CALL_TREES]
@@ -157,15 +200,45 @@ def search_method_bodies(call_tree_file, query_words, output_file, ignore_case=F
     cq.check_query_word_list(query_words)
     query_patterns = [cq.QueryPattern.compile(w, ignore_case=ignore_case) for w in query_words]
     query = cq.Query(query_patterns)
+    treecut_fullfill_query = cq.make_treecut_fullfill_query_predicate(query)
+    treecut_partially_fill_query = cq.make_treecut_partially_fill_query_predicate(query)
+
+    removed_nodes_becauseof_limitation_of_depth = [None]
+    nodes = search_in_call_trees(query, call_trees, node_summary_table, max_depth, 
+            removed_nodes_becauseof_limitation_of_depth=removed_nodes_becauseof_limitation_of_depth)
+    if not nodes and removed_nodes_becauseof_limitation_of_depth[0] > 0:
+        sys.stderr.write("> warning: all found code exceeds max call-tree depth. give option -D explicitly to show these code.\n")
+    if not nodes:
+        return
+
+    if not expand_to_path:
+        with open_w_default(output_file, "wb", sys.stdout) as out:
+            for node in nodes:
+                contribution_data = cq.extract_node_contribution(node, query)
+                assert contribution_data[0][id(node)]
+                out.write("---\n")
+                format_call_tree_node_compact(node, out, contribution_data, clz_msig2conversion=clz_msig2conversion,
+                        fully_qualified_package_name=fully_qualified_package_name, ansi_color=ansi_color)
+        return
+
+    path_nodes = []
+    count_removed_path_becauseof_not_fullfilling_query = 0
+    for node in nodes:
+        pns = expand_call_tree_to_paths(node, treecut_fullfill_query, treecut_partially_fill_query)
+        if not pns:
+            count_removed_path_becauseof_not_fullfilling_query += 1
+        path_nodes.extend(pns)
+    if not path_nodes and count_removed_path_becauseof_not_fullfilling_query > 0:
+        sys.stderr.write("> warning: no found paths includes all query words. give option -N to show such code instaed of path.\n")
+    if not path_nodes:
+        return
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        try:
-            for cn, contribution_data in search_method_bodies_iter(query, call_trees, node_summary_table, max_depth):
-                out.write("---\n")
-                format_call_tree_node_compact(cn, out, contribution_data, clz_msig2conversion=clz_msig2conversion,
-                        fully_qualified_package_name=fully_qualified_package_name, ansi_color=ansi_color)
-        except NoResultsBecauseOfMaxDepth:
-            sys.stderr.write("> warning: all found code exceeds max call-tree depth. give option -D explicitly to show these code.\n")
+        for pn in path_nodes:
+            contribution_data = cq.extract_node_contribution(pn, query)
+            out.write("---\n")
+            format_call_tree_node_compact(pn, out, contribution_data, clz_msig2conversion=clz_msig2conversion,
+                    fully_qualified_package_name=fully_qualified_package_name, ansi_color=ansi_color)
 
 
 def main(argv):
@@ -212,18 +285,20 @@ def main(argv):
     psr_q.add_argument('-c', '--call-tree', action='store', 
             help="call-tree file. '-' for standard input. (default '%s')" % default_calltree_path,
             default=default_calltree_path)
-    psr_q.add_argument('-I', '--ignore-case', action='store_true')
     psr_q.add_argument('-o', '--output', action='store', default='-')
     psr_q.add_argument('-l', '--line-number-table', action='store', 
             help="line-number table file. '-' for standard input. (default '%s')" % default_linenumbertable_path,
             default=None)
+    psr_q.add_argument('-D', '--max-depth', action='store', type=int, 
+            help="max depth of subtree. -1 for unlimited depth. (default '%d')" % defalut_max_depth_of_subtree,
+            default=defalut_max_depth_of_subtree)
+    psr_q.add_argument('-I', '--ignore-case', action='store_true')
+    psr_q.add_argument('-N', '--node', action='store_true',
+            help="show and-or-call tree node w/o expanding it to paths")
     color_choices=('always', 'never', 'auto')
     psr_q.add_argument('--color', '--colour', action='store', choices=color_choices, dest='color', 
             help="hilighting with ANSI color.",
             default='auto')
-    psr_q.add_argument('-D', '--max-depth', action='store', type=int, 
-            help="max depth of subtree. -1 for unlimited depth. (default '%d')" % defalut_max_depth_of_subtree,
-            default=defalut_max_depth_of_subtree)
     psr_q.add_argument('-F', '--fully-qualified-package-name', action='store_true', default=False)
 
     psr_db = subpsrs.add_parser('debug', help='debug function')
@@ -250,8 +325,9 @@ def main(argv):
         ansi_color = sys.stdout.isatty() if args.color == 'auto' else args.color == 'always'
         if ansi_color:
             init_ansi_color()
-        search_method_bodies(args.call_tree, args.queryword, args.output, args.ignore_case, line_number_table, 
-                args.max_depth, args.fully_qualified_package_name, ansi_color)
+        do_search(args.call_tree, args.queryword, args.output,  line_number_table, 
+                ignore_case=args.ignore_case, max_depth=args.max_depth, expand_to_path=not args.node, 
+                fully_qualified_package_name=args.fully_qualified_package_name, ansi_color=ansi_color)
     elif args.command == 'debug':
         if args.pretty_print:
             pretty_print_pickle_data_file(args.pretty_print)

@@ -91,8 +91,8 @@ def pretty_print_pickle_data(data, out):
             out.write("\n")
 
 
-def gen_custom_formatters(contribution_data, fully_qualified_package_name, ansi_color):
-    _, cont_types, cont_method_names, cont_literals = contribution_data
+def gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi_color):
+    cont_types, cont_method_names, cont_literals = contribution_items
 
     if ansi_color:
         a_enhanced = colorama.Fore.RED + colorama.Style.BRIGHT
@@ -152,9 +152,9 @@ def gen_custom_formatters(contribution_data, fully_qualified_package_name, ansi_
 
 def format_call_tree_node_compact(node, out, contribution_data, indent_width=2, clz_msig2conversion=None, 
         fully_qualified_package_name=False, ansi_color=False):
-    node_id_to_cont = contribution_data[0]
+    node_id_to_cont, contribution_items = contribution_data[0], contribution_data[1:]
 
-    fmt_clz, fmt_msig, fmt_lits = gen_custom_formatters(contribution_data, fully_qualified_package_name, ansi_color)
+    fmt_clz, fmt_msig, fmt_lits = gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi_color)
 
     def label_w_lit(invoked, recursive_cxt):
         items = [recursive_cxt, invoked[1], invoked[2]]
