@@ -211,9 +211,7 @@ def do_search(call_tree_file, query_words, output_file, line_number_table=None, 
     nodes = search_in_call_trees(query, call_trees, node_summary_table, max_depth, 
             removed_nodes_becauseof_limitation_of_depth=removed_nodes_becauseof_limitation_of_depth)
     if not nodes:
-        if removed_nodes_becauseof_limitation_of_depth[0] == 0:
-            sys.stderr.write("> warning: no results\n")
-        else:
+        if removed_nodes_becauseof_limitation_of_depth[0] > 0:
             sys.stderr.write("> warning: all found code exceeds max call-tree depth. give option -D explicitly to show these code.\n")
         return
 
