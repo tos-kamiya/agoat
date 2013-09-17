@@ -42,15 +42,17 @@ class Query(object):
                 self._invoked_patterns.append(p)
             elif p.target == TARGET_LITERAL:
                 self._literal_patterns.append(p)
+        self._count_patterns = len(self._invoked_patterns) + len(self._literal_patterns)
 
     def count(self):
-        return len(self._invoked_patterns) + len(self._literal_patterns)
+        return self._count_patterns
 
     def is_fullfilled_by(self, summary):
         return not self.unmatched_patterns(summary)
 
     def is_partially_filled_by(self, summary):
-        return self.unmatched_patterns(summary) < len(self._invoked_patterns) + len(self._literal_patterns)
+        u = self.unmatched_patterns(summary)
+        return len(u) < self._count_patterns
 
     def unmatched_patterns(self, summary):
         invokeds = []

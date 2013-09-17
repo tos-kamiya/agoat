@@ -79,7 +79,8 @@ def gen_type_resolver(method_data, class_data):
 
 
 def resolve_types_in_code(inss, method_data, class_data):
-    assert inss is not None
+    if inss is None:
+        return None
 
     resolve_type = gen_type_resolver(method_data, class_data)
     resolved_inss = []
@@ -354,7 +355,8 @@ def inss_to_tree_in_class_table(class_table, branches_atmost=None, progress_repo
 
             new_md = jp.MethodData(md.method_sig, md.scope_class)
             new_md.fields = md.fields
-            new_md.code = inss_to_tree(md, cd, branches_atmost=branches_atmost)
+            if md.code is not None:
+                new_md.code = inss_to_tree(md, cd, branches_atmost=branches_atmost)
             new_cd.methods[msig] = new_md
     return new_tbl
 

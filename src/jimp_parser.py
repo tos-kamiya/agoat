@@ -40,7 +40,7 @@ _PAT_DECL = re.compile(r"^\s+" +
 _PAT_INTERFACE_DEF_HEAD = re.compile(r"^" +
                                      r"(%s\s+)*" % _ATTR +
                                      r"(annotation\s+)?interface\s+(?P<interf_name>%s)" % _IDENTIFIER +
-                                     r"(\s+extends\s+(?P<base_names>(%s| )+))?" % _IDENTIFIER +
+                                     r"(\s+extends\s+(?P<base_names>(%s| |, )+))?" % _IDENTIFIER +
                                      r"$")
 # _PAT_INTERFACE_DEF_BEGIN = re.compile("^" + "{" + "$")
 _PAT_INTERFACE_DEF_END = re.compile("^" + "}" + "$")
@@ -49,7 +49,7 @@ _PAT_CLASS_DEF_HEAD = re.compile(r"^" +
                                  r"(%s\s+)*" % _ATTR +
                                  r"(enum\s+)?class\s+(?P<class_name>%s)" % _IDENTIFIER +
                                  r"(\s+extends\s+(?P<base_name>%s))" % _IDENTIFIER +
-                                 r"(\s+implements\s+(?P<interf_names>(%s|, )+))?" % _IDENTIFIER +
+                                 r"(\s+implements\s+(?P<interf_names>(%s| |, )+))?" % _IDENTIFIER +
                                  r"$")
 # _PAT_CLASS_DEF_BEGIN = re.compile("^" + "{" + "$")
 _PAT_CLASS_DEF_END = re.compile("^" + "}" + "$")
@@ -59,7 +59,8 @@ _PAT_METHOD_DEF_HEAD = re.compile(r"^\s+" +
                                   r"(?P<return_value>%s)" % _TYPE +
                                   r"\s+(?P<method_name>%s)" % _METHOD_NAME +
                                   r"[(](?P<params>(%s|, )*)[)]" % _TYPE +
-                                  r"(\s+throws\s+.+)?")
+                                  r"(\s+throws\s(?P<thrown_names>(%s| |, )+))?" % _TYPE + 
+                                  r"(?P<semicolon>;)?")
 # _PAT_METHOD_DEF_BEGIN = re.compile(r"^\s+" + r"{" + r"$")
 _PAT_METHOD_DEF_END = re.compile(r"^\s+" + r"}" + r"$")
 
@@ -254,12 +255,6 @@ def parse_jimp_lines(lines,
                 raise InvalidText("line %d: invalid line" % linenum)
         else:
             raise InvalidText("line %d: invalid line" % linenum)
-
-    # remove the methods that is declared but does not have body
-    empty_methods = [
-        msig for msig, md in class_data.methods.iteritems() if md.code is None]
-    for msig in empty_methods:
-        del class_data.methods[msig]
 
     return class_name, class_data
 

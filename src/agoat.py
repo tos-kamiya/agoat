@@ -1,9 +1,11 @@
+#!/usr/bin/env python
 #coding: utf-8
 
 import argparse
 import os
 import sys
 import pickle
+import itertools
 
 from _utilities import open_w_default, sort_uniq
 
@@ -15,7 +17,7 @@ import calltree_builder as cb
 import calltree_summarizer as cs
 import calltree_query as cq
 import src_linenumber_converter as slc
-from _calltree_data_formatter import format_clz_msig
+from _calltree_data_formatter import format_clz_msig, format_msig
 from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
 from _calltree_data_formatter import pretty_print_pickle_data, format_call_tree_node_compact, init_ansi_color
 
@@ -41,14 +43,23 @@ def list_entry_points(soot_dir, output_file, option_method_sig=False):
             else:
                 out.write("%s\n" % format_clz_msig(*ep))
 
-def list_methods(soot_dir, output_file):
+def list_methods(soot_dir, output_file, group_by_method_sig=False):
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
     methods = jcte.extract_methods(class_table)
 
-    with open_w_default(output_file, "wb", sys.stdout) as out:
-        for clz, msig in methods:
-            out.write("%s\n" % format_clz_msig(clz, msig))
+    if group_by_method_sig:
+        extract_msig = lambda clz_msig: clz_msig[1]
+        methods.sort(key=extract_msig)
+        with open_w_default(output_file, "wb", sys.stdout) as out:
+            for msig, g in itertools.groupby(methods, extract_msig):
+                out.write("%s\n" % format_msig(msig))
+                for clz, _ in g:
+                    out.write("\t%s\n" % clz)
+    else:
+        with open_w_default(output_file, "wb", sys.stdout) as out:
+            for clz, msig in methods:
+                out.write("%s\n" % format_clz_msig(clz, msig))
 
 
 def list_literals(soot_dir, output_file):
@@ -104,8 +115,8 @@ def gen_expander_of_call_tree_to_paths(query):
                 if n0 == ct.ORDERED_OR:
                     paths = []
                     for subn in node[1:]:
-                        paths = expand_i(subn)
-                        for p in paths:
+                        ps = expand_i(subn)
+                        for p in ps:
                             pnode = [ct.ORDERED_AND] + p
                             if p and treecut_partially_fill_query(pnode):
                                 paths.append(p)
@@ -264,6 +275,7 @@ def main(argv):
     psr_mt = subpsrs.add_parser('lm', help='listing methods defined within the target code')
     psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_mt.add_argument('-o', '--output', action='store', default='-')
+    psr_mt.add_argument('-m', '--group-by-method-sig', action='store_true')
 
     psr_mt = subpsrs.add_parser('ll', help='listing literals')
     psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
@@ -313,7 +325,7 @@ def main(argv):
     if args.command == 'le':
         list_entry_points(args.soot_dir, args.output, args.method_sig)
     elif args.command == 'lm':
-        list_methods(args.soot_dir, args.output)
+        list_methods(args.soot_dir, args.output, args.group_by_method_sig)
     elif args.command == 'll':
         list_literals(args.soot_dir, args.output)
     elif args.command == 'gl':
