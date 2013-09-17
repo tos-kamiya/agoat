@@ -40,7 +40,7 @@ _PAT_DECL = re.compile(r"^\s+" +
 _PAT_INTERFACE_DEF_HEAD = re.compile(r"^" +
                                      r"(%s\s+)*" % _ATTR +
                                      r"(annotation\s+)?interface\s+(?P<interf_name>%s)" % _IDENTIFIER +
-                                     r"(\s+extends\s+(?P<base_names>(%s| )+))?" % _IDENTIFIER +
+                                     r"(\s+extends\s+(?P<base_names>(%s| |, )+))?" % _IDENTIFIER +
                                      r"$")
 # _PAT_INTERFACE_DEF_BEGIN = re.compile("^" + "{" + "$")
 _PAT_INTERFACE_DEF_END = re.compile("^" + "}" + "$")
@@ -49,7 +49,7 @@ _PAT_CLASS_DEF_HEAD = re.compile(r"^" +
                                  r"(%s\s+)*" % _ATTR +
                                  r"(enum\s+)?class\s+(?P<class_name>%s)" % _IDENTIFIER +
                                  r"(\s+extends\s+(?P<base_name>%s))" % _IDENTIFIER +
-                                 r"(\s+implements\s+(?P<interf_names>(%s|, )+))?" % _IDENTIFIER +
+                                 r"(\s+implements\s+(?P<interf_names>(%s| |, )+))?" % _IDENTIFIER +
                                  r"$")
 # _PAT_CLASS_DEF_BEGIN = re.compile("^" + "{" + "$")
 _PAT_CLASS_DEF_END = re.compile("^" + "}" + "$")
@@ -59,7 +59,8 @@ _PAT_METHOD_DEF_HEAD = re.compile(r"^\s+" +
                                   r"(?P<return_value>%s)" % _TYPE +
                                   r"\s+(?P<method_name>%s)" % _METHOD_NAME +
                                   r"[(](?P<params>(%s|, )*)[)]" % _TYPE +
-                                  r"(\s+throws\s+.+)?")
+                                  r"(\s+throws\s(?P<thrown_names>(%s| |, )+))?" % _TYPE + 
+                                  r"(?P<semicolon>;)?")
 # _PAT_METHOD_DEF_BEGIN = re.compile(r"^\s+" + r"{" + r"$")
 _PAT_METHOD_DEF_END = re.compile(r"^\s+" + r"}" + r"$")
 
@@ -173,6 +174,7 @@ def store_jimp_method_code(mtd, line_with_linenums):
 
 
 def parse_jimp_lines(lines,
+                     trace_invocation_via_interface=True,
                      parse_jimp_class_field_decl=parse_jimp_field_decl,
                      parse_jimp_method_local_decl=parse_jimp_field_decl,
                      parse_jimp_method_code=store_jimp_method_code):
@@ -204,8 +206,9 @@ def parse_jimp_lines(lines,
             class_name = gd["interf_name"]
             t = gd["base_names"]
             base_names = t.split(" ") if t else None
-            class_data = curcls = ClassData(
-                class_name, None, base_names)
+            class_data = curcls = ClassData(class_name, None, base_names)
+            if not trace_invocation_via_interface:
+                curcls = None
             continue
         gd = togd(_PAT_CLASS_DEF_HEAD.match(L))
         if gd:
@@ -214,8 +217,7 @@ def parse_jimp_lines(lines,
             class_name = gd["class_name"]
             t = gd["interf_names"]
             interf_names = t.split(", ") if t else None
-            class_data = curcls = ClassData(
-                class_name, gd["base_name"], interf_names)
+            class_data = curcls = ClassData(class_name, gd["base_name"], interf_names)
             continue
         m = _PAT_CLASS_DEF_END.match(L)
         if m:
@@ -224,13 +226,13 @@ def parse_jimp_lines(lines,
         gd = togd(_PAT_METHOD_DEF_HEAD.match(L))
         if gd:
             linenum += 1  # skip method begin line
-            p = gd["params"]
-            params = p.split(", ") if p else []
-            retv = gd["return_value"]
-            if retv == "void":
-                retv = None
-            curmtd = curcls.gen_method(
-                MethodSig(retv, gd["method_name"], tuple(params)))
+            if curcls:
+                p = gd["params"]
+                params = p.split(", ") if p else []
+                retv = gd["return_value"]
+                if retv == "void":
+                    retv = None
+                curmtd = curcls.gen_method(MethodSig(retv, gd["method_name"], tuple(params)))
             curcode = []
             continue
         m = _PAT_METHOD_DEF_END.match(L)
@@ -255,16 +257,10 @@ def parse_jimp_lines(lines,
         else:
             raise InvalidText("line %d: invalid line" % linenum)
 
-    # remove the methods that is declared but does not have body
-    empty_methods = [
-        msig for msig, md in class_data.methods.iteritems() if md.code is None]
-    for msig in empty_methods:
-        del class_data.methods[msig]
-
     return class_name, class_data
 
 
-def read_class_table_from_dir_iter(dirname):
+def read_class_table_from_dir_iter(dirname, trace_invocation_via_interface=True):
     files = sorted(os.listdir(dirname))
     for f in files:
         if f.endswith(".jimp"):

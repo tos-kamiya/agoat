@@ -1,15 +1,47 @@
 # coding: utf-8
 
 import sys
+import pprint
 
 from _utilities import sort_uniq
 
 import calltree as ct
 import calltree_builder as cb
 import jimp_parser as jp
+from _calltree_data_formatter import format_clz_msig
+
+def _extract_callnode_invokeds_in_calltree(call_tree, invoked_set):
+    def dig_node(node):
+        if node is None:
+            return
+        elif isinstance(node, list):
+            n0 = node[0]
+            assert n0 in (ct.ORDERED_AND, ct.ORDERED_OR)
+            for subn in node[1:]:
+                dig_node(subn)
+        elif isinstance(node, ct.CallNode):
+            invoked = node.invoked
+            assert invoked[0] in (jp.INVOKE, jp.SPECIALINVOKE)
+            clz, msig = invoked[1], invoked[2]
+            k = (clz, msig, node.recursive_cxt)
+            if k in invoked_set:
+                return
+            invoked_set.add(k)
+            if node.body:
+                subnode = node.body
+                if isinstance(subnode, (list, ct.CallNode)):
+                    dig_node(subnode)
+    dig_node(call_tree)
 
 
-def get_node_summary(node, summary_table):
+def extract_callnode_invokeds_in_calltrees(call_trees):
+    invoked_set = set()
+    for ct in call_trees:
+        _extract_callnode_invokeds_in_calltree(ct, invoked_set)
+    return sort_uniq(invoked_set)
+
+
+def get_node_summary(node, summary_table, progress=None):
     """
     Get summary of a node.
     In case of summary_table parameter given, caluclate summary with memorization.
@@ -23,57 +55,76 @@ def get_node_summary(node, summary_table):
         assert node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
         return (node[1], node[2])
 
+    stack = []
     def dig_node(node):
         if node is None:
             return []
         elif isinstance(node, list):
             n0 = node[0]
-            if n0 in (ct.ORDERED_AND, ct.ORDERED_OR):
-                nodesum = set()
-                for subn in node[1:]:
-                    nodesum.update(dig_node(subn))
-                return sorted(nodesum)
+            assert n0 in (ct.ORDERED_AND, ct.ORDERED_OR)
+            len_node = len(node)
+            if len_node == 1:
+                return []
+            elif len_node == 2:
+                return dig_node(node[1])
             else:
-                assert False
+                nodesum = []
+                for subn in node[1:]:
+                    nodesum.extend(dig_node(subn))
+                return sort_uniq(nodesum)
         elif isinstance(node, ct.CallNode):
             invoked = node.invoked
             assert invoked[0] in (jp.INVOKE, jp.SPECIALINVOKE)
             clz_msig = clz, msig = invoked[1], invoked[2]
             k = (clz, msig, node.recursive_cxt)
+            stack.append(k)
             if summary_table is not None and k in summary_table:
-                nodesum = set(summary_table[k])
+                nodesum = summary_table[k][:]
             else:
-                nodesum = set()
+                progress and progress(k)
+                nodesum = []
                 subnode = node.body
                 if subnode is None:
                     pass
                 elif isinstance(subnode, (list, ct.CallNode)):
-                    nodesum.update(dig_node(subnode))
+                    nodesum.extend(dig_node(subnode))
                 else:
-                    nodesum.add(scan_invocation(subnode))
-                    subnode[3] and nodesum.update(subnode[3])
+                    nodesum.append(scan_invocation(subnode))
+                    subnode[3] and nodesum.extend(subnode[3])
+                nodesum = sort_uniq(nodesum)
                 if summary_table is not None:
-                    summary_table[k] = sorted(nodesum)
-            parnetsum = nodesum
-            parnetsum.add(clz_msig)
-            invoked[3] and parnetsum.update(invoked[3])
-            return parnetsum
+                    summary_table[k] = nodesum
+            parnetsum = nodesum[:]
+            parnetsum.append(clz_msig)
+            invoked[3] and parnetsum.extend(invoked[3])
+            stack.pop()
+            return sort_uniq(parnetsum)
         else:
             s = [scan_invocation(node)]
             node[3] and s.extend(node[3])
             return sort_uniq(s)
 
-    return dig_node(node)
+    try:
+        summary = dig_node(node)
+    except:
+        sys.stderr.write("> warning: exception raised in get_node_summary:\n")
+        pp = pprint.PrettyPrinter(indent=4, stream=sys.stderr)
+        pp.pprint([format_clz_msig(clz, msig) for clz, msig, recursive_cxt in stack])
+        sys.stderr.write('\n')
+        raise
+
+    assert not stack
+    return summary
 
 
 def get_node_summary_wo_memoization(node):
     return get_node_summary(node, summary_table=None)
 
 
-def extract_node_summary_table(nodes):
+def extract_node_summary_table(nodes, progress=None):
     summary_table = {}
     for node in nodes:
-        get_node_summary(node, summary_table)
+        get_node_summary(node, summary_table, progress=progress)
     return summary_table
 
 

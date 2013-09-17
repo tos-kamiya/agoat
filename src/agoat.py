@@ -1,11 +1,13 @@
+#!/usr/bin/env python
 #coding: utf-8
 
 import argparse
 import os
 import sys
 import pickle
+import itertools
 
-from _utilities import open_w_default, sort_uniq
+from _utilities import open_w_default, sort_uniq, progress_bar
 
 import andor_tree as at
 import jimp_parser as jp
@@ -15,7 +17,7 @@ import calltree_builder as cb
 import calltree_summarizer as cs
 import calltree_query as cq
 import src_linenumber_converter as slc
-from _calltree_data_formatter import format_clz_msig
+from _calltree_data_formatter import format_clz_msig, format_msig
 from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
 from _calltree_data_formatter import pretty_print_pickle_data, format_call_tree_node_compact, init_ansi_color
 
@@ -41,14 +43,23 @@ def list_entry_points(soot_dir, output_file, option_method_sig=False):
             else:
                 out.write("%s\n" % format_clz_msig(*ep))
 
-def list_methods(soot_dir, output_file):
+def list_methods(soot_dir, output_file, group_by_method_sig=False):
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
     methods = jcte.extract_methods(class_table)
 
-    with open_w_default(output_file, "wb", sys.stdout) as out:
-        for clz, msig in methods:
-            out.write("%s\n" % format_clz_msig(clz, msig))
+    if group_by_method_sig:
+        extract_msig = lambda clz_msig: clz_msig[1]
+        methods.sort(key=extract_msig)
+        with open_w_default(output_file, "wb", sys.stdout) as out:
+            for msig, g in itertools.groupby(methods, extract_msig):
+                out.write("%s\n" % format_msig(msig))
+                for clz, _ in g:
+                    out.write("\t%s\n" % clz)
+    else:
+        with open_w_default(output_file, "wb", sys.stdout) as out:
+            for clz, msig in methods:
+                out.write("%s\n" % format_clz_msig(clz, msig))
 
 
 def list_literals(soot_dir, output_file):
@@ -65,16 +76,32 @@ def list_literals(soot_dir, output_file):
             out.write("%s\n" % lit)
 
 
-def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_file):
-    class_table = dict((clz, cd) \
-            for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
+def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_file, 
+        trace_invocation_via_interface=True, show_progress=False):
+    log = sys.stderr.write if show_progress else None
 
+    log and log("> reading code of classes\n")
+    class_table = dict((clz, cd) \
+            for clz, cd in jp.read_class_table_from_dir_iter(soot_dir, trace_invocation_via_interface))
     entry_points = cb.find_entry_points(class_table, target_class_names=entry_point_classes)
 
+    log and log("> building and-or call tree\n")
     class_table = cb.inss_to_tree_in_class_table(class_table)
     call_trees = cb.extract_call_andor_trees(class_table, entry_points)
-    node_summary_table = cs.extract_node_summary_table(call_trees)
 
+    if show_progress:
+        log and log("> extracting summary from each node\n")
+        invoked_set = cs.extract_callnode_invokeds_in_calltrees(call_trees)
+        with progress_bar(len(invoked_set)) as rep:
+            done_invokeds = [0]
+            def p(invoked):
+                done_invokeds[0] += 1
+                rep(done_invokeds[0])
+            node_summary_table = cs.extract_node_summary_table(call_trees, progress=p)
+    else:
+        node_summary_table = cs.extract_node_summary_table(call_trees)
+
+    log and log("> saving to file\n")
     with open_w_default(output_file, "wb", sys.stdout) as out:
         pickle.dump({DATATAG_CALL_TREES: call_trees, DATATAG_NODE_SUMMARY: node_summary_table}, out)
 
@@ -104,8 +131,8 @@ def gen_expander_of_call_tree_to_paths(query):
                 if n0 == ct.ORDERED_OR:
                     paths = []
                     for subn in node[1:]:
-                        paths = expand_i(subn)
-                        for p in paths:
+                        ps = expand_i(subn)
+                        for p in ps:
                             pnode = [ct.ORDERED_AND] + p
                             if p and treecut_partially_fills_query(pnode):
                                 paths.append(p)
@@ -264,6 +291,7 @@ def main(argv):
     psr_mt = subpsrs.add_parser('lm', help='listing methods defined within the target code')
     psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_mt.add_argument('-o', '--output', action='store', default='-')
+    psr_mt.add_argument('-m', '--group-by-method-sig', action='store_true')
 
     psr_mt = subpsrs.add_parser('ll', help='listing literals')
     psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
@@ -280,9 +308,14 @@ def main(argv):
     psr_ct.add_argument('-e', '--entry-point', action='store', nargs='*', dest='entrypointclasses',
             help='entry-point class. If not given, all possible classes will be regarded as entry points')
     psr_ct.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
+    psr_ct.add_argument('-I', '--ignore-method-invocation-via-interface', action='store_true',
+            default=False)
     psr_ct.add_argument('-o', '--output', action='store', 
             help="output file. (default '%s')" % default_calltree_path, 
             default=default_calltree_path)
+    psr_ct.add_argument("--progress", action='store_true',
+            help="show progress to standard output",
+            default=False)
 
     psr_q = subpsrs.add_parser('q', help='search query words in call tree')
     psr_q.add_argument('queryword', action='store', nargs='+', 
@@ -313,13 +346,15 @@ def main(argv):
     if args.command == 'le':
         list_entry_points(args.soot_dir, args.output, args.method_sig)
     elif args.command == 'lm':
-        list_methods(args.soot_dir, args.output)
+        list_methods(args.soot_dir, args.output, args.group_by_method_sig)
     elif args.command == 'll':
         list_literals(args.soot_dir, args.output)
     elif args.command == 'gl':
         generate_linenumber_table(args.soot_dir, args.javap_dir, args.output)
     elif args.command == 'gc':
-        generate_call_tree_and_node_summary(args.entrypointclasses, args.soot_dir, args.output)
+        generate_call_tree_and_node_summary(args.entrypointclasses, args.soot_dir, args.output, 
+            trace_invocation_via_interface=not args.ignore_method_invocation_via_interface,
+            show_progress=args.progress)
     elif args.command == 'q':
         line_number_table = None
         if args.line_number_table is not None:

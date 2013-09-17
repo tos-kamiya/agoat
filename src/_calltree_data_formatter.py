@@ -22,6 +22,9 @@ def init_ansi_color():
     colorama.init()
 
 
+def format_msig(msig):
+    return "%s %s(%s)" % (jp.methodsig_retv(msig), jp.methodsig_name(msig), ','.join(jp.methodsig_params(msig)))
+
 def format_clz_msig(clz, msig):
     return "%s %s %s(%s)" % (clz, jp.methodsig_retv(msig), jp.methodsig_name(msig), ','.join(jp.methodsig_params(msig)))
 
