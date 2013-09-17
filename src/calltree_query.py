@@ -100,7 +100,7 @@ def get_direct_sub_callnodes_of_body_node(body_node):
         return []
 
 
-def make_callnode_fullfill_query_predicate_w_memo(query, node_summary_table):
+def gen_callnode_fullfills_query_predicate_w_memo(query, node_summary_table):
     search_memo = {}
     def predicate(call_node):
         assert isinstance(call_node, ct.CallNode)
@@ -171,7 +171,7 @@ def treecut_with_callnode_depth(node, depth, has_deeper_nodes=[None]):
     return treecut_i(node, depth)
 
 
-def make_treecut_fullfill_query_predicate(query):
+def gen_treecut_fullfills_query_predicate(query):
     def predicate(treecut_with_callnode_depth):
         summary = cs.get_node_summary_wo_memoization(treecut_with_callnode_depth)
         return query.is_fullfilled_by(summary)
@@ -179,7 +179,7 @@ def make_treecut_fullfill_query_predicate(query):
     return predicate
 
 
-def make_treecut_partially_fill_query_predicate(query):
+def gen_treecut_partially_fills_query_predicate(query):
     def predicate(treecut_with_callnode_depth):
         summary = cs.get_node_summary_wo_memoization(treecut_with_callnode_depth)
         return query.is_partially_filled_by(summary)

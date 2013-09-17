@@ -93,8 +93,8 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
 
 
 def gen_expander_of_call_tree_to_paths(query):
-    treecut_fullfill_query = cq.make_treecut_fullfill_query_predicate(query)
-    treecut_partially_fill_query = cq.make_treecut_partially_fill_query_predicate(query)
+    treecut_fullfills_query = cq.gen_treecut_fullfills_query_predicate(query)
+    treecut_partially_fills_query = cq.gen_treecut_partially_fills_query_predicate(query)
 
     def expand_call_tree_to_paths(node):
         def expand_i(node):
@@ -107,7 +107,7 @@ def gen_expander_of_call_tree_to_paths(query):
                         paths = expand_i(subn)
                         for p in paths:
                             pnode = [ct.ORDERED_AND] + p
-                            if p and treecut_partially_fill_query(pnode):
+                            if p and treecut_partially_fills_query(pnode):
                                 paths.append(p)
                     return paths
                 elif n0 == ct.ORDERED_AND:
@@ -144,7 +144,7 @@ def gen_expander_of_call_tree_to_paths(query):
 
         paths = expand_i(node)
         paths = [at.normalize_tree([ct.ORDERED_AND] + path) for path in paths]
-        paths = [path for path in paths if treecut_fullfill_query(path)]
+        paths = [path for path in paths if treecut_fullfills_query(path)]
         return paths
 
     return expand_call_tree_to_paths
@@ -175,10 +175,10 @@ def remove_outermost_loc_info(call_node):
 
 def search_in_call_trees(query, call_trees, node_summary_table, max_depth, 
         removed_nodes_becauseof_limitation_of_depth=[None]):
-    pred = cq.make_callnode_fullfill_query_predicate_w_memo(query, node_summary_table)
+    pred = cq.gen_callnode_fullfills_query_predicate_w_memo(query, node_summary_table)
     call_nodes = cq.get_lower_bound_call_nodes(call_trees, pred)
 
-    pred = cq.make_treecut_fullfill_query_predicate(query)
+    pred = cq.gen_treecut_fullfills_query_predicate(query)
     shallowers = filter(None, (cq.extract_shallowest_treecut(call_node, pred, max_depth) for call_node in call_nodes))
     removed_nodes_becauseof_limitation_of_depth[0] = len(call_nodes) - len(shallowers)
 
