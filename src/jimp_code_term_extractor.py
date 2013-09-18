@@ -9,6 +9,9 @@ import _jimp_code_body_to_tree_elem as jcbte
 
 
 def extract_referred_literals(inss, method_data, class_data):
+    if inss is None:
+        return []
+
     resolve_type = jcbte.gen_type_resolver(method_data, class_data)
 
     literals = set()
