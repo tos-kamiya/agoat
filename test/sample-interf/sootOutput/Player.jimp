@@ -1,0 +1,40 @@
+class Player extends java.lang.Object implements HavingSignaturePhrase
+{
+    java.lang.String name;
+
+    void <init>()
+    {
+        Player r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        r0.name = "SteelGuy";
+        return;
+    }
+
+    public java.lang.String getName()
+    {
+        Player r0;
+        java.lang.String $r1;
+
+        r0 := @this;
+        $r1 = r0.name;
+        return $r1;
+    }
+
+    public java.lang.String getPhrase()
+    {
+        Player r0;
+        java.lang.StringBuilder $r1, $r3, $r4;
+        java.lang.String $r2, $r5;
+
+        r0 := @this;
+        $r1 = new java.lang.StringBuilder;
+        specialinvoke $r1.<init>();
+        $r2 = r0.getName();
+        $r3 = $r1.append($r2);
+        $r4 = $r3.append(" is here.");
+        $r5 = $r4.toString();
+        return $r5;
+    }
+}

@@ -1,0 +1,43 @@
+class SignaturePhrase extends java.lang.Object
+{
+
+    void <init>()
+    {
+        SignaturePhrase r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        return;
+    }
+
+    public static void say(HavingSignaturePhrase)
+    {
+        HavingSignaturePhrase r0;
+        java.io.PrintStream $r1;
+        java.lang.String $r2;
+
+        r0 := @parameter0;
+        $r1 = java.lang.System.out;
+        $r2 = r0.getPhrase();
+        $r1.println($r2);
+        return;
+    }
+
+    public static void main(java.lang.String[])
+    {
+        java.lang.String[] r0;
+        Player $r1, r2;
+        Monster r3, $r4;
+
+        r0 := @parameter0;
+        $r1 = new Player;
+        specialinvoke $r1.<init>();
+        r2 = $r1;
+        $r4 = new Monster;
+        specialinvoke $r4.<init>();
+        r3 = $r4;
+        SignaturePhrase.say(r2);
+        SignaturePhrase.say(r3);
+        return;
+    }
+}

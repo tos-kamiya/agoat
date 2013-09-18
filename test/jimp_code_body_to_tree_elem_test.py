@@ -56,8 +56,8 @@ class JimpCodeBodyToTreeElemTest(unittest.TestCase):
             (jp.RETURN,)
         ]
         expected_paths = [
-            [(jp.INVOKE, 'somemethod'), (jp.LABEL, 'label0'), (jp.RETURN,)],
-            [(jp.LABEL, 'label0'), (jp.RETURN,)]
+            [(jp.INVOKE, 'somemethod'), (jp.RETURN,)],
+            [(jp.RETURN,)]
         ]
         expected_paths.sort()
         paths = jcbte.convert_to_execution_paths(inss)
@@ -74,9 +74,8 @@ class JimpCodeBodyToTreeElemTest(unittest.TestCase):
             (jp.RETURN,)
         ]
         expected_paths = [
-            [(jp.LABEL, 'label0'), (jp.INVOKE, 'somemethod'),
-             (jp.LABEL, 'label1'), (jp.RETURN,)],
-            [(jp.LABEL, 'label1'), (jp.RETURN,)]
+            [(jp.INVOKE, 'somemethod'), (jp.RETURN,)],
+            [(jp.RETURN,)]
         ]
         expected_paths.sort()
         paths = jcbte.convert_to_execution_paths(inss)
@@ -94,9 +93,8 @@ class JimpCodeBodyToTreeElemTest(unittest.TestCase):
             (jp.RETURN,)
         ]
         expected_paths = [
-            [(jp.LABEL, 'label0'), (jp.INVOKE, 'anothermethod'),
-             (jp.LABEL, 'label1'), (jp.RETURN,)],
-            [(jp.INVOKE, 'somemethod'), (jp.LABEL, 'label1'), (jp.RETURN,)]
+            [(jp.INVOKE, 'anothermethod'), (jp.RETURN,)],
+            [(jp.INVOKE, 'somemethod'), (jp.RETURN,)]
         ]
         expected_paths.sort()
         paths = jcbte.convert_to_execution_paths(inss)
@@ -120,14 +118,10 @@ class JimpCodeBodyToTreeElemTest(unittest.TestCase):
             (jp.RETURN,)
         ]
         expected_paths = [
-            [(jp.LABEL, 'label1'), (jp.LABEL, 'label5'), (jp.RETURN,)],
-            [(jp.LABEL, 'label2'), (jp.INVOKE, 'method2'),
-             (jp.LABEL, 'label5'), (jp.RETURN,)],
-            [(jp.LABEL, 'label3'), (jp.INVOKE, 'method3'),
-             (jp.LABEL, 'label5'), (jp.RETURN,)],
-            [(jp.LABEL, 'label4'), (jp.INVOKE, 'method4'),
-             (jp.LABEL, 'label5'), (jp.RETURN,)],
-            [(jp.LABEL, 'label5'), (jp.RETURN,)]
+            [(jp.INVOKE, 'method2'), (jp.RETURN,)], 
+            [(jp.INVOKE, 'method3'), (jp.RETURN,)], 
+            [(jp.INVOKE, 'method4'), (jp.RETURN,)], 
+            [(jp.RETURN,)]
         ]
         expected_paths.sort()
         paths = jcbte.convert_to_execution_paths(inss)
@@ -145,10 +139,8 @@ class JimpCodeBodyToTreeElemTest(unittest.TestCase):
             (jp.RETURN,)
         ]
         expected_paths = [
-            [(jp.LABEL, 'label0'), (jp.LABEL, 'label1'),
-             (jp.INVOKE, 'anothermethod'), (jp.RETURN,)],
-            [(jp.LABEL, 'label0'), (jp.INVOKE, 'somemethod'),
-             (jp.LABEL, 'label1'), (jp.INVOKE, 'anothermethod'), (jp.RETURN,)]
+            [(jp.INVOKE, 'anothermethod'), (jp.RETURN,)],
+            [(jp.INVOKE, 'somemethod'), (jp.INVOKE, 'anothermethod'), (jp.RETURN,)]
         ]
         expected_paths.sort()
         paths = jcbte.convert_to_execution_paths(inss)

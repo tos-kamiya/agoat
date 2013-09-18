@@ -271,13 +271,21 @@ def build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node
             assert aot
             aot0 = aot[0]
             if aot0 in (ct.ORDERED_AND, ct.ORDERED_OR, jcbte.BLOCK):
+                has_empty_subs = False
                 n = [aot0]
                 for item in aot[1:]:
                     v = dig_node(item, recursive_context, clz_msig)
-                    if v is not None:
+                    if v is None:
+                        has_empty_subs = True
+                    else:
                         n.append(v)
-                if len(n) == 2:
+                if aot0 == ct.ORDERED_OR and has_empty_subs:
+                    n.insert(1, [ct.ORDERED_AND])
+                len_n = len(n)
+                if len_n == 2:
                     return n[1]
+                elif len_n == 1:
+                    return None
                 return n
             else:
                 assert False

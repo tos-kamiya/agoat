@@ -142,100 +142,154 @@ def list_flatten_iter_except_for_block(L):
 
 
 def convert_to_execution_paths(inss):
-    if inss and inss[0] == BLOCK:
-        return inss
-
-    len_inss = len(inss)
-    label2index = _jimp_code_box_generator.get_label2index(inss)
-
-    paths = []
-    path = []
-    branches = []
-    branches.append((0, path, Counter()))
-
     def nesting_dup(L):
         if len(L) == 1:
             return [L[0]]
         else:
             return [L]
 
-    def dig(i, path, visitedlabels):
-        if i is None:
-            assert False
-        prev_i = i - 1
-        while i < len_inss:
-            assert i != prev_i
-            prev_i = i
-            ins = inss[i]
-            cmd = ins[0]
-            if cmd == BLOCK:
-                path.append(ins)
-            elif cmd == BOX:
-                b = [BOX]
-                b.extend(convert_to_execution_paths(ins[1:]))
-                path.append(b)
-            elif cmd in (jp.SPECIALINVOKE, jp.INVOKE):
-                is_repetitive = path and path[-1][:-1] == ins[:-1]
-                # cmd, receiver, method_name, args, retv, lterals, linenum = ins
-                if not is_repetitive:
+    def convert_i(inss):
+        if inss and inss[0] == BLOCK:
+            return inss
+
+        len_inss = len(inss)
+        label2index = _jimp_code_box_generator.get_label2index(inss)
+
+        paths = []
+        path = []
+        branches = []
+        branches.append((0, path, Counter()))
+
+        def dig(i, path, visitedlabels):
+            if i is None:
+                assert False
+            prev_i = i - 1
+            while i < len_inss:
+                assert i != prev_i
+                prev_i = i
+                ins = inss[i]
+                cmd = ins[0]
+                if cmd == BLOCK:
                     path.append(ins)
-                    assert len(path) <= len_inss
-            elif cmd in (jp.RETURN, jp.THROW):
-                path.append(ins)
-                paths.append(path)
-                return
-            elif cmd == jp.IFGOTO:
-                dest = ins[1]
-                # path.append(ins)  # mark of branch/join
-                if dest not in visitedlabels:
-                    path = nesting_dup(path)
-                    branches.append(
-                        (label2index[dest], nesting_dup(path), visitedlabels.copy()))
-            elif cmd == jp.GOTO:
-                dest = ins[1]
-                dest_index = label2index.get(dest)
-                if dest_index < i:
-                    c = visitedlabels[dest]
-                    if c >= 2:
-                        return
-                    visitedlabels[dest] += 1
-                    i = dest_index + 1
-                else:
-                    i = dest_index
-                continue
-            elif cmd == jp.SWITCH:
-                # path.append(ins)  # mark of branch/join
-                for dest in ins[1]:
+                elif cmd == BOX:
+                    b = [BOX]
+                    b.extend(convert_i(ins[1:]))
+                    path.append(b)
+                elif cmd in (jp.SPECIALINVOKE, jp.INVOKE):
+                    is_repetitive = path and path[-1][:-1] == ins[:-1]
+                    # cmd, receiver, method_name, args, retv, lterals, linenum = ins
+                    if not is_repetitive:
+                        path.append(ins)
+                        assert len(path) <= len_inss
+                elif cmd in (jp.RETURN, jp.THROW):
+                    path.append(ins)
+                    paths.append(path)
+                    return
+                elif cmd == jp.IFGOTO:
+                    dest = ins[1]
+                    # path.append(ins)  # mark of branch/join
                     if dest not in visitedlabels:
+                        path = nesting_dup(path)
                         branches.append(
                             (label2index[dest], nesting_dup(path), visitedlabels.copy()))
-                return
-            elif cmd == jp.LABEL:
-                if ins[1] in visitedlabels:
+                elif cmd == jp.GOTO:
+                    dest = ins[1]
+                    dest_index = label2index.get(dest)
+                    if dest_index < i:
+                        c = visitedlabels[dest]
+                        if c >= 2:
+                            return
+                        visitedlabels[dest] += 1
+                        i = dest_index + 1
+                    else:
+                        i = dest_index
+                    continue
+                elif cmd == jp.SWITCH:
+                    # path.append(ins)  # mark of branch/join
+                    for dest in ins[1]:
+                        if dest not in visitedlabels:
+                            branches.append(
+                                (label2index[dest], nesting_dup(path), visitedlabels.copy()))
                     return
-                visitedlabels[ins[1]] += 1
-                path.append(ins)  # mark of branch/join
+                elif cmd == jp.LABEL:
+                    if ins[1] in visitedlabels:
+                        return
+                    visitedlabels[ins[1]] += 1
+                    # path.append(ins)  # mark of branch/join
+                else:
+                    assert False
+                i += 1
+            if path:
+                paths.append(path)
+
+        while branches:
+            b = branches.pop()
+            dig(*b)
+
+        paths = sort_uniq(paths)
+        paths = [list(list_flatten_iter_except_for_block(p)) for p in paths]
+        paths.sort()
+        return paths
+
+    paths = convert_i(inss)
+
+    # split paths including return or throw
+    def trace_to_path(trace):
+        path = []
+        for inss, start, end in trace:
+            path.extend(inss[start:end])
+        return path
+
+    splitted_paths = []
+    def split_path_including_existting_cmd(inss, trace):
+        if not inss:
+            return inss
+        starting_i = 0
+        if inss[0] in (BOX, BLOCK):
+            starting_i += 1
+        for i in range(starting_i, len(inss)):
+            ins = inss[i]
+            cmd = ins[0]
+            if cmd in (jp.RETURN, jp.THROW):
+                trace.append((inss, starting_i, i + 1))
+                splitted_paths.append(trace_to_path(trace))
+                trace.pop()
+                return None
+            elif cmd == BLOCK:
+                trace.append((inss, starting_i, i))
+                r = split_path_including_existting_cmd(ins, trace)
+                trace.pop()
+                if r is None:
+                    return None
+            elif cmd == BOX:
+                remaining_paths = []
+                trace.append((inss, starting_i, i))
+                for path in ins[1:]:
+                    r = split_path_including_existting_cmd(path, trace)
+                    if r is not None:
+                        remaining_paths.append(path)
+                trace.pop()
+                if not remaining_paths:
+                    return None
+                ins[:] = [BOX] + remaining_paths
             else:
-                assert False
-            i += 1
-        if path:
-            paths.append(path)
+                pass
+        return inss
 
-    while branches:
-        b = branches.pop()
-        dig(*b)
+    for path in paths:
+        trace = []
+        split_path_including_existting_cmd(path, trace)
+        assert not trace
 
+    paths = paths + splitted_paths
     paths = sort_uniq(paths)
-    paths = [list(list_flatten_iter_except_for_block(p)) for p in paths]
-    paths.sort()
     return paths
-
 
 def paths_to_ordred_andor_tree(paths):
     if not paths:
         return [ORDERED_AND]
 
-    def keyfunc(path):
+    def key_pre_and_post(path):
         len_path = len(path)
         if len_path >= 2:
             return id(path[0]), id(path[-1])
@@ -243,6 +297,12 @@ def paths_to_ordred_andor_tree(paths):
             return id(path), None
         else:
             return None, None
+
+    def key_pre(path):
+        return id(path[0]) if path else None
+
+    def key_post(path):
+        return id(path[-1]) if path else None
 
     def have_same_id(items):
         assert items
@@ -266,25 +326,37 @@ def paths_to_ordred_andor_tree(paths):
         converted = [ORDERED_AND] + paths[0]
     else:
         converted = [ORDERED_OR]
-        for k, g in itertools.groupby(sorted(paths, key=keyfunc), key=keyfunc):
-            pths = list(g)
-            if len(pths) == 1:
-                converted.append([ORDERED_AND] + pths[0])
-            else:
-                prefix = []
-                if k[0] is not None:
-                    prefix, pths = split_prefix(pths)
-                postfix = []
-                if all(len(p) > 0 for p in pths):
-                    if k[1] is not None:
-                        pths = [list(reversed(p)) for p in pths]
-                        postfix, pths = split_prefix(pths)
-                        postfix = list(reversed(postfix))
-                        pths = [list(reversed(p)) for p in pths]
+        kgs_pre_and_post = [(k, list(g)) for k, g in itertools.groupby(sorted(paths, key=key_pre_and_post), key=key_pre_and_post)]
+        kgs_pre = [((k, None), list(g)) for k, g in itertools.groupby(sorted(paths, key=key_pre), key=key_pre)]
+        kgs_post = [((None, k), list(g)) for k, g in itertools.groupby(sorted(paths, key=key_post), key=key_post)]
+        kgss = [kgs_pre_and_post, kgs_pre, kgs_post]
+        kgss.sort(key=len)
+        kgs = kgss[0]
+        if len(kgs) < len(paths):
+            for (preid, postid), pths in kgs:
+                if len(pths) == 1:
+                    converted.append([ORDERED_AND] + pths[0])
+                else:
+                    prefix = []
+                    if preid is not None:
+                        prefix, pths = split_prefix(pths)
+                    postfix = []
+                    if all(len(p) > 0 for p in pths):
+                        if postid is not None:
+                            pths = [list(reversed(p)) for p in pths]
+                            postfix, pths = split_prefix(pths)
+                            postfix = list(reversed(postfix))
+                            pths = [list(reversed(p)) for p in pths]
+                    t = [ORDERED_AND]
+                    t.extend(prefix)
+                    t.append([ORDERED_OR] + [[ORDERED_AND] + p for p in pths])
+                    t.extend(postfix)
+                    converted.append(t)
+        else:
+            converted = [ORDERED_OR]
+            for path in paths:
                 t = [ORDERED_AND]
-                t.extend(prefix)
-                t.append([ORDERED_OR] + [[ORDERED_AND] + p for p in pths])
-                t.extend(postfix)
+                t.extend(path)
                 converted.append(t)
 
     def convert_internal_box(node):

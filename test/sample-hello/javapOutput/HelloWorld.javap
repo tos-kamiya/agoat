@@ -1,0 +1,62 @@
+Compiled from "HelloWorld.java"
+class HelloWorld {
+  HelloWorld();
+    Code:
+       0: aload_0       
+       1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+       4: return        
+    LineNumberTable:
+      line 1: 0
+
+  public static void helloWorld();
+    Code:
+       0: getstatic     #2                  // Field java/lang/System.out:Ljava/io/PrintStream;
+       3: ldc           #3                  // String Hello, 
+       5: invokevirtual #4                  // Method java/io/PrintStream.print:(Ljava/lang/String;)V
+       8: getstatic     #2                  // Field java/lang/System.out:Ljava/io/PrintStream;
+      11: ldc           #5                  // String World!
+      13: invokevirtual #6                  // Method java/io/PrintStream.println:(Ljava/lang/String;)V
+      16: return        
+    LineNumberTable:
+      line 3: 0
+      line 4: 8
+      line 5: 16
+
+  public void helloSomeone(java.lang.String);
+    Code:
+       0: getstatic     #2                  // Field java/lang/System.out:Ljava/io/PrintStream;
+       3: ldc           #7                  // String Hello, %s!\n
+       5: iconst_1      
+       6: anewarray     #8                  // class java/lang/Object
+       9: dup           
+      10: iconst_0      
+      11: aload_1       
+      12: aastore       
+      13: invokevirtual #9                  // Method java/io/PrintStream.format:(Ljava/lang/String;[Ljava/lang/Object;)Ljava/io/PrintStream;
+      16: pop           
+      17: return        
+    LineNumberTable:
+      line 7: 0
+      line 8: 17
+
+  public static void main(java.lang.String[]);
+    Code:
+       0: aload_0       
+       1: arraylength   
+       2: ifne          11
+       5: invokestatic  #10                 // Method helloWorld:()V
+       8: goto          24
+      11: new           #11                 // class HelloWorld
+      14: dup           
+      15: invokespecial #12                 // Method "<init>":()V
+      18: aload_0       
+      19: iconst_0      
+      20: aaload        
+      21: invokevirtual #13                 // Method helloSomeone:(Ljava/lang/String;)V
+      24: return        
+    LineNumberTable:
+      line 10: 0
+      line 11: 5
+      line 13: 11
+      line 15: 24
+}

@@ -1,0 +1,41 @@
+class Monster extends java.lang.Object implements HavingSignaturePhrase
+{
+    java.lang.String mood;
+
+    void <init>()
+    {
+        Monster r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        r0.mood = "angry";
+        return;
+    }
+
+    public java.lang.String getMood()
+    {
+        Monster r0;
+        java.lang.String $r1;
+
+        r0 := @this;
+        $r1 = r0.mood;
+        return $r1;
+    }
+
+    public java.lang.String getPhrase()
+    {
+        Monster r0;
+        java.lang.StringBuilder $r1, $r2, $r4, $r5;
+        java.lang.String $r3, $r6;
+
+        r0 := @this;
+        $r1 = new java.lang.StringBuilder;
+        specialinvoke $r1.<init>();
+        $r2 = $r1.append("I\'m ");
+        $r3 = r0.getMood();
+        $r4 = $r2.append($r3);
+        $r5 = $r4.append("!");
+        $r6 = $r5.toString();
+        return $r6;
+    }
+}

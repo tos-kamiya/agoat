@@ -1,0 +1,85 @@
+public class Anna extends java.lang.Object
+{
+    private static final java.util.regex.Pattern r_hp;
+    private static final java.util.regex.Pattern r_dx;
+    private static final java.util.regex.Pattern r_mp;
+
+    public void <init>()
+    {
+        Anna r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        return;
+    }
+
+    public boolean parse()
+    {
+        Anna r0;
+        java.lang.String r1;
+        java.util.regex.Matcher r2, r3, r4;
+        java.util.regex.Pattern $r5, $r6, $r7;
+        boolean $z0, $z1, $z2;
+
+        r0 := @this;
+        r1 = "123abc";
+        $r5 = Anna.r_hp;
+        r2 = $r5.matcher(r1);
+        $z0 = r2.find();
+        if $z0 != 0 goto label0;
+
+        return 0;
+
+     label0:
+        $r6 = Anna.r_dx;
+        r3 = $r6.matcher(r1);
+        $z1 = r3.find();
+        if $z1 != 0 goto label1;
+
+        return 0;
+
+     label1:
+        $r7 = Anna.r_mp;
+        r4 = $r7.matcher(r1);
+        $z2 = r4.find();
+        if $z2 != 0 goto label2;
+
+        return 0;
+
+     label2:
+        return 1;
+    }
+
+    public static void main(java.lang.String[])
+    {
+        java.lang.String[] r0;
+        Anna $r1;
+        boolean $z0;
+        java.io.PrintStream $r2;
+
+        r0 := @parameter0;
+        $r1 = new Anna;
+        specialinvoke $r1.<init>();
+        $z0 = $r1.parse();
+        if $z0 == 0 goto label0;
+
+        $r2 = java.lang.System.out;
+        $r2.println("true");
+
+     label0:
+        return;
+    }
+
+    static void <clinit>()
+    {
+        java.util.regex.Pattern $r0, $r1, $r2;
+
+        $r0 = java.util.regex.Pattern.compile("HP");
+        Anna.r_hp = $r0;
+        $r1 = java.util.regex.Pattern.compile("DX");
+        Anna.r_dx = $r1;
+        $r2 = java.util.regex.Pattern.compile("MP");
+        Anna.r_mp = $r2;
+        return;
+    }
+}

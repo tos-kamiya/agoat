@@ -1,0 +1,39 @@
+Compiled from "SignaturePhrase.java"
+class Player implements HavingSignaturePhrase {
+  java.lang.String name;
+
+  Player();
+    Code:
+       0: aload_0       
+       1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+       4: aload_0       
+       5: ldc           #2                  // String SteelGuy
+       7: putfield      #3                  // Field name:Ljava/lang/String;
+      10: return        
+    LineNumberTable:
+      line 5: 0
+      line 6: 4
+
+  public java.lang.String getName();
+    Code:
+       0: aload_0       
+       1: getfield      #3                  // Field name:Ljava/lang/String;
+       4: areturn       
+    LineNumberTable:
+      line 8: 0
+
+  public java.lang.String getPhrase();
+    Code:
+       0: new           #4                  // class java/lang/StringBuilder
+       3: dup           
+       4: invokespecial #5                  // Method java/lang/StringBuilder."<init>":()V
+       7: aload_0       
+       8: invokevirtual #6                  // Method getName:()Ljava/lang/String;
+      11: invokevirtual #7                  // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+      14: ldc           #8                  // String  is here.
+      16: invokevirtual #7                  // Method java/lang/StringBuilder.append:(Ljava/lang/String;)Ljava/lang/StringBuilder;
+      19: invokevirtual #9                  // Method java/lang/StringBuilder.toString:()Ljava/lang/String;
+      22: areturn       
+    LineNumberTable:
+      line 11: 0
+}

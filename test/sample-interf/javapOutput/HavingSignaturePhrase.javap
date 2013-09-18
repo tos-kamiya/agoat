@@ -1,0 +1,4 @@
+Compiled from "SignaturePhrase.java"
+interface HavingSignaturePhrase {
+  public abstract java.lang.String getPhrase();
+}

@@ -1,0 +1,89 @@
+Compiled from "Anna.java"
+public class Anna {
+  public Anna();
+    Code:
+       0: aload_0       
+       1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+       4: return        
+    LineNumberTable:
+      line 4: 0
+
+  public boolean parse();
+    Code:
+       0: ldc           #2                  // String 123abc
+       2: astore_1      
+       3: getstatic     #3                  // Field r_hp:Ljava/util/regex/Pattern;
+       6: aload_1       
+       7: invokevirtual #4                  // Method java/util/regex/Pattern.matcher:(Ljava/lang/CharSequence;)Ljava/util/regex/Matcher;
+      10: astore_2      
+      11: aload_2       
+      12: invokevirtual #5                  // Method java/util/regex/Matcher.find:()Z
+      15: ifne          20
+      18: iconst_0      
+      19: ireturn       
+      20: getstatic     #6                  // Field r_dx:Ljava/util/regex/Pattern;
+      23: aload_1       
+      24: invokevirtual #4                  // Method java/util/regex/Pattern.matcher:(Ljava/lang/CharSequence;)Ljava/util/regex/Matcher;
+      27: astore_3      
+      28: aload_3       
+      29: invokevirtual #5                  // Method java/util/regex/Matcher.find:()Z
+      32: ifne          37
+      35: iconst_0      
+      36: ireturn       
+      37: getstatic     #7                  // Field r_mp:Ljava/util/regex/Pattern;
+      40: aload_1       
+      41: invokevirtual #4                  // Method java/util/regex/Pattern.matcher:(Ljava/lang/CharSequence;)Ljava/util/regex/Matcher;
+      44: astore        4
+      46: aload         4
+      48: invokevirtual #5                  // Method java/util/regex/Matcher.find:()Z
+      51: ifne          56
+      54: iconst_0      
+      55: ireturn       
+      56: iconst_1      
+      57: ireturn       
+    LineNumberTable:
+      line 10: 0
+      line 12: 3
+      line 13: 11
+      line 14: 18
+      line 16: 20
+      line 17: 28
+      line 18: 35
+      line 20: 37
+      line 21: 46
+      line 22: 54
+      line 24: 56
+
+  public static void main(java.lang.String[]);
+    Code:
+       0: new           #8                  // class Anna
+       3: dup           
+       4: invokespecial #9                  // Method "<init>":()V
+       7: invokevirtual #10                 // Method parse:()Z
+      10: ifeq          21
+      13: getstatic     #11                 // Field java/lang/System.out:Ljava/io/PrintStream;
+      16: ldc           #12                 // String true
+      18: invokevirtual #13                 // Method java/io/PrintStream.println:(Ljava/lang/String;)V
+      21: return        
+    LineNumberTable:
+      line 28: 0
+      line 29: 13
+      line 31: 21
+
+  static {};
+    Code:
+       0: ldc           #14                 // String HP
+       2: invokestatic  #15                 // Method java/util/regex/Pattern.compile:(Ljava/lang/String;)Ljava/util/regex/Pattern;
+       5: putstatic     #3                  // Field r_hp:Ljava/util/regex/Pattern;
+       8: ldc           #16                 // String DX
+      10: invokestatic  #15                 // Method java/util/regex/Pattern.compile:(Ljava/lang/String;)Ljava/util/regex/Pattern;
+      13: putstatic     #6                  // Field r_dx:Ljava/util/regex/Pattern;
+      16: ldc           #17                 // String MP
+      18: invokestatic  #15                 // Method java/util/regex/Pattern.compile:(Ljava/lang/String;)Ljava/util/regex/Pattern;
+      21: putstatic     #7                  // Field r_mp:Ljava/util/regex/Pattern;
+      24: return        
+    LineNumberTable:
+      line 5: 0
+      line 6: 8
+      line 7: 16
+}

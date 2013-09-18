@@ -28,16 +28,20 @@ def make_boxes(inss):
 
     escape_edges = defaultdict(list)
     for i, ins in enumerate(inss):
-        if ins[0] in (jp.GOTO, jp.IFGOTO):
+        ins0 = ins[0]
+        if ins0 == BLOCK:
+            pass
+        elif ins0 in (jp.GOTO, jp.IFGOTO):
             src, dest = i, label2index[ins[1]]
             escape_edges[dest].append(src)
             escape_edges[src].append(dest)
-        elif ins[0] == jp.SWITCH:
+        elif ins0 == jp.SWITCH:
             src = i
             for d in ins[1]:
                 dest = label2index[d]
                 escape_edges[dest].append(src)
                 escape_edges[src].append(dest)
+
     for v in escape_edges.itervalues():
         v[:] = sort_uniq(v)
 
@@ -78,7 +82,35 @@ def make_boxes(inss):
             boxed_inss.append(inss[i])
             nexti = i + 1
         i = nexti
+
     return boxed_inss
+ 
+#     def get_last_ins_of_box_or_block(box):
+#         last_ins = box[-1]
+#         if isinstance(ins, list) and last_ins[0] in (BOX, BLOCK):
+#             return get_last_ins_of_box_or_block(last_ins)
+#         else:
+#             return last_ins
+# 
+#     nested_boxed_inss = []
+#     len_boxed_inss = len(boxed_inss)
+#     i = 0
+#     while i < len_boxed_inss:
+#         ins = boxed_inss[i]
+#         if isinstance(ins, list) and ins[0] in (BOX, BLOCK):
+#             if i + 1 < len_boxed_inss:
+#                 next_ins = boxed_inss[i + 1]
+#                 if isinstance(next_ins, list) and next_ins[0] in (BOX, BLOCK):
+#                     box_last_ins = get_last_ins_of_box_or_block(ins)
+#                     if box_last_ins[0] in (jp.SPECIALINVOKE, jp.INVOKE, jp.LABEL):
+#                         ins.append(next_ins)
+#                         nested_boxed_inss.append(ins)
+#                         i += 2
+#                         continue  # while i
+#         nested_boxed_inss.append(ins)
+#         i += 1
+# 
+#     return nested_boxed_inss
 
 
 def make_basic_blocks(inss):
