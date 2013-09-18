@@ -141,17 +141,25 @@ def gen_expander_of_call_tree_to_paths(query):
                     paths = []
                     for subn in node[1:]:
                         ps = expand_i(subn)
-                        for p in ps:
-                            pnode = [ct.ORDERED_AND] + p
-                            if p and treecut_partially_fills_query(pnode):
-                                paths.append(p)
+                        if ps is not None:
+                            for p in ps:
+                                pnode = [ct.ORDERED_AND] + p
+                                if p and treecut_partially_fills_query(pnode):
+                                    paths.append(p)
+                    if not paths:
+                        return None
                     return paths
                 elif n0 == ct.ORDERED_AND:
+                    if len(node) == 1:
+                        return None
                     pathssubs = []
                     for subn in node[1:]:
                         paths = expand_i(subn)
-                        assert isinstance(paths, list)
-                        pathssubs.append(paths)
+                        if paths is not None:
+                            assert isinstance(paths, list)
+                            pathssubs.append(paths)
+                    if not pathssubs:
+                        return None
                     paths = [[]]
                     for pathssub in pathssubs:
                         new_paths = []
