@@ -7,7 +7,8 @@ import sys
 import pickle
 import itertools
 
-from _utilities import open_w_default, sort_uniq, progress_bar
+from _utilities import open_w_default, sort_uniq
+import progress_bar
 
 import andor_tree as at
 import jimp_parser as jp
@@ -20,6 +21,12 @@ import src_linenumber_converter as slc
 from _calltree_data_formatter import format_clz_msig, format_msig
 from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
 from _calltree_data_formatter import pretty_print_pickle_data, format_call_tree_node_compact, init_ansi_color
+
+
+if sys.platform == "win32":
+    import msvcrt
+    msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+    msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
 
 
 VERSION = "0.5.0"
@@ -92,7 +99,7 @@ def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_fi
     if show_progress:
         log and log("> extracting summary from each node\n")
         invoked_set = cs.extract_callnode_invokeds_in_calltrees(call_trees)
-        with progress_bar(len(invoked_set)) as rep:
+        with progress_bar.drawer(len(invoked_set)) as rep:
             done_invokeds = [0]
             def p(invoked):
                 done_invokeds[0] += 1
@@ -101,9 +108,10 @@ def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_fi
     else:
         node_summary_table = cs.extract_node_summary_table(call_trees)
 
-    log and log("> saving to file\n")
+    log and log("> saving index data\n")
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        pickle.dump({DATATAG_CALL_TREES: call_trees, DATATAG_NODE_SUMMARY: node_summary_table}, out)
+        pickle.dump({DATATAG_CALL_TREES: call_trees, DATATAG_NODE_SUMMARY: node_summary_table}, out,
+                protocol=1)
 
 
 def generate_linenumber_table(soot_dir, javap_dir, output_file):
@@ -116,7 +124,8 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
     clz_msig2conversion = slc.jimp_linnum_to_src_linenum_table(class_table, claz_msig2invocationindex2linenum)
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        pickle.dump({DATATAG_LINENUMBER_TABLE: clz_msig2conversion}, out)
+        pickle.dump({DATATAG_LINENUMBER_TABLE: clz_msig2conversion}, out,
+                protocol=1)
 
 
 def gen_expander_of_call_tree_to_paths(query):
@@ -216,9 +225,14 @@ def search_in_call_trees(query, call_trees, node_summary_table, max_depth,
 
 
 def do_search(call_tree_file, query_words, output_file, line_number_table=None, ignore_case=False,  
-        max_depth=-1, expand_to_path=True, fully_qualified_package_name=False, ansi_color=False):
+        max_depth=-1, expand_to_path=True, fully_qualified_package_name=False, ansi_color=False,
+        show_progress=False):
+    log = sys.stderr.write if show_progress else None
+
+    log and log("> loading index data\n")
     with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
-        data = pickle.load(inp)
+        # data = pickle.load(inp)  # very very slow in pypy
+        data = pickle.loads(inp.read())
     call_trees = data[DATATAG_CALL_TREES]
     node_summary_table = data[DATATAG_NODE_SUMMARY]
     del data
@@ -226,10 +240,12 @@ def do_search(call_tree_file, query_words, output_file, line_number_table=None, 
     clz_msig2conversion = None
     if line_number_table is not None:
         with open_w_default(line_number_table, "rb", sys.stdin) as inp:
-            data = pickle.load(inp)
+            # data = pickle.load(inp)  # very very slow in pypy
+            data = pickle.loads(inp.read())
             clz_msig2conversion = data[DATATAG_LINENUMBER_TABLE]
         del data
 
+    log and log("> searching query in index\n")
     cq.check_query_word_list(query_words)
     query_patterns = [cq.QueryPattern.compile(w, ignore_case=ignore_case) for w in query_words]
     query = cq.Query(query_patterns)
@@ -252,6 +268,7 @@ def do_search(call_tree_file, query_words, output_file, line_number_table=None, 
                         fully_qualified_package_name=fully_qualified_package_name, ansi_color=ansi_color)
         return
 
+    log and log("> printing results\n")
     expand_call_tree_to_paths = gen_expander_of_call_tree_to_paths(query)
     path_nodes = []
     count_removed_path_becauseof_not_fullfilling_query = 0
@@ -338,6 +355,9 @@ def main(argv):
             help="hilighting with ANSI color.",
             default='auto')
     psr_q.add_argument('-F', '--fully-qualified-package-name', action='store_true', default=False)
+    psr_q.add_argument("--progress", action='store_true',
+            help="show progress to standard output",
+            default=False)
 
     psr_db = subpsrs.add_parser('debug', help='debug function')
     psr_db.add_argument('-p', '--pretty-print', action='store', help='pretty print internal data')
@@ -367,7 +387,8 @@ def main(argv):
             init_ansi_color()
         do_search(args.call_tree, args.queryword, args.output,  line_number_table, 
                 ignore_case=args.ignore_case, max_depth=args.max_depth, expand_to_path=not args.node, 
-                fully_qualified_package_name=args.fully_qualified_package_name, ansi_color=ansi_color)
+                fully_qualified_package_name=args.fully_qualified_package_name, ansi_color=ansi_color,
+                show_progress=args.progress)
     elif args.command == 'debug':
         if args.pretty_print:
             pretty_print_pickle_data_file(args.pretty_print)
