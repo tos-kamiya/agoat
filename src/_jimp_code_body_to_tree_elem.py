@@ -325,15 +325,17 @@ def paths_to_ordred_andor_tree(paths):
     if len(paths) == 1:
         converted = [ORDERED_AND] + paths[0]
     else:
-        converted = [ORDERED_OR]
-        kgs_pre_and_post = [(k, list(g)) for k, g in itertools.groupby(sorted(paths, key=key_pre_and_post), key=key_pre_and_post)]
-        kgs_pre = [((k, None), list(g)) for k, g in itertools.groupby(sorted(paths, key=key_pre), key=key_pre)]
-        kgs_post = [((None, k), list(g)) for k, g in itertools.groupby(sorted(paths, key=key_post), key=key_post)]
-        kgss = [kgs_pre_and_post, kgs_pre, kgs_post]
-        kgss.sort(key=len)
-        kgs = kgss[0]
-        if len(kgs) < len(paths):
-            for (preid, postid), pths in kgs:
+        ks_pre_and_post = key_pre_and_post, sort_uniq([key_pre_and_post(p) for p in paths])
+        ks_pre = key_pre_and_post, sort_uniq([key_pre(p) for p in paths])
+        ks_post = key_pre_and_post, sort_uniq([key_post(p) for p in paths])
+        kss = [ks_pre_and_post, ks_pre, ks_post]
+        kss.sort(key=lambda kf_ks: len(kf_ks[1]))
+        ks = kss[0]
+        if len(ks[1]) < len(paths):
+            converted = [ORDERED_OR]
+            key_func = ks[0]
+            for (preid, postid), g in itertools.groupby(sorted(paths, key=key_func), key=key_func):
+                pths = list(g)
                 if len(pths) == 1:
                     converted.append([ORDERED_AND] + pths[0])
                 else:
