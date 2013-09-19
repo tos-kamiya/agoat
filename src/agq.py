@@ -228,8 +228,6 @@ def main(argv):
             help="max depth of subtree. -1 for unlimited depth. (default '%d')" % _c.defalut_max_depth_of_subtree,
             default=_c.defalut_max_depth_of_subtree)
     psr_q.add_argument('-f', '--output-form', choices=('callnode', 'treecut', 'path'), default='path')
-    psr_q.add_argument('-N', '--node', action='store_true',
-            help="show and-or-call tree node w/o expanding it to paths")
     color_choices=('always', 'never', 'auto')
     psr_q.add_argument('--color', '--colour', action='store', choices=color_choices, dest='color', 
             help="hilighting with ANSI color.",
