@@ -14,7 +14,7 @@ import calltree as ct
 import calltree_builder as cb
 import calltree_query as cq
 from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SAMMARY, DATATAG_LINENUMBER_TABLE
-from _calltree_data_formatter import format_call_tree_node_compact, init_ansi_color
+from _calltree_data_formatter import format_call_tree_node_compact, init_ansi_color, format_clz_msig
 
 
 def gen_expander_of_call_tree_to_paths(query):
@@ -109,8 +109,8 @@ def remove_outermost_loc_info(call_node):
     return ct.CallNode((invoked[0], invoked[1], invoked[2], invoked[3], None), call_node.recursive_cxt, call_node.body)
 
 
-def search_in_call_trees(query, call_trees, node_sammary_table, max_depth, 
-        removed_nodes_becauseof_limitation_of_depth=[None]):
+def search_in_call_trees(query, call_trees, node_sammary_table, max_depth,
+        treecut=True, removed_nodes_becauseof_limitation_of_depth=[None]):
     pred = cq.gen_callnode_fullfills_query_predicate_w_memo(query, node_sammary_table)
     call_nodes = cq.get_lower_bound_call_nodes(call_trees, pred)
 
@@ -125,7 +125,7 @@ def search_in_call_trees(query, call_trees, node_sammary_table, max_depth,
 
 
 def do_search(call_tree_file, query_words, ignore_case_query_words, output_file, line_number_table=None, 
-        max_depth=-1, expand_to_path=True, fully_qualified_package_name=False, ansi_color=False,
+        max_depth=-1, output_form='path', fully_qualified_package_name=False, ansi_color=False,
         show_progress=False):
     log = sys.stderr.write if show_progress else None
 
@@ -152,6 +152,15 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
     query_patterns.extend(cq.QueryPattern.compile(w, ignore_case=True) for w in ignore_case_query_words)
     query = cq.Query(query_patterns)
 
+    if output_form == 'callnode':
+        nodes = search_in_call_trees(query, call_trees, node_sammary_table, max_depth, treecut=False)
+        clz_msigs = [(n.invoked[1], n.invoked[2]) for n in nodes]
+        clz_msigs.sort()
+        with open_w_default(output_file, "wb", sys.stdout) as out:
+            for clz, msig in clz_msigs:
+                out.write('%s\n' % format_clz_msig(clz, msig))
+        return
+
     removed_nodes_becauseof_limitation_of_depth = [None]
     nodes = search_in_call_trees(query, call_trees, node_sammary_table, max_depth, 
             removed_nodes_becauseof_limitation_of_depth=removed_nodes_becauseof_limitation_of_depth)
@@ -160,7 +169,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
             sys.stderr.write("> warning: all found code exceeds max call-tree depth. give option -D explicitly to show these code.\n")
         return
 
-    if not expand_to_path:
+    if output_form == 'treecut':
         with open_w_default(output_file, "wb", sys.stdout) as out:
             for node in nodes:
                 contribution_data = cq.extract_node_contribution(node, query)
@@ -175,6 +184,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
                         ansi_color=ansi_color)
         return
 
+    assert output_form == 'path'
     log and log("> printing results\n")
     expand_call_tree_to_paths = gen_expander_of_call_tree_to_paths(query)
     path_nodes = []
@@ -214,9 +224,10 @@ def main(argv):
     psr_q.add_argument('-l', '--line-number-table', action='store', 
             help="line-number table file. '-' for standard input. (default '%s')" % _c.default_linenumbertable_path,
             default=None)
-    psr_q.add_argument('-D', '--max-depth', action='store', type=int, 
+    psr_q.add_argument('-d', '--max-depth', action='store', type=int, 
             help="max depth of subtree. -1 for unlimited depth. (default '%d')" % _c.defalut_max_depth_of_subtree,
             default=_c.defalut_max_depth_of_subtree)
+    psr_q.add_argument('-f', '--output-form', choices=('callnode', 'treecut', 'path'), default='path')
     psr_q.add_argument('-N', '--node', action='store_true',
             help="show and-or-call tree node w/o expanding it to paths")
     color_choices=('always', 'never', 'auto')
@@ -244,8 +255,8 @@ def main(argv):
         ignore_case_query_words = args.ignore_case_query_word
     if not args.queryword and not ignore_case_query_words:
         sys.exit("no query word given")
-    do_search(args.call_tree, args.queryword, ignore_case_query_words, args.output,  line_number_table, 
-            max_depth=args.max_depth, expand_to_path=not args.node, 
+    do_search(args.call_tree, args.queryword, ignore_case_query_words, args.output,  line_number_table,
+            max_depth=args.max_depth, output_form=args.output_form,
             fully_qualified_package_name=args.fully_qualified_package_name, ansi_color=ansi_color,
             show_progress=args.progress)
 
