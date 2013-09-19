@@ -40,24 +40,16 @@ def list_entry_points(soot_dir, output_file, option_method_sig=False):
             else:
                 out.write("%s\n" % format_clz_msig(*ep))
 
-def list_methods(soot_dir, output_file, group_by_method_sig=False):
+
+def list_methods(soot_dir, output_file):
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
     sam = jcte.extract_defined_methods_table(class_table)
     methods = list(sam.invokeds)
 
-    if group_by_method_sig:
-        extract_msig = lambda clz_msig: clz_msig[1]
-        methods.sort(key=extract_msig)
-        with open_w_default(output_file, "wb", sys.stdout) as out:
-            for msig, g in itertools.groupby(methods, extract_msig):
-                out.write("%s\n" % format_msig(msig))
-                for clz, _ in g:
-                    out.write("\t%s\n" % clz)
-    else:
-        with open_w_default(output_file, "wb", sys.stdout) as out:
-            for clz, msig in methods:
-                out.write("%s\n" % format_clz_msig(clz, msig))
+    with open_w_default(output_file, "wb", sys.stdout) as out:
+        for clz, msig in methods:
+            out.write("%s\n" % format_clz_msig(clz, msig))
 
 
 def list_literals(soot_dir, output_file):
@@ -132,7 +124,6 @@ def main(argv):
     psr_mt = subpsrs.add_parser('lm', help='listing methods defined within the target code')
     psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
     psr_mt.add_argument('-o', '--output', action='store', default='-')
-    psr_mt.add_argument('-m', '--group-by-method-sig', action='store_true')
 
     psr_mt = subpsrs.add_parser('ll', help='listing literals')
     psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
@@ -165,7 +156,7 @@ def main(argv):
     if args.command == 'le':
         list_entry_points(args.soot_dir, args.output, args.method_sig)
     elif args.command == 'lm':
-        list_methods(args.soot_dir, args.output, args.group_by_method_sig)
+        list_methods(args.soot_dir, args.output)
     elif args.command == 'll':
         list_literals(args.soot_dir, args.output)
     elif args.command == 'gl':
