@@ -186,6 +186,7 @@ def get_lower_bound_call_nodes(call_trees, predicate):
 
 
 def treecut_with_callnode_depth(node, depth, has_deeper_nodes=[None]):
+    callnode_memo = {}
     def treecut_i(node, remaining_depth):
         if isinstance(node, list):
             assert node
@@ -199,7 +200,11 @@ def treecut_with_callnode_depth(node, depth, has_deeper_nodes=[None]):
                 assert False
         elif isinstance(node, ct.CallNode):
             if remaining_depth > 0:
-                cn = ct.CallNode(node.invoked, node.recursive_cxt, treecut_i(node.body, remaining_depth - 1))
+                node_label = (node.invoked[1], node.invoked[2], remaining_depth)
+                cn = callnode_memo.get(node_label)
+                if cn is None:
+                    cn = ct.CallNode(node.invoked, remaining_depth, treecut_i(node.body, remaining_depth - 1))
+                    callnode_memo[node_label] = cn
                 return cn
             else:
                 has_deeper_nodes[0] = True
@@ -211,16 +216,8 @@ def treecut_with_callnode_depth(node, depth, has_deeper_nodes=[None]):
 
 def gen_treecut_fullfills_query_predicate(query):
     def predicate(treecut_with_callnode_depth):
-        sammary = cs.get_node_sammary_wo_memoization(treecut_with_callnode_depth)
-        return query.is_fullfilled_by(sammary)
-
-    return predicate
-
-
-def gen_treecut_partially_fills_query_predicate(query):
-    def predicate(treecut_with_callnode_depth):
-        sammary = cs.get_node_sammary_wo_memoization(treecut_with_callnode_depth)
-        return query.is_partially_filled_by(sammary)
+        sam = cs.get_node_sammary(treecut_with_callnode_depth, {})
+        return query.is_fullfilled_by(sam)
 
     return predicate
 
@@ -279,26 +276,28 @@ def extract_node_contribution(call_node, query):
     def mark_i(node):
         if node is None:
             return False  # None is always uncontributing
-        elif isinstance(node, list):
-            assert node
-            n0 = node[0]
-            assert n0 in (ct.ORDERED_AND, ct.ORDERED_OR)
-            node_cont = False
-            for item in node[1:]:
-                if mark_i(item):
-                    node_cont = True
-                    #  don't break for item
-        elif isinstance(node, ct.CallNode):
-            invoked = node.invoked
-            invoked_cont = update_cont_items_by_invoked(cont_items, invoked, query)
-            body_cont = mark_i(node.body)
-            node_cont = invoked_cont or body_cont
-        elif isinstance(node, tuple):
-            assert node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
-            node_cont = update_cont_items_by_invoked(cont_items, node, query)
-        else:
-            assert False
-        node_id_to_cont[id(node)] = node_cont
+        node_cont = node_id_to_cont.get(id(node))
+        if node_cont is None:
+            if isinstance(node, list):
+                assert node
+                n0 = node[0]
+                assert n0 in (ct.ORDERED_AND, ct.ORDERED_OR)
+                node_cont = False
+                for item in node[1:]:
+                    if mark_i(item):
+                        node_cont = True
+                        #  don't break for item
+            elif isinstance(node, ct.CallNode):
+                invoked = node.invoked
+                invoked_cont = update_cont_items_by_invoked(cont_items, invoked, query)
+                body_cont = mark_i(node.body)
+                node_cont = invoked_cont or body_cont
+            elif isinstance(node, tuple):
+                assert node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
+                node_cont = update_cont_items_by_invoked(cont_items, node, query)
+            else:
+                assert False
+            node_id_to_cont[id(node)] = node_cont
         return node_cont
 
     mark_i(call_node)
