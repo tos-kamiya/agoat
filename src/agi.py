@@ -5,7 +5,6 @@ import argparse
 import os
 import sys
 import pickle
-import itertools
 
 from _utilities import open_w_default
 import progress_bar
@@ -45,7 +44,7 @@ def list_methods(soot_dir, output_file):
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
     sam = jcte.extract_defined_methods_table(class_table)
-    methods = list(sam.invokeds)
+    methods = sam.invokeds
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
         for clz, msig in methods:
@@ -66,16 +65,90 @@ def list_literals(soot_dir, output_file):
             out.write("%s\n" % lit)
 
 
+def list_entry_points_from_calltrees(call_tree_file, output_file, option_method_sig=False):
+    with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
+        # data = pickle.load(inp)  # very very slow in pypy
+        data = pickle.loads(inp.read())
+    call_trees = data[DATATAG_CALL_TREES]
+    del data
+    entry_points = cs.extract_entry_points(call_trees)
+    del call_trees
+
+    with open_w_default(output_file, "wb", sys.stdout) as out:
+        for ep in sorted(entry_points):
+            if not option_method_sig:
+                out.write("%s\n" % ep[0])
+            else:
+                out.write("%s\n" % format_clz_msig(*ep))
+
+
+def add_recursive_cxt_to_entrypoint(entry_point):
+    clz, msig = entry_point
+    return [(clz, msig, None), (clz, msig, entry_point)]
+
+
+def list_methods_from_calltrees(call_tree_file, output_file):
+    with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
+        # data = pickle.load(inp)  # very very slow in pypy
+        data = pickle.loads(inp.read())
+    call_trees = data[DATATAG_CALL_TREES]
+    sammary_table = data[DATATAG_NODE_SAMMARY]
+    del data
+
+    entry_points = cs.extract_entry_points(call_trees)
+    del call_trees
+
+    tot_sam = sammary.Sammary()
+    for ep in entry_points:
+        for ep_w_rc in add_recursive_cxt_to_entrypoint(ep):
+            sam = sammary_table.get(ep_w_rc)
+            if sam:
+                sam.literals = ()
+                tot_sam = tot_sam + sam
+    methods = tot_sam.invokeds
+
+    with open_w_default(output_file, "wb", sys.stdout) as out:
+        for clz_msig_str in methods:
+            p = clz_msig_str.index('\t')
+            clz = clz_msig_str[:p]
+            msig = clz_msig_str[p + 1:]
+            out.write("%s\n" % format_clz_msig(clz, msig))
+
+
+def list_literals_from_calltrees(call_tree_file, output_file):
+    with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
+        # data = pickle.load(inp)  # very very slow in pypy
+        data = pickle.loads(inp.read())
+    call_trees = data[DATATAG_CALL_TREES]
+    sammary_table = data[DATATAG_NODE_SAMMARY]
+    del data
+
+    entry_points = cs.extract_entry_points(call_trees)
+    del call_trees
+
+    tot_sam = sammary.Sammary()
+    for ep in entry_points:
+        for ep_w_rc in add_recursive_cxt_to_entrypoint(ep):
+            sam = sammary_table.get(ep_w_rc)
+            if sam:
+                sam.invokeds = ()
+                tot_sam = tot_sam + sam
+    literals = tot_sam.literals
+
+    with open_w_default(output_file, "wb", sys.stdout) as out:
+        for lit in literals:
+            out.write("%s\n" % lit)
+
+
 def generate_call_tree_and_node_sammary(entry_point_classes, soot_dir, output_file, 
         trace_invocation_via_interface=True, show_progress=False):
     log = sys.stderr.write if show_progress else None
 
-    log and log("> reading code of classes\n")
+    log and log("> building and-or call tree\n")
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir, trace_invocation_via_interface))
     entry_points = cb.find_entry_points(class_table, target_class_names=entry_point_classes)
 
-    log and log("> building and-or call tree\n")
     class_table = cb.inss_to_tree_in_class_table(class_table)
     call_trees = cb.extract_call_andor_trees(class_table, entry_points)
 
@@ -91,7 +164,7 @@ def generate_call_tree_and_node_sammary(entry_point_classes, soot_dir, output_fi
     else:
         node_sammary_table = cs.extract_node_sammary_table(call_trees)
 
-    log and log("> saving index data\n")
+    log and log("> saving call tree and sammary table\n")
     with open_w_default(output_file, "wb", sys.stdout) as out:
         pickle.dump({DATATAG_CALL_TREES: call_trees, DATATAG_NODE_SAMMARY: node_sammary_table}, out,
                 protocol=1)
@@ -112,25 +185,40 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
 
 
 def main(argv):
+    NotGiven = object()
+
     psr = argparse.ArgumentParser(description='agoat CLI indexer')
     psr.add_argument('--version', action='version', version='%(prog)s ' + _c.VERSION)
     subpsrs = psr.add_subparsers(dest='command', help='commands')
 
-    psr_ep = subpsrs.add_parser('le', help='listing entry point classes')
-    psr_ep.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
+    psr_index = subpsrs.add_parser('index', help='generate all index data (= gc + gl)')
+    psr_index.add_argument('-s', '--soot-dir', action='store', help='soot directory', default=_c.default_soot_dir_path)
+    psr_index.add_argument('-j', '--javap-dir', action='store', default=_c.default_javap_dir_path)
+    psr_index.add_argument("--progress", action='store_true',
+            help="show progress to standard output",
+            default=False)
+
+    psr_ep = subpsrs.add_parser('le', help='listing entry points')
+    g = psr_ep.add_mutually_exclusive_group()
+    g.add_argument('-s', '--soot-dir', action='store', nargs='?', help='soot directory', default=NotGiven)
+    g.add_argument('-c', '--call-tree', action='store', nargs='?', help='call-tree file', default=NotGiven)
     psr_ep.add_argument('-o', '--output', action='store', default='-')
     psr_ep.add_argument('-m', '--method-sig', action='store_true', help="output method signatures")
 
     psr_mt = subpsrs.add_parser('lm', help='listing methods defined within the target code')
-    psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
+    g = psr_mt.add_mutually_exclusive_group()
+    g.add_argument('-s', '--soot-dir', action='store', nargs='?', help='soot directory', default=NotGiven)
+    g.add_argument('-c', '--call-tree', action='store', nargs='?', help='call-tree file', default=NotGiven)
     psr_mt.add_argument('-o', '--output', action='store', default='-')
 
-    psr_mt = subpsrs.add_parser('ll', help='listing literals')
-    psr_mt.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
-    psr_mt.add_argument('-o', '--output', action='store', default='-')
+    psr_lt = subpsrs.add_parser('ll', help='listing literals')
+    g = psr_lt.add_mutually_exclusive_group()
+    g.add_argument('-s', '--soot-dir', action='store', nargs='?', help='soot directory', default=NotGiven)
+    g.add_argument('-c', '--call-tree', action='store', nargs='?', help='call-tree file', default=NotGiven)
+    psr_lt.add_argument('-o', '--output', action='store', default='-')
 
     psr_sl = subpsrs.add_parser('gl', help='generate line number table')
-    psr_sl.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
+    psr_sl.add_argument('-s', '--soot-dir', action='store', help='soot directory', default=_c.default_soot_dir_path)
     psr_sl.add_argument('-j', '--javap-dir', action='store', default=_c.default_javap_dir_path)
     psr_sl.add_argument('-o', '--output', action='store', 
             help="output file. (default '%s')" % _c.default_linenumbertable_path, 
@@ -139,7 +227,7 @@ def main(argv):
     psr_ct = subpsrs.add_parser('gc', help='generate call tree and node sammary table')
     psr_ct.add_argument('-e', '--entry-point', action='store', nargs='*', dest='entrypointclasses',
             help='entry-point class. If not given, all possible classes will be regarded as entry points')
-    psr_ct.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
+    psr_ct.add_argument('-s', '--soot-dir', action='store', help='soot directory', default=_c.default_soot_dir_path)
     psr_ct.add_argument('-I', '--ignore-method-invocation-via-interface', action='store_true',
             default=False)
     psr_ct.add_argument('-o', '--output', action='store', 
@@ -154,16 +242,43 @@ def main(argv):
 
     args = psr.parse_args(argv[1:])
     if args.command == 'le':
-        list_entry_points(args.soot_dir, args.output, args.method_sig)
+        if args.soot_dir is not NotGiven:
+            soot_dir = _c.default_soot_dir_path if args.soot_dir is None else args.soot_dir
+            list_entry_points(soot_dir, args.output, args.method_sig)
+        elif args.call_tree is not NotGiven:
+            call_tree_file= _c.default_calltree_path if args.call_tree is None else args.call_tree
+            list_entry_points_from_calltrees(call_tree_file, args.output, args.method_sig)
+        else:
+            sys.exit("need either -s or -c")
     elif args.command == 'lm':
-        list_methods(args.soot_dir, args.output)
+        if args.soot_dir is not NotGiven:
+            soot_dir = _c.default_soot_dir_path if args.soot_dir is None else args.soot_dir
+            list_methods(soot_dir, args.output)
+        elif args.call_tree is not NotGiven:
+            call_tree_file= _c.default_calltree_path if args.call_tree is None else args.call_tree
+            list_methods_from_calltrees(call_tree_file, args.output)
+        else:
+            sys.exit("need either -s or -c")
     elif args.command == 'll':
-        list_literals(args.soot_dir, args.output)
+        if args.soot_dir is not NotGiven:
+            soot_dir = _c.default_soot_dir_path if args.soot_dir is None else args.soot_dir
+            list_literals(soot_dir, args.output)
+        elif args.call_tree is not NotGiven:
+            call_tree_file= _c.default_calltree_path if args.call_tree is None else args.call_tree
+            list_literals_from_calltrees(call_tree_file, args.output)
+        else:
+            sys.exit("need either -s or -c")
     elif args.command == 'gl':
         generate_linenumber_table(args.soot_dir, args.javap_dir, args.output)
     elif args.command == 'gc':
         generate_call_tree_and_node_sammary(args.entrypointclasses, args.soot_dir, args.output, 
             trace_invocation_via_interface=not args.ignore_method_invocation_via_interface,
+            show_progress=args.progress)
+    elif args.command == "index":
+        if args.progress:
+            sys.stderr.write("> generating/saving line number table\n")
+        generate_linenumber_table(args.soot_dir, args.javap_dir, _c.default_linenumbertable_path)
+        generate_call_tree_and_node_sammary(None, args.soot_dir, _c.default_calltree_path, 
             show_progress=args.progress)
     elif args.command == 'debug':
         if args.pretty_print:

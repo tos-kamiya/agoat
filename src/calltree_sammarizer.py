@@ -141,14 +141,26 @@ def get_node_sammary(node, sammary_table, progress=None):
 
 
 def get_node_sammary_wo_memoization(node):
-    return get_node_sammary(node, sammary_table=None)
-
+    # sammary_table = {}  # (clz, MethodSig, recursive_context) -> Sammary
+    sammary_table = get_node_sammary(node, sammary_table=None)
+    return sammary_table
 
 def extract_node_sammary_table(nodes, progress=None):
-    sammary_table = {}
+    sammary_table = {}  # (clz, MethodSig, recursive_context) -> Sammary
     for node in nodes:
         get_node_sammary(node, sammary_table, progress=progress)
     return sammary_table
+
+
+def extract_entry_points(call_trees):
+    entry_points = []
+    for call_tree in call_trees:
+        assert isinstance(call_tree, ct.CallNode)
+        invoked = call_tree.invoked
+        clz_msig = invoked[1], invoked[2]
+        entry_points.append(clz_msig)
+    entry_points.sort()
+    return entry_points
 
 
 def main(argv, out=sys.stdout, logout=sys.stderr):

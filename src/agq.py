@@ -193,7 +193,7 @@ def main(argv):
     psr_q = argparse.ArgumentParser(description='agoat CLI query search')
     psr_q.add_argument('--version', action='version', version='%(prog)s ' + _c.VERSION)
 
-    psr_q.add_argument('queryword', action='store', nargs='+', 
+    psr_q.add_argument('queryword', action='store', nargs='*', 
             help="""query words. put double quote(") before a word to search the word in string literals.""")
     psr_q.add_argument('-i', '--ignore-case-query-word', action='append')
     psr_q.add_argument('-c', '--call-tree', action='store', 
@@ -231,6 +231,8 @@ def main(argv):
         ignore_case_query_words = []
     else:
         ignore_case_query_words = args.ignore_case_query_word
+    if not args.queryword and not ignore_case_query_words:
+        sys.exit("no query word given")
     do_search(args.call_tree, args.queryword, ignore_case_query_words, args.output,  line_number_table, 
             max_depth=args.max_depth, expand_to_path=not args.node, 
             fully_qualified_package_name=args.fully_qualified_package_name, ansi_color=ansi_color,
