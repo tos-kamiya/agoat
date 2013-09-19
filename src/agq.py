@@ -196,7 +196,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
         path_nodes.extend(pns)
     if not path_nodes:
         if count_removed_path_becauseof_not_fullfilling_query > 0:
-            sys.stderr.write("> warning: no found paths includes all query words. give option -N to show such code instaed of path.\n")
+            sys.stderr.write("> warning: no found paths includes all query words. use '-f treecut' to show them as treecut, not as path.\n")
         return
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
