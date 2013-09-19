@@ -17,18 +17,6 @@ from andor_tree import ORDERED_AND, ORDERED_OR, normalize_tree
 from _jimp_code_box_generator import BOX, BLOCK
 import _jimp_code_box_generator
 
-# SPECIALINVOKE = "specialinvoke"
-    #receiver, method_name, args, retv
-# INVOKE = "invoke"
-    #receiver, method_name, args, retv
-
-# RETURN = "return"
-# THROW = "throw"
-
-# IFGOTO = "ifgoto"
-# GOTO = "goto"
-# SWITCH = "switch"
-# LABEL = "label"
 
 if False:
     MethodSigInternTable = dict()

@@ -85,33 +85,6 @@ def make_boxes(inss):
 
     return boxed_inss
  
-#     def get_last_ins_of_box_or_block(box):
-#         last_ins = box[-1]
-#         if isinstance(ins, list) and last_ins[0] in (BOX, BLOCK):
-#             return get_last_ins_of_box_or_block(last_ins)
-#         else:
-#             return last_ins
-# 
-#     nested_boxed_inss = []
-#     len_boxed_inss = len(boxed_inss)
-#     i = 0
-#     while i < len_boxed_inss:
-#         ins = boxed_inss[i]
-#         if isinstance(ins, list) and ins[0] in (BOX, BLOCK):
-#             if i + 1 < len_boxed_inss:
-#                 next_ins = boxed_inss[i + 1]
-#                 if isinstance(next_ins, list) and next_ins[0] in (BOX, BLOCK):
-#                     box_last_ins = get_last_ins_of_box_or_block(ins)
-#                     if box_last_ins[0] in (jp.SPECIALINVOKE, jp.INVOKE, jp.LABEL):
-#                         ins.append(next_ins)
-#                         nested_boxed_inss.append(ins)
-#                         i += 2
-#                         continue  # while i
-#         nested_boxed_inss.append(ins)
-#         i += 1
-# 
-#     return nested_boxed_inss
-
 
 def make_basic_blocks(inss):
     bis = []
@@ -209,79 +182,6 @@ def make_nested_blocks(bis):
                     i += 6
                     eat = True
                     new_box_found = True
-#
-# swtich-case patterns
-#             if not eat and bis[i][0] == jp.SWITCH:
-#                 merged_block = [ORDERED_OR]
-#                 matching_pattern = True
-#                 exit_label = None
-#                 destlabel2count = Counter()
-#                 for dest in bis[i][1]:
-# if exit_label is not None and dest == exit_label:  # in case of default: case
-#                         merged_block.append([ORDERED_AND])
-#                         destlabel2count[exit_label] += 1
-#                         continue
-#                     dest_index = label2index.get(dest)
-#                     if dest_index is None:
-#                         assert False
-#                     destlabel2count[dest] += 1
-#                     if dest_index + 2 < len_bis and \
-#                             bis[dest_index + 1][0] in (jp.GOTO, jp.LABEL) and (exit_label is None or bis[dest_index + 1][1] == exit_label):
-#                         exit_label = bis[dest_index + 1][1]
-#                         if bis[dest_index + 1][0] == jp.GOTO:
-#                             destlabel2count[exit_label] += 1
-#                     elif dest_index + 3 < len_bis and \
-#                             bis[dest_index + 1][0] == BLOCK and \
-#                             bis[dest_index + 2][0] in (jp.GOTO, jp.LABEL) and (exit_label is None or bis[dest_index + 2][1] == exit_label):
-#                         exit_label = bis[dest_index + 2][1]
-#                         if bis[dest_index + 2][0] == jp.GOTO:
-#                             destlabel2count[exit_label] += 1
-#                         merged_block.append(bis[dest_index + 1])
-#                     else:
-#                         matching_pattern = False
-# break  # for dest
-#                 if matching_pattern and exit_label is not None:
-#                     jump_from_outer = False
-#                     for l, c in destlabel2count.iteritems():
-#                         if label2targetcount.get(l) != c:
-#                             jump_from_outer = True
-# break  # for l, c
-#                     nexti = label2index.get(exit_label) + 1
-#                     unconsumed_label_inside = any((ins[0] == jp.LABEL and ins[0] not in destlabel2count) \
-#                             for ins in bis[i:nexti])
-#                     if not jump_from_outer and not unconsumed_label_inside:
-#                         if len(merged_block) == 2:
-#                             merged_block = merged_block[1]
-#                         nb.append([BLOCK, merged_block])
-#                         assert nexti > i
-#                         i = nexti
-#                         eat = True
-#                         new_box_found = True
-#
-# if patterns
-#             if not eat and i + 3 < len_bis and \
-#                     [ins[0] for ins in bis[i:i + 3]] == [jp.IFGOTO, BLOCK, jp.LABEL] and \
-#                     bis[i][1] == bis[i + 2][1] and label2targetcount.get(bis[i + 2][1]) == 1:
-#                 nb.append([BLOCK, [ORDERED_OR, bis[i + 1], [ORDERED_AND]]])
-#                 i += 3
-#                 eat = True
-#                 new_box_found = True
-#             if not eat and i + 5 < len_bis and \
-#                     [ins[0] for ins in bis[i:i + 5]] == [jp.IFGOTO, jp.GOTO, jp.LABEL, BLOCK, jp.LABEL] and \
-#                     bis[i][1] == bis[i + 2][1] and label2targetcount.get(bis[i + 2][1]) == 1 and \
-#                     bis[i + 1][1] == bis[i + 4][1] and label2targetcount.get(bis[i + 4][1]) == 1:
-#                 nb.append([BLOCK, [ORDERED_OR, bis[i + 3], [ORDERED_AND]]])
-#                 i += 5
-#                 eat = True
-#                 new_box_found = True
-#             if not eat and i + 6 < len_bis and \
-#                     [ins[0] for ins in bis[i:i + 6]] == [jp.IFGOTO, BLOCK, jp.GOTO, jp.LABEL, BLOCK, jp.LABEL] and \
-#                     bis[i][1] == bis[i + 3][1] and label2targetcount.get(bis[i + 3][1]) == 1 and \
-#                     bis[i + 2][1] == bis[i + 5][1] and label2targetcount.get(bis[i + 5][1]) == 1:
-#                 nb.append([BLOCK, [ORDERED_OR, bis[i + 1], bis[i + 4]]])
-#                 i += 6
-#                 eat = True
-#                 new_box_found = True
 
             if not eat:
                 nb.append(bis[i])
