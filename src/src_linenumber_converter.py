@@ -9,11 +9,13 @@ from _utilities import readline_iter
 
 import jimp_parser as jp
 
+
 def indent_width(L):
     for i, c in enumerate(L):
         if c != ' ':
             return i
     return 0
+
 
 def asm_file_iter(asmdir):
     for root, dirs, files in os.walk(asmdir, topdown=True):
@@ -23,9 +25,11 @@ def asm_file_iter(asmdir):
             if f.endswith(".javap"):
                 yield os.path.join(root, f)
 
+
 def asm_filetext_iter(asmdir):
     for asmfile in asm_file_iter(asmdir):
         yield asmfile, list(readline_iter(asmfile))
+
 
 def remove_generics_args(s):
     if re.match(r"^\s+((public|private|static|final)\s+)*(java.lang.String|char) .*$", s) and \
@@ -49,9 +53,11 @@ def remove_generics_args(s):
 
     return s + c
 
+
 COMPILED_FROM = 'COMPILED_FROM'
 METHOD_CODE = 'METHOD_CODE'
 INHERITANCE = 'INHERITANCE'
+
 
 def split_into_method_iter(asmfile, lines):
     method_attribute = frozenset("public|private|protected|final|abstract|synchronized|static".split('|'))
@@ -150,6 +156,7 @@ def split_into_method_iter(asmfile, lines):
         yield METHOD_CODE, pack(class_name, method_sig, method_body)
         method_sig, method_body = None, None
 
+
 def split_method_body_to_code_and_tables(method_body_lines):
     code_lines = []
     exceptiontable_lines = []
@@ -168,7 +175,9 @@ def split_method_body_to_code_and_tables(method_body_lines):
             target.append(L)
     return code_lines, exceptiontable_lines, linenumbertable_lines
 
+
 ASM_FILE = 'ASM_FILE'
+
 
 def get_asm_info_iter(asm_dir):
     """
@@ -210,6 +219,7 @@ def get_asm_info_iter(asm_dir):
         else:
             assert False
 
+
 def scan_linumber_table(text):
     lineseq, indexseq = [], []
     pat = re.compile(r'^\s+line\s+(\d+):\s+(\d+)$')
@@ -220,6 +230,7 @@ def scan_linumber_table(text):
         indexseq.append(int(m.group(2)))
     return lineseq, indexseq
 
+
 def sig_to_source_file(sig):
     p = sig.index('.')
     q = sig.find('$')
@@ -228,6 +239,7 @@ def sig_to_source_file(sig):
     possible_source_file = sig[:p] + '.java'
     reference = sig[p+1:]
     return possible_source_file, reference
+
 
 def convert_location_from_index_to_linenum(L, sig2filename_linenumber_table):
     is_call_thru = False
@@ -253,6 +265,7 @@ def convert_location_from_index_to_linenum(L, sig2filename_linenumber_table):
 #     if p >= 0:
 #         claz = claz[:p]
 #     return claz + ".java"
+
 
 def make_invocationindex_to_src_linenum_table(javap_asm_dir):
     pat_invokes = re.compile(r"^\s+(\d+):\s+invoke.*$")

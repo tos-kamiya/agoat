@@ -15,7 +15,7 @@ import jimp_code_term_extractor as jcte
 import calltree_builder as cb
 import calltree_sammarizer as cs
 import src_linenumber_converter as slc
-from _calltree_data_formatter import format_clz_msig, format_msig
+from _calltree_data_formatter import format_clz_msig
 from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SAMMARY, DATATAG_LINENUMBER_TABLE
 from _calltree_data_formatter import pretty_print_pickle_data
 import sammary

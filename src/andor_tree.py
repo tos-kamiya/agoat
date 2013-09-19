@@ -2,6 +2,7 @@
 
 from _utilities import sort_uniq
 
+
 ORDERED_AND = "&&"
 ORDERED_OR = "||"
 

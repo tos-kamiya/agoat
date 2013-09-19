@@ -145,6 +145,7 @@ def get_node_sammary_wo_memoization(node):
     sammary_table = get_node_sammary(node, sammary_table=None)
     return sammary_table
 
+
 def extract_node_sammary_table(nodes, progress=None):
     sammary_table = {}  # (clz, MethodSig, recursive_context) -> Sammary
     for node in nodes:

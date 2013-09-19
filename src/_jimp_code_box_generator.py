@@ -137,7 +137,6 @@ def make_nested_blocks(bis):
 
     while True:
         new_box_found = False
-        label2index = get_label2index(bis)
 
         nb = []
         len_bis = len(bis)
