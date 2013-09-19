@@ -26,7 +26,7 @@ class drawer(object):
         perb = int(count * self.bar_length / self.total_count)
         sys.stderr.write('\r%4.1f%% |%s%s|' % (per, '#' * perb, self.bar_picture[perb:]))
 
-    def done(self):
+    def close(self):
         if self.prev_per is not None:
             sys.stderr.write('\r%s\r' % (' ' * (9 + self.bar_length)))
 
@@ -34,7 +34,7 @@ class drawer(object):
         return self.progress
 
     def __exit__(self, exc_type, exc_val, exc_tb):
-        self.done()
+        self.close()
 
 
 if __name__ == '__main__':
@@ -42,9 +42,19 @@ if __name__ == '__main__':
 
     total_count = 45
 
+    # use with with statement
     sys.stderr.write("START!\n")
     with drawer(total_count) as progress:
         for c in range(0, total_count + 1):
             time.sleep(0.05)
             progress(c)
     sys.stderr.write("DONE.\n")
+
+    # use w/o with statement
+    sys.stderr.write("START AGAIN!\n")
+    d = drawer(total_count)
+    for c in range(0, total_count + 1):
+        time.sleep(0.05)
+        d.progress(c)
+    d.close()
+    sys.stderr.write("DONE AGAIN.\n")
