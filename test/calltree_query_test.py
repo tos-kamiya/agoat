@@ -89,26 +89,36 @@ class CalltreeQueryTest(unittest.TestCase):
         self.assertEqual(len(missings), 2)
         self.assertEqual(missings[0].word, "w")
         self.assertEqual(missings[1].word, "x")
-        
+        self.assertFalse(query.is_partially_filled_by(sam))
+        self.assertFalse(query.is_fullfilled_by(sam))
+
         sam = sammary.Sammary(["AClass\tvoid\tsomeMehtod"])
         missings = query.unmatched_patterns(sam)
         self.assertEqual(len(missings), 2)
         self.assertEqual(missings[0].word, "w")
         self.assertEqual(missings[1].word, "x")
+        self.assertFalse(query.is_partially_filled_by(sam))
+        self.assertFalse(query.is_fullfilled_by(sam))
 
         sam = sammary.Sammary(literals=['"x"'])
         missings = query.unmatched_patterns(sam)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "w")
+        self.assertTrue(query.is_partially_filled_by(sam))
+        self.assertFalse(query.is_fullfilled_by(sam))
 
         sam = sammary.Sammary(literals=['"w"'])
         missings = query.unmatched_patterns(sam)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "x")
+        self.assertTrue(query.is_partially_filled_by(sam))
+        self.assertFalse(query.is_fullfilled_by(sam))
 
         sam = sammary.Sammary(literals=['"x"', '"w"'])
         missings = query.unmatched_patterns(sam)
         self.assertEqual(len(missings), 0)
+        self.assertTrue(query.is_partially_filled_by(sam))
+        self.assertTrue(query.is_fullfilled_by(sam))
     
     def test_get_direct_sub_callnodes_of_body_node(self):
         subns = cq.get_direct_sub_callnodes_of_body_node(A_CALL_TREE.body)

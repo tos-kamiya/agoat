@@ -43,30 +43,72 @@ class Query(object):
             elif p.target == TARGET_LITERAL:
                 self._literal_patterns.append(p)
         self._count_patterns = len(self._invoked_patterns) + len(self._literal_patterns)
+        self._invoked_pattern_words = [p.word for p in self._invoked_patterns]
+        self._invoked_pattern_regexs = [p.regex for p in self._invoked_patterns]
+        self._literal_pattern_words = [p.word for p in self._literal_patterns]
+        self._literal_pattern_regexs = [p.regex for p in self._literal_patterns]
 
     def count(self):
         return self._count_patterns
 
     def is_fullfilled_by(self, sammary):
-        return not self.unmatched_patterns(sammary)
+        for p in self._invoked_pattern_regexs:
+            for w in sammary.invokeds:
+                if p.search(w):
+                    break  # for w
+            else:
+                return False
+        for p in self._literal_pattern_regexs:
+            for w in sammary.literals:
+                if p.search(w):
+                    break  # for w
+            else:
+                return False
+        return True
 
     def is_partially_filled_by(self, sammary):
-        u = self.unmatched_patterns(sammary)
-        return len(u) < self._count_patterns
+        for p in self._invoked_pattern_regexs:
+            for w in sammary.invokeds:
+                if p.search(w):
+                    return True
+        for p in self._literal_pattern_regexs:
+            for w in sammary.literals:
+                if p.search(w):
+                    return True
+        return False
+
+    def has_matching_pattern_in(self, clz, msig, literals):
+        for p in self._invoked_patterns:
+            if p.regex.search(clz) or p.regex.search(msig):
+                return True
+        for p in self._literal_patterns:
+            for w in literals:
+                if p.regex.search(w):
+                    return True
+        return False
 
     def unmatched_patterns(self, sammary):
-        unmatched_is = [p for p in self._invoked_patterns if not any(p.regex.search(w) for w in sammary.invokeds)]
-        unmatched_ls = [p for p in self._literal_patterns if not any(p.regex.search(w) for w in sammary.literals)]
+        unmatched_is = [p for p, r in zip(self._invoked_patterns, self._invoked_pattern_regexs) \
+                if not any(r.search(w) for w in sammary.invokeds)]
+        unmatched_ls = [p for p, r in zip(self._literal_patterns, self._literal_pattern_regexs) \
+                if not any(r.search(w) for w in sammary.literals)]
         return unmatched_is + unmatched_ls
 
+    def matched_patterns(self, sammary):
+        matched_is = [p for p, r in zip(self._invoked_patterns, self._invoked_pattern_regexs) \
+                if any(r.search(w) for w in sammary.invokeds)]
+        matched_ls = [p for p, r in zip(self._invoked_patterns, self._literal_pattern_regexs) \
+                if any(r.search(w) for w in sammary.literals)]
+        return matched_is + matched_ls
+
     def matches_msig(self, msig):
-        return any(p.regex.search(msig) for p in self._invoked_patterns)
+        return any(p.search(msig) for p in self._invoked_pattern_regexs)
 
     def matches_receiver(self, clz):
-        return any(p.regex.search(clz) for p in self._invoked_patterns)
+        return any(p.search(clz) for p in self._invoked_pattern_regexs)
 
     def matches_literal(self, literal):
-        return any(p.regex.search(literal) for p in self._literal_patterns)
+        return any(p.search(literal) for p in self._literal_pattern_regexs)
 
 
 def check_query_word_list(query_words):
