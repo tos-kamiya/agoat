@@ -13,7 +13,7 @@ import calltree_builder as cb
 
 
 DATATAG_CALL_TREES = "call_trees"
-DATATAG_NODE_SUMMARY = "node_summary_table"
+DATATAG_NODE_SAMMARY = "node_sammary_table"
 DATATAG_LINENUMBER_TABLE = "linenumber_table"
 
 
@@ -86,11 +86,11 @@ def pretty_print_pickle_data(data, out):
             pp.pprint((node_label, transformed_body))
             out.write("\n")
 
-    node_summary = data.get(DATATAG_NODE_SUMMARY)
-    if node_summary:
-        for node_label, summary in node_summary.iteritems():
-            out.write("node summary:\n")
-            pp.pprint((node_label, summary))
+    node_sammary = data.get(DATATAG_NODE_SAMMARY)
+    if node_sammary:
+        for node_label, sam in node_sammary.iteritems():
+            out.write("node sammary:\n")
+            pp.pprint((node_label, sam))
             out.write("\n")
 
 

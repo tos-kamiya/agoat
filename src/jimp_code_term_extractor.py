@@ -2,70 +2,47 @@
 
 import sys
 
-from _utilities import sort_uniq
-
+import sammary
 import jimp_parser as jp
 import _jimp_code_body_to_tree_elem as jcbte
 
 
 def extract_referred_literals(inss, method_data, class_data):
     if inss is None:
-        return []
+        return sammary.Sammary()
 
     resolve_type = jcbte.gen_type_resolver(method_data, class_data)
 
-    literals = set()
+    sb = sammary.SammaryBuilder()
     for ins in inss:
         cmd = ins[0]
         if cmd in (jp.SPECIALINVOKE, jp.INVOKE):
             receiver, method_name, args, retv, linenum = ins[1:]
             recvlit = resolve_type(receiver)[1]
-            literals.add(recvlit)
+            sb.append_literal(recvlit)
             arglits = tuple(resolve_type(a)[1] for a in args)
-            literals.update(arglits)
+            sb.extend_literal(arglits)
             retvlit = resolve_type(retv)[1]
-            literals.add(retvlit)
+            sb.append_literal(retvlit)
 
-    return sorted(literals)
-
-
-# def extract_invoked_methods(inss, method_data, class_data):
-#     resolve_type = jcbte.gen_type_resolver(method_data, class_data)
-# 
-#     invoked_recv_msigs = []
-#     for ins in inss:
-#         cmd = ins[0]
-#         if cmd in (jp.SPECIALINVOKE, jp.INVOKE):
-#             receiver, method_name, args, retv, linenum = ins[1:]
-#             rrecv = resolve_type(receiver)[0]
-#             if rrecv is None:
-#                 rrecv = receiver
-#             rargs = tuple(resolve_type(a)[0] for a in args)
-#             rretv = resolve_type(retv)[0]
-#             msig = jcbte.method_sig_intern(jp.MethodSig(rretv, method_name, rargs))
-#             invoked_recv_msigs.append((rrecv, msig))
-# 
-#     return sort_uniq(invoked_recv_msigs)
+    return sb.to_sammary()
 
 
 def extract_defined_methods(class_data):
     clz = class_data.class_name
 
-    defined_clz_msigs = []
+    sb = sammary.SammaryBuilder()
     for msig, md in sorted(class_data.methods.iteritems()):
-        defined_clz_msigs.append((clz, msig))
+        sb.append_invoked((clz, msig))
 
-    return defined_clz_msigs
+    return sb.to_sammary()
 
 
-def extract_methods(class_table):
-    method_set = set()
+def extract_defined_methods_table(class_table):
+    sb = sammary.SammaryBuilder()
     for clz, cd in class_table.iteritems():
-        method_set.update(extract_defined_methods(cd))
-#         for msig, md in cd.methods.iteritems():
-#             method_set.update(extract_invoked_methods(md.code, md, cd))
-
-    return sorted(method_set)
+        sb.append_sammary(extract_defined_methods(cd))
+    return sb.to_sammary()
 
 
 def main(argv, out=sys.stdout):
@@ -73,8 +50,8 @@ def main(argv, out=sys.stdout):
     class_table = {}
     for clz, cd in jp.read_class_table_from_dir_iter(dirname):
         class_table[clz] = cd
-    methods = extract_methods(class_table)
-    for clz, msig in methods:
+    sam = extract_defined_methods_table(class_table)
+    for clz, msig in sam.invokeds:
         out.write("%s\t%s\n" % (clz, msig))
 
 

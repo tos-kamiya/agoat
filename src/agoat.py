@@ -15,12 +15,13 @@ import jimp_parser as jp
 import jimp_code_term_extractor as jcte
 import calltree as ct
 import calltree_builder as cb
-import calltree_summarizer as cs
+import calltree_sammarizer as cs
 import calltree_query as cq
 import src_linenumber_converter as slc
 from _calltree_data_formatter import format_clz_msig, format_msig
-from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
+from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SAMMARY, DATATAG_LINENUMBER_TABLE
 from _calltree_data_formatter import pretty_print_pickle_data, format_call_tree_node_compact, init_ansi_color
+import sammary
 
 
 if sys.platform == "win32":
@@ -53,7 +54,8 @@ def list_entry_points(soot_dir, output_file, option_method_sig=False):
 def list_methods(soot_dir, output_file, group_by_method_sig=False):
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
-    methods = jcte.extract_methods(class_table)
+    sam = jcte.extract_defined_methods_table(class_table)
+    methods = list(sam.invokeds)
 
     if group_by_method_sig:
         extract_msig = lambda clz_msig: clz_msig[1]
@@ -72,18 +74,18 @@ def list_methods(soot_dir, output_file, group_by_method_sig=False):
 def list_literals(soot_dir, output_file):
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
-    literals = set()
+    sb = sammary.SammaryBuilder()
     for clz, cd in class_table.iteritems():
         for msig, md in cd.methods.iteritems():
-            literals.update(jcte.extract_referred_literals(md.code, md, cd))
-    literals = sorted(literals)
+            sb.append_sammary(jcte.extract_referred_literals(md.code, md, cd))
+    literals = sb.to_sammary().literals
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
         for lit in literals:
             out.write("%s\n" % lit)
 
 
-def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_file, 
+def generate_call_tree_and_node_sammary(entry_point_classes, soot_dir, output_file, 
         trace_invocation_via_interface=True, show_progress=False):
     log = sys.stderr.write if show_progress else None
 
@@ -97,20 +99,20 @@ def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_fi
     call_trees = cb.extract_call_andor_trees(class_table, entry_points)
 
     if show_progress:
-        log and log("> extracting summary from each node\n")
+        log and log("> extracting sammary from each node\n")
         invoked_set = cs.extract_callnode_invokeds_in_calltrees(call_trees)
         with progress_bar.drawer(len(invoked_set)) as rep:
             done_invokeds = [0]
             def p(invoked):
                 done_invokeds[0] += 1
                 rep(done_invokeds[0])
-            node_summary_table = cs.extract_node_summary_table(call_trees, progress=p)
+            node_sammary_table = cs.extract_node_sammary_table(call_trees, progress=p)
     else:
-        node_summary_table = cs.extract_node_summary_table(call_trees)
+        node_sammary_table = cs.extract_node_sammary_table(call_trees)
 
     log and log("> saving index data\n")
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        pickle.dump({DATATAG_CALL_TREES: call_trees, DATATAG_NODE_SUMMARY: node_summary_table}, out,
+        pickle.dump({DATATAG_CALL_TREES: call_trees, DATATAG_NODE_SAMMARY: node_sammary_table}, out,
                 protocol=1)
 
 
@@ -217,9 +219,9 @@ def remove_outermost_loc_info(call_node):
     return ct.CallNode((invoked[0], invoked[1], invoked[2], invoked[3], None), call_node.recursive_cxt, call_node.body)
 
 
-def search_in_call_trees(query, call_trees, node_summary_table, max_depth, 
+def search_in_call_trees(query, call_trees, node_sammary_table, max_depth, 
         removed_nodes_becauseof_limitation_of_depth=[None]):
-    pred = cq.gen_callnode_fullfills_query_predicate_w_memo(query, node_summary_table)
+    pred = cq.gen_callnode_fullfills_query_predicate_w_memo(query, node_sammary_table)
     call_nodes = cq.get_lower_bound_call_nodes(call_trees, pred)
 
     pred = cq.gen_treecut_fullfills_query_predicate(query)
@@ -242,7 +244,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
         # data = pickle.load(inp)  # very very slow in pypy
         data = pickle.loads(inp.read())
     call_trees = data[DATATAG_CALL_TREES]
-    node_summary_table = data[DATATAG_NODE_SUMMARY]
+    node_sammary_table = data[DATATAG_NODE_SAMMARY]
     del data
 
     clz_msig2conversion = None
@@ -261,7 +263,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
     query = cq.Query(query_patterns)
 
     removed_nodes_becauseof_limitation_of_depth = [None]
-    nodes = search_in_call_trees(query, call_trees, node_summary_table, max_depth, 
+    nodes = search_in_call_trees(query, call_trees, node_sammary_table, max_depth, 
             removed_nodes_becauseof_limitation_of_depth=removed_nodes_becauseof_limitation_of_depth)
     if not nodes:
         if removed_nodes_becauseof_limitation_of_depth[0] > 0:
@@ -331,7 +333,7 @@ def main(argv):
             help="output file. (default '%s')" % default_linenumbertable_path, 
             default=default_linenumbertable_path)
 
-    psr_ct = subpsrs.add_parser('gc', help='generate call tree and node summary table')
+    psr_ct = subpsrs.add_parser('gc', help='generate call tree and node sammary table')
     psr_ct.add_argument('-e', '--entry-point', action='store', nargs='*', dest='entrypointclasses',
             help='entry-point class. If not given, all possible classes will be regarded as entry points')
     psr_ct.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
@@ -382,7 +384,7 @@ def main(argv):
     elif args.command == 'gl':
         generate_linenumber_table(args.soot_dir, args.javap_dir, args.output)
     elif args.command == 'gc':
-        generate_call_tree_and_node_summary(args.entrypointclasses, args.soot_dir, args.output, 
+        generate_call_tree_and_node_sammary(args.entrypointclasses, args.soot_dir, args.output, 
             trace_invocation_via_interface=not args.ignore_method_invocation_via_interface,
             show_progress=args.progress)
     elif args.command == 'q':
@@ -395,7 +397,11 @@ def main(argv):
         ansi_color = sys.stdout.isatty() if args.color == 'auto' else args.color == 'always'
         if ansi_color:
             init_ansi_color()
-        do_search(args.call_tree, args.queryword, args.ignore_case_query_word, args.output,  line_number_table, 
+        if not args.ignore_case_query_word: 
+            ignore_case_query_words = []
+        else:
+            ignore_case_query_words = args.ignore_case_query_word
+        do_search(args.call_tree, args.queryword, ignore_case_query_words, args.output,  line_number_table, 
                 max_depth=args.max_depth, expand_to_path=not args.node, 
                 fully_qualified_package_name=args.fully_qualified_package_name, ansi_color=ansi_color,
                 show_progress=args.progress)

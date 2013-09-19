@@ -5,7 +5,7 @@ import re
 import jimp_parser as jp
 import calltree as ct
 import calltree_builder as cb
-import calltree_summarizer as cs
+import calltree_sammarizer as cs
 
 
 TARGET_INVOKED = 'target_invoked'
@@ -47,26 +47,16 @@ class Query(object):
     def count(self):
         return self._count_patterns
 
-    def is_fullfilled_by(self, summary):
-        return not self.unmatched_patterns(summary)
+    def is_fullfilled_by(self, sammary):
+        return not self.unmatched_patterns(sammary)
 
-    def is_partially_filled_by(self, summary):
-        u = self.unmatched_patterns(summary)
+    def is_partially_filled_by(self, sammary):
+        u = self.unmatched_patterns(sammary)
         return len(u) < self._count_patterns
 
-    def unmatched_patterns(self, summary):
-        invokeds = []
-        literals = []
-        for s in summary:
-            if isinstance(s, tuple):
-                c, m = s
-                invokeds.append(c)
-                invokeds.append(m)
-            else:
-                literals.append(s)
-
-        unmatched_is = [p for p in self._invoked_patterns if not any(p.regex.search(w) for w in invokeds)]
-        unmatched_ls = [p for p in self._literal_patterns if not any(p.regex.search(w) for w in literals)]
+    def unmatched_patterns(self, sammary):
+        unmatched_is = [p for p in self._invoked_patterns if not any(p.regex.search(w) for w in sammary.invokeds)]
+        unmatched_ls = [p for p in self._literal_patterns if not any(p.regex.search(w) for w in sammary.literals)]
         return unmatched_is + unmatched_ls
 
     def matches_msig(self, msig):
@@ -77,6 +67,7 @@ class Query(object):
 
     def matches_literal(self, literal):
         return any(p.regex.search(literal) for p in self._literal_patterns)
+
 
 def check_query_word_list(query_words):
     if len(set(query_words)) != len(query_words):
@@ -102,7 +93,7 @@ def get_direct_sub_callnodes_of_body_node(body_node):
         return []
 
 
-def gen_callnode_fullfills_query_predicate_w_memo(query, node_summary_table):
+def gen_callnode_fullfills_query_predicate_w_memo(query, node_sammary_table):
     search_memo = {}
     def predicate(call_node):
         assert isinstance(call_node, ct.CallNode)
@@ -110,8 +101,8 @@ def gen_callnode_fullfills_query_predicate_w_memo(query, node_summary_table):
         r = search_memo.get(node_label)
         if r is not None:
             return r
-        summary = node_summary_table.get(node_label)
-        result = summary is not None and query.is_fullfilled_by(summary)
+        sammary = node_sammary_table.get(node_label)
+        result = sammary is not None and query.is_fullfilled_by(sammary)
         search_memo[node_label] = result
         return result
 
@@ -175,16 +166,16 @@ def treecut_with_callnode_depth(node, depth, has_deeper_nodes=[None]):
 
 def gen_treecut_fullfills_query_predicate(query):
     def predicate(treecut_with_callnode_depth):
-        summary = cs.get_node_summary_wo_memoization(treecut_with_callnode_depth)
-        return query.is_fullfilled_by(summary)
+        sammary = cs.get_node_sammary_wo_memoization(treecut_with_callnode_depth)
+        return query.is_fullfilled_by(sammary)
 
     return predicate
 
 
 def gen_treecut_partially_fills_query_predicate(query):
     def predicate(treecut_with_callnode_depth):
-        summary = cs.get_node_summary_wo_memoization(treecut_with_callnode_depth)
-        return query.is_partially_filled_by(summary)
+        sammary = cs.get_node_sammary_wo_memoization(treecut_with_callnode_depth)
+        return query.is_partially_filled_by(sammary)
 
     return predicate
 
