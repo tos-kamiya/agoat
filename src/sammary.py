@@ -22,9 +22,8 @@ class Sammary(object):
             self.invokeds == other.invokeds and \
             self.literals == other.literals)
 
-    ## debug
-    # def __repr__(self):
-    #     return 'Summary(%s,%s)' % (repr(self.invokeds), repr(self.literals))
+    def __repr__(self):
+        return 'Sammary(%s, %s)' % (repr(self.invokeds), repr(self.literals))
 
 class SammaryBuilder(object):
     def __init__(self):

@@ -7,19 +7,24 @@ import contextlib
 import sys
 import urllib2
 
+
 ASCII_SYMBOLS_EXCEPT_FOR_PERCENT = " \t!\"#$&`()*+,-./:;<=>?@[\\]^_'{|}~"
+
+
+def quote(byte_str):
+    return urllib2.quote(byte_str, safe=ASCII_SYMBOLS_EXCEPT_FOR_PERCENT)
 
 
 def readline_iter(filename):
     if filename != '-':
         with open(filename, "rb") as f:
             for L in f:
-                L = L.decode('utf-8').rstrip().encode('utf-8')
+                L = L.decode('utf-8').encode('utf-8').rstrip()
                 L = urllib2.quote(L, safe=ASCII_SYMBOLS_EXCEPT_FOR_PERCENT)
                 yield L
     else:
         for L in sys.stdin:
-            L = L.decode('utf-8').rstrip().encode('utf-8')
+            L = L.decode('utf-8').encode('utf-8').rstrip()
             L = urllib2.quote(L, safe=ASCII_SYMBOLS_EXCEPT_FOR_PERCENT)
             yield L
 

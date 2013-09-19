@@ -2,6 +2,8 @@
 
 import re
 
+from _utilities import quote
+
 import jimp_parser as jp
 import calltree as ct
 import calltree_builder as cb
@@ -24,10 +26,11 @@ class QueryPattern(object):
     @staticmethod
     def compile(query_word, ignore_case=False):
         if query_word.startswith('"'):
-            if query_word.endswith('"'): query_word = query_word[:-1]
             target = TARGET_LITERAL
+            if query_word.endswith('"'): query_word = query_word[:-1]
         else:
             target = TARGET_INVOKED
+            query_word = quote(query_word.decode('utf-8').encode('utf-8'))
         pat = re.compile(query_word, re.IGNORECASE) if ignore_case else \
             re.compile(query_word)
         return QueryPattern(target, query_word, pat)
