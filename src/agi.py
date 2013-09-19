@@ -10,6 +10,7 @@ import itertools
 from _utilities import open_w_default
 import progress_bar
 
+import _config as _c
 import jimp_parser as jp
 import jimp_code_term_extractor as jcte
 import calltree_builder as cb
@@ -19,15 +20,6 @@ from _calltree_data_formatter import format_clz_msig, format_msig
 from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SAMMARY, DATATAG_LINENUMBER_TABLE
 from _calltree_data_formatter import pretty_print_pickle_data
 import sammary
-
-
-if sys.platform == "win32":
-    import msvcrt
-    msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
-    msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
-
-
-VERSION = "0.5.0"
 
 
 def pretty_print_pickle_data_file(data_file, out=sys.stdout):
@@ -128,12 +120,8 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
 
 
 def main(argv):
-    default_calltree_path = 'agoat.calltree'
-    default_linenumbertable_path = 'agoat.linenumbertable'
-    default_javap_dir_path = 'javapOutput'
-
     psr = argparse.ArgumentParser(description='agoat CLI indexer')
-    psr.add_argument('--version', action='version', version='%(prog)s ' + VERSION)
+    psr.add_argument('--version', action='version', version='%(prog)s ' + _c.VERSION)
     subpsrs = psr.add_subparsers(dest='command', help='commands')
 
     psr_ep = subpsrs.add_parser('le', help='listing entry point classes')
@@ -152,10 +140,10 @@ def main(argv):
 
     psr_sl = subpsrs.add_parser('gl', help='generate line number table')
     psr_sl.add_argument('-s', '--soot-dir', action='store', help='soot directory', default='sootOutput')
-    psr_sl.add_argument('-j', '--javap-dir', action='store', default=default_javap_dir_path)
+    psr_sl.add_argument('-j', '--javap-dir', action='store', default=_c.default_javap_dir_path)
     psr_sl.add_argument('-o', '--output', action='store', 
-            help="output file. (default '%s')" % default_linenumbertable_path, 
-            default=default_linenumbertable_path)
+            help="output file. (default '%s')" % _c.default_linenumbertable_path, 
+            default=_c.default_linenumbertable_path)
 
     psr_ct = subpsrs.add_parser('gc', help='generate call tree and node sammary table')
     psr_ct.add_argument('-e', '--entry-point', action='store', nargs='*', dest='entrypointclasses',
@@ -164,8 +152,8 @@ def main(argv):
     psr_ct.add_argument('-I', '--ignore-method-invocation-via-interface', action='store_true',
             default=False)
     psr_ct.add_argument('-o', '--output', action='store', 
-            help="output file. (default '%s')" % default_calltree_path, 
-            default=default_calltree_path)
+            help="output file. (default '%s')" % _c.default_calltree_path, 
+            default=_c.default_calltree_path)
     psr_ct.add_argument("--progress", action='store_true',
             help="show progress to standard output",
             default=False)

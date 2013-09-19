@@ -8,21 +8,13 @@ import pickle
 
 from _utilities import open_w_default, sort_uniq
 
+import _config as _c
 import andor_tree as at
 import calltree as ct
 import calltree_builder as cb
 import calltree_query as cq
 from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SAMMARY, DATATAG_LINENUMBER_TABLE
 from _calltree_data_formatter import format_call_tree_node_compact, init_ansi_color
-
-
-if sys.platform == "win32":
-    import msvcrt
-    msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
-    msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
-
-
-VERSION = "0.5.0"
 
 
 def gen_expander_of_call_tree_to_paths(query):
@@ -198,24 +190,22 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
 
 
 def main(argv):
-    default_calltree_path = 'agoat.calltree'
-    default_linenumbertable_path = 'agoat.linenumbertable'
-    defalut_max_depth_of_subtree = 5
-
     psr_q = argparse.ArgumentParser(description='agoat CLI query search')
+    psr_q.add_argument('--version', action='version', version='%(prog)s ' + _c.VERSION)
+
     psr_q.add_argument('queryword', action='store', nargs='+', 
             help="""query words. put double quote(") before a word to search the word in string literals.""")
     psr_q.add_argument('-i', '--ignore-case-query-word', action='append')
     psr_q.add_argument('-c', '--call-tree', action='store', 
-            help="call-tree file. '-' for standard input. (default '%s')" % default_calltree_path,
-            default=default_calltree_path)
+            help="call-tree file. '-' for standard input. (default '%s')" % _c.default_calltree_path,
+            default=_c.default_calltree_path)
     psr_q.add_argument('-o', '--output', action='store', default='-')
     psr_q.add_argument('-l', '--line-number-table', action='store', 
-            help="line-number table file. '-' for standard input. (default '%s')" % default_linenumbertable_path,
+            help="line-number table file. '-' for standard input. (default '%s')" % _c.default_linenumbertable_path,
             default=None)
     psr_q.add_argument('-D', '--max-depth', action='store', type=int, 
-            help="max depth of subtree. -1 for unlimited depth. (default '%d')" % defalut_max_depth_of_subtree,
-            default=defalut_max_depth_of_subtree)
+            help="max depth of subtree. -1 for unlimited depth. (default '%d')" % _c.defalut_max_depth_of_subtree,
+            default=_c.defalut_max_depth_of_subtree)
     psr_q.add_argument('-N', '--node', action='store_true',
             help="show and-or-call tree node w/o expanding it to paths")
     color_choices=('always', 'never', 'auto')
@@ -232,8 +222,8 @@ def main(argv):
     if args.line_number_table is not None:
         line_number_table = args.line_number_table
     else:
-        if os.path.exists(default_linenumbertable_path):
-            line_number_table = default_linenumbertable_path
+        if os.path.exists(_c.default_linenumbertable_path):
+            line_number_table = _c.default_linenumbertable_path
     ansi_color = sys.stdout.isatty() if args.color == 'auto' else args.color == 'always'
     if ansi_color:
         init_ansi_color()
