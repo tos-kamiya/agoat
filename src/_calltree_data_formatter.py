@@ -153,8 +153,8 @@ def gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi
     return fmt_type, fmt_msig, fmt_lits
 
 
-def format_call_tree_node_compact(node, out, contribution_data, indent_width=2, clz_msig2conversion=None, 
-        fully_qualified_package_name=False, ansi_color=False):
+def format_call_tree_node_compact(node, out, contribution_data, print_node_once_appeared=True,
+        indent_width=2, clz_msig2conversion=None, fully_qualified_package_name=False, ansi_color=False):
     node_id_to_cont, contribution_items = contribution_data[0], contribution_data[1:]
 
     fmt_clz, fmt_msig, fmt_lits = gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi_color)
@@ -185,7 +185,7 @@ def format_call_tree_node_compact(node, out, contribution_data, indent_width=2, 
         if loc_info_str is None:
             loc_info_str = format_loc_info(invoked[4])
         node_label = label_w_lit(invoked, node.recursive_cxt)
-        if node_label not in printed_node_label_w_lits:
+        if print_node_once_appeared or node_label not in printed_node_label_w_lits:
             buf = [(0, '%s %s {' % (fmt_clz(clz), fmt_msig(msig)), loc_info_str)]
             s = fmt_lits(invoked[3])
             if s:
@@ -209,7 +209,7 @@ def format_call_tree_node_compact(node, out, contribution_data, indent_width=2, 
         if loc_info_str is None:
             loc_info_str = format_loc_info(node[4])
         node_label = label_w_lit(node, None)  # context unknown, use non-context as default
-        if node_label not in printed_node_label_w_lits:
+        if print_node_once_appeared or node_label not in printed_node_label_w_lits:
             printed_node_label_w_lits.add(node_label)
             buf = [(0, '%s %s' % (fmt_clz(node[1]), fmt_msig(node[2])), loc_info_str)]
             s = fmt_lits(node[3])

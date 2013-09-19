@@ -19,7 +19,6 @@ from _calltree_data_formatter import format_call_tree_node_compact, init_ansi_co
 
 def gen_expander_of_call_tree_to_paths(query):
     treecut_fullfills_query = cq.gen_treecut_fullfills_query_predicate(query)
-    treecut_partially_fills_query = cq.gen_treecut_partially_fills_query_predicate(query)
 
     def expand_call_tree_to_paths(node):
         def expand_i(node):
@@ -31,12 +30,10 @@ def gen_expander_of_call_tree_to_paths(query):
                     for subn in node[1:]:
                         ps = expand_i(subn)
                         if ps is not None:
-                            for p in ps:
-                                pnode = [ct.ORDERED_AND] + p
-                                if p and treecut_partially_fills_query(pnode):
-                                    paths.append(p)
+                            paths.extend(ps)
                     if not paths:
                         return None
+                    paths = sort_uniq(paths)
                     return paths
                 elif n0 == ct.ORDERED_AND:
                     if len(node) == 1:
@@ -45,7 +42,6 @@ def gen_expander_of_call_tree_to_paths(query):
                     for subn in node[1:]:
                         paths = expand_i(subn)
                         if paths is not None:
-                            assert isinstance(paths, list)
                             pathssubs.append(paths)
                     if not pathssubs:
                         return None
@@ -72,10 +68,17 @@ def gen_expander_of_call_tree_to_paths(query):
                         return [[ct.CallNode(node.invoked, node.recursive_cxt, None)]]
                 else:
                     return [[node]]
+            elif isinstance(node, tuple):
+                clz, msig = node[1], node[2]
+                literals = node[3]
+                if query.has_matching_pattern_in(clz, msig, literals):
+                    return [[node]]
+                return None
             else:
-                return [[node]]
+                assert False
 
         paths = expand_i(node)
+        paths = sort_uniq(paths)
         paths = [at.normalize_tree([ct.ORDERED_AND] + path) for path in paths]
         paths = [path for path in paths if treecut_fullfills_query(path)]
         return paths
@@ -163,8 +166,13 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
                 contribution_data = cq.extract_node_contribution(node, query)
                 assert contribution_data[0][id(node)]
                 out.write("---\n")
-                format_call_tree_node_compact(node, out, contribution_data, clz_msig2conversion=clz_msig2conversion,
-                        fully_qualified_package_name=fully_qualified_package_name, ansi_color=ansi_color)
+                format_call_tree_node_compact(node, out, contribution_data, 
+                        print_node_once_appeared=False,
+                        # because duplicated nodes (nodes which equals to each other after removing non-contributing nodes) exist
+                        # in result, so need to suppress such duplication
+                        clz_msig2conversion=clz_msig2conversion, 
+                        fully_qualified_package_name=fully_qualified_package_name, 
+                        ansi_color=ansi_color)
         return
 
     log and log("> printing results\n")
@@ -185,8 +193,11 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
         for pn in path_nodes:
             contribution_data = cq.extract_node_contribution(pn, query)
             out.write("---\n")
-            format_call_tree_node_compact(pn, out, contribution_data, clz_msig2conversion=clz_msig2conversion,
-                    fully_qualified_package_name=fully_qualified_package_name, ansi_color=ansi_color)
+            format_call_tree_node_compact(pn, out, contribution_data, 
+                    print_node_once_appeared=True,
+                    clz_msig2conversion=clz_msig2conversion,
+                    fully_qualified_package_name=fully_qualified_package_name, 
+                    ansi_color=ansi_color)
 
 
 def main(argv):
