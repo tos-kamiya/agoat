@@ -12,6 +12,19 @@ class Sammary(object):
         return Sammary(self.invokeds + other.invokeds,
                 self.literals + other.literals)
 
+    def __eq__(self, other):
+        return isinstance(other, Sammary) and \
+            self.invokeds == other.invokeds and \
+            self.literals == other.literals
+
+    def __ne__(self, other):
+        return not (isinstance(other, Sammary) and \
+            self.invokeds == other.invokeds and \
+            self.literals == other.literals)
+
+    ## debug
+    # def __repr__(self):
+    #     return 'Summary(%s,%s)' % (repr(self.invokeds), repr(self.literals))
 
 class SammaryBuilder(object):
     def __init__(self):
