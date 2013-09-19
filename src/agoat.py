@@ -232,7 +232,7 @@ def search_in_call_trees(query, call_trees, node_summary_table, max_depth,
     return call_node_wo_rcs
 
 
-def do_search(call_tree_file, query_words, output_file, line_number_table=None, ignore_case=False,  
+def do_search(call_tree_file, query_words, ignore_case_query_words, output_file, line_number_table=None, 
         max_depth=-1, expand_to_path=True, fully_qualified_package_name=False, ansi_color=False,
         show_progress=False):
     log = sys.stderr.write if show_progress else None
@@ -255,7 +255,9 @@ def do_search(call_tree_file, query_words, output_file, line_number_table=None, 
 
     log and log("> searching query in index\n")
     cq.check_query_word_list(query_words)
-    query_patterns = [cq.QueryPattern.compile(w, ignore_case=ignore_case) for w in query_words]
+    query_patterns = []
+    query_patterns.extend(cq.QueryPattern.compile(w) for w in query_words)
+    query_patterns.extend(cq.QueryPattern.compile(w, ignore_case=True) for w in ignore_case_query_words)
     query = cq.Query(query_patterns)
 
     removed_nodes_becauseof_limitation_of_depth = [None]
@@ -345,6 +347,7 @@ def main(argv):
     psr_q = subpsrs.add_parser('q', help='search query words in call tree')
     psr_q.add_argument('queryword', action='store', nargs='+', 
             help="""query words. put double quote(") before a word to search the word in string literals.""")
+    psr_q.add_argument('-i', '--ignore-case-query-word', action='append')
     psr_q.add_argument('-c', '--call-tree', action='store', 
             help="call-tree file. '-' for standard input. (default '%s')" % default_calltree_path,
             default=default_calltree_path)
@@ -355,7 +358,6 @@ def main(argv):
     psr_q.add_argument('-D', '--max-depth', action='store', type=int, 
             help="max depth of subtree. -1 for unlimited depth. (default '%d')" % defalut_max_depth_of_subtree,
             default=defalut_max_depth_of_subtree)
-    psr_q.add_argument('-I', '--ignore-case', action='store_true')
     psr_q.add_argument('-N', '--node', action='store_true',
             help="show and-or-call tree node w/o expanding it to paths")
     color_choices=('always', 'never', 'auto')
@@ -393,8 +395,8 @@ def main(argv):
         ansi_color = sys.stdout.isatty() if args.color == 'auto' else args.color == 'always'
         if ansi_color:
             init_ansi_color()
-        do_search(args.call_tree, args.queryword, args.output,  line_number_table, 
-                ignore_case=args.ignore_case, max_depth=args.max_depth, expand_to_path=not args.node, 
+        do_search(args.call_tree, args.queryword, args.ignore_case_query_word, args.output,  line_number_table, 
+                max_depth=args.max_depth, expand_to_path=not args.node, 
                 fully_qualified_package_name=args.fully_qualified_package_name, ansi_color=ansi_color,
                 show_progress=args.progress)
     elif args.command == 'debug':
