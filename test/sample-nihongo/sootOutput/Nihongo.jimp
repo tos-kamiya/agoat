@@ -1,0 +1,36 @@
+public class Nihongo extends java.lang.Object
+{
+
+    public void <init>()
+    {
+        Nihongo r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        return;
+    }
+
+    public static void main(java.lang.String[])
+    {
+        java.lang.String[] r0;
+        Nihongo $r1, r2;
+
+        r0 := @parameter0;
+        $r1 = new Nihongo;
+        specialinvoke $r1.<init>();
+        r2 = $r1;
+        r2.挨拶();
+        return;
+    }
+
+    public void 挨拶()
+    {
+        Nihongo r0;
+        java.io.PrintStream $r1;
+
+        r0 := @this;
+        $r1 = java.lang.System.out;
+        $r1.println("\u3053\u3093\u306b\u3061\u306f\uff01");
+        return;
+    }
+}

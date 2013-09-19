@@ -1,0 +1,34 @@
+Compiled from "Nihongo.java"
+public class Nihongo {
+  public Nihongo();
+    Code:
+       0: aload_0       
+       1: invokespecial #1                  // Method java/lang/Object."<init>":()V
+       4: return        
+    LineNumberTable:
+      line 1: 0
+
+  public static void main(java.lang.String[]);
+    Code:
+       0: new           #2                  // class Nihongo
+       3: dup           
+       4: invokespecial #3                  // Method "<init>":()V
+       7: astore_1      
+       8: aload_1       
+       9: invokevirtual #4                  // Method 挨拶:()V
+      12: return        
+    LineNumberTable:
+      line 3: 0
+      line 4: 8
+      line 5: 12
+
+  public void 挨拶();
+    Code:
+       0: getstatic     #5                  // Field java/lang/System.out:Ljava/io/PrintStream;
+       3: ldc           #6                  // String こんにちは！
+       5: invokevirtual #7                  // Method java/io/PrintStream.println:(Ljava/lang/String;)V
+       8: return        
+    LineNumberTable:
+      line 7: 0
+      line 8: 8
+}
