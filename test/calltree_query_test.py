@@ -71,10 +71,9 @@ def A_PREDICATE(call_node):
     return call_node.invoked[1] in ('A', 'B', 'C', 'F')
 
 
-class CalltreeQueryTest(unittest.TestCase):
-
-    def test_missing_query_patterns_of_methods(self):
-        qp = [cq.QueryPattern(cq.TARGET_INVOKED, "w", re.compile("w")), cq.QueryPattern(cq.TARGET_INVOKED, "x", re.compile("x"))]
+class QueryTest(unittest.TestCase):
+    def test_unmatched_patterns_to_methods(self):
+        qp = [cq.QueryPattern(cq.TARGET_METHOD, "w", re.compile("w")), cq.QueryPattern(cq.TARGET_METHOD, "x", re.compile("x"))]
         query = cq.Query(qp)
         sam = sammary.Sammary()
         missings = query.unmatched_patterns(sam)
@@ -88,17 +87,17 @@ class CalltreeQueryTest(unittest.TestCase):
         self.assertEqual(missings[0].word, "w")
         self.assertEqual(missings[1].word, "x")
 
-        sam = sammary.Sammary(["A\tw"])
+        sam = sammary.Sammary(["A\tvoid\tw"])
         missings = query.unmatched_patterns(sam)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "x")
 
-        sam = sammary.Sammary(["B\tx"])
+        sam = sammary.Sammary(["B\tint\tx"])
         missings = query.unmatched_patterns(sam)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "w")
 
-        sam = sammary.Sammary(["A\tw", "B\tx"])
+        sam = sammary.Sammary(["A\tvoid\tw", "B\tint\tx"])
         missings = query.unmatched_patterns(sam)
         self.assertEqual(len(missings), 0)
 
@@ -106,7 +105,7 @@ class CalltreeQueryTest(unittest.TestCase):
         missings = query.unmatched_patterns(sam)
         self.assertEqual(len(missings), 2)
 
-    def test_missing_query_patterns_of_literals(self):
+    def test_unmatched_patterns_to_literals(self):
         qp = [cq.QueryPattern(cq.TARGET_LITERAL, "w", re.compile("w")), cq.QueryPattern(cq.TARGET_LITERAL, "x", re.compile("x"))]
         query = cq.Query(qp)
         sam = sammary.Sammary()
@@ -209,3 +208,18 @@ class CalltreeQueryTest(unittest.TestCase):
         tc3 = cq.treecut_with_callnode_depth(A_CALL_TREE, 3, has_deeper_nodes)
         self.assertEqual(tc3, A_CALL_TREE_W_DEPTH)
         self.assertFalse(has_deeper_nodes[0])
+
+
+class QueryPatternTest(unittest.TestCase):
+    def test_compile(self):
+        pat = cq.QueryPattern.compile("w")
+        self.assertEqual(pat.target, cq.TARGET_METHOD)
+
+        pat = cq.QueryPattern.compile("m.w")
+        self.assertEqual(pat.target, cq.TARGET_METHOD)
+
+        pat = cq.QueryPattern.compile("t.w")
+        self.assertEqual(pat.target, cq.TARGET_TYPE)
+
+        pat = cq.QueryPattern.compile('"w')
+        self.assertEqual(pat.target, cq.TARGET_LITERAL)
