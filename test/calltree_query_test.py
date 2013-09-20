@@ -20,6 +20,9 @@ def new_invoked(clz, msig):
 def new_callnode(clz, msig, body):
     return ct.CallNode((jp.SPECIALINVOKE, clz, msig, (), None), None, body)
 
+def new_callnode_w_rc(clz, msig, rc, body):
+    return ct.CallNode((jp.SPECIALINVOKE, clz, msig, (), None), rc, body)
+
 A_CALL_TREE = new_callnode("A", "a", 
     [ct.ORDERED_AND,
         new_invoked("B", "b"),
@@ -33,6 +36,28 @@ A_CALL_TREE = new_callnode("A", "a",
             [ct.ORDERED_AND,
                 new_invoked("G", "g"),
                 new_callnode("H", "h",
+                    [ct.ORDERED_AND,
+                    ]
+                )
+            ]
+        )
+    ]
+)
+
+
+A_CALL_TREE_W_DEPTH = new_callnode_w_rc("A", "a", 3,
+    [ct.ORDERED_AND,
+        new_invoked("B", "b"),
+        new_callnode_w_rc("C", "c", 2,
+            [ct.ORDERED_OR,
+                new_invoked("D", "d"),
+                new_invoked("E", "e"),
+            ]
+        ),
+        new_callnode_w_rc("F", "f", 2,
+            [ct.ORDERED_AND,
+                new_invoked("G", "g"),
+                new_callnode_w_rc("H", "h", 1,
                     [ct.ORDERED_AND,
                     ]
                 )
@@ -148,7 +173,7 @@ class CalltreeQueryTest(unittest.TestCase):
 
         has_deeper_nodes = [False]
         tc1 = cq.treecut_with_callnode_depth(A_CALL_TREE, 1, has_deeper_nodes)
-        expected = new_callnode("A", "a", 
+        expected = new_callnode_w_rc("A", "a", 1,
             [ct.ORDERED_AND,
                 new_invoked("B", "b"),
                 new_invoked("C", "c"),
@@ -160,16 +185,16 @@ class CalltreeQueryTest(unittest.TestCase):
 
         has_deeper_nodes = [False]
         tc2 = cq.treecut_with_callnode_depth(A_CALL_TREE, 2, has_deeper_nodes)
-        expected = new_callnode("A", "a", 
+        expected = new_callnode_w_rc("A", "a", 2,
             [ct.ORDERED_AND,
                 new_invoked("B", "b"),
-                new_callnode("C", "c",
+                new_callnode_w_rc("C", "c", 1,
                     [ct.ORDERED_OR,
                         new_invoked("D", "d"),
                         new_invoked("E", "e"),
                     ]
                 ),
-                new_callnode("F", "f",
+                new_callnode_w_rc("F", "f", 1,
                     [ct.ORDERED_AND,
                         new_invoked("G", "g"),
                         new_invoked("H", "h")
@@ -182,5 +207,5 @@ class CalltreeQueryTest(unittest.TestCase):
 
         has_deeper_nodes = [False]
         tc3 = cq.treecut_with_callnode_depth(A_CALL_TREE, 3, has_deeper_nodes)
-        self.assertEqual(tc3, A_CALL_TREE)
+        self.assertEqual(tc3, A_CALL_TREE_W_DEPTH)
         self.assertFalse(has_deeper_nodes[0])
