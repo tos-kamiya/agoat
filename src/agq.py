@@ -168,7 +168,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
             removed_nodes_becauseof_limitation_of_depth=removed_nodes_becauseof_limitation_of_depth)
     if not nodes:
         if removed_nodes_becauseof_limitation_of_depth[0] > 0:
-            sys.stderr.write("> warning: all found code exceeds max call-tree depth. give option -D explicitly to show these code.\n")
+            sys.stderr.write("> warning: all found code exceeds max call-tree depth. give option -d explicitly to show these code.\n")
         return
 
     if output_form == 'treecut':
