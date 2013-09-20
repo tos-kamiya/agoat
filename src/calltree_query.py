@@ -7,7 +7,7 @@ from _utilities import quote, sort_uniq
 import jimp_parser as jp
 import calltree as ct
 import calltree_builder as cb
-import calltree_sammarizer as cs
+import calltree_summarizer as cs
 
 
 TARGET_TYPE = 'target_type'
@@ -51,14 +51,14 @@ class QueryPattern(object):
             return QueryPattern._compile_i(TARGET_METHOD, query_word, ignore_case)
 
 
-def types_in_sammary_invoked(sammary_invoked):
-    fields = sammary_invoked.split('\t')  # clz, retv, method, param, ...
+def types_in_summary_invoked(summury_invoked):
+    fields = summury_invoked.split('\t')  # clz, retv, method, param, ...
     del fields[2]
     return sort_uniq(fields)
 
 
-def method_in_sammary_invoked(sammary_invoked):
-    return sammary_invoked.split('\t')[2]
+def method_in_summary_invoked(summary_invoked):
+    return summary_invoked.split('\t')[2]
 
 
 def types_in_msig(msig):
@@ -104,52 +104,52 @@ class Query(object):
     def count(self):
         return self._count_patterns
 
-    def is_fullfilled_by(self, sammary):
+    def is_fullfilled_by(self, sumry):
         remaining_type_regexs = self._type_regexs[:]
         if remaining_type_regexs:
-            for saminv in sammary.invokeds:
-                types = types_in_sammary_invoked(saminv)
+            for suminv in sumry.invokeds:
+                types = types_in_summary_invoked(suminv)
                 remaining_type_regexs = [r for r in remaining_type_regexs \
                         if not any(r.search(typ) for typ in types)]
                 if not remaining_type_regexs:
-                    break  # for saminv
+                    break  # for suminv
             else:
                 return False
         reamining_method_regexs = self._method_regexs[:]
         if reamining_method_regexs:
-            for saminv in sammary.invokeds:
-                method = method_in_sammary_invoked(saminv)
+            for suminv in sumry.invokeds:
+                method = method_in_summary_invoked(suminv)
                 reamining_method_regexs = [r for r in reamining_method_regexs \
                         if not r.search(method)]
                 if not reamining_method_regexs:
-                    break  # for saminv
+                    break  # for suminv
             else:
                 return False
         if self._literal_regexs:
             for p in self._literal_regexs:
-                for w in sammary.literals:
+                for w in sumry.literals:
                     if p.search(w):
                         break  # for w
                 else:
                     return False
         return True
 
-    def is_partially_filled_by(self, sammary):
+    def is_partially_filled_by(self, sumry):
         if self._count_patterns == 0:
             return True
-        for saminv in sammary.invokeds:
-            types = types_in_sammary_invoked(saminv)
+        for suminv in sumry.invokeds:
+            types = types_in_summary_invoked(suminv)
             for typ in types:
                 for r in self._type_regexs:
                     if r.search(typ):
                         return True
-        for saminv in sammary.invokeds:
-            method = method_in_sammary_invoked(saminv)
+        for suminv in sumry.invokeds:
+            method = method_in_summary_invoked(suminv)
             for r in self._method_regexs:
                 if r.search(method):
                     return True
         for p in self._literal_regexs:
-            for w in sammary.literals:
+            for w in sumry.literals:
                 if p.search(w):
                     return True
         return False
@@ -171,34 +171,34 @@ class Query(object):
                     return True
         return False
 
-    def unmatched_patterns(self, sammary):
+    def unmatched_patterns(self, sumry):
         remaining_types = zip(self._type_patterns, self._type_regexs)
-        for saminv in sammary.invokeds:
-            types = types_in_sammary_invoked(saminv)
+        for suminv in sumry.invokeds:
+            types = types_in_summary_invoked(suminv)
             remaining_types = [pr for pr in remaining_types \
                     if not any(pr[1].search(typ) for typ in types)]
             if not remaining_types:
-                break  # for saminv
+                break  # for suminv
         remaining_methods = zip(self._method_patterns, self._method_regexs)
-        for saminv in sammary.invokeds:
-            method = method_in_sammary_invoked(saminv)
+        for suminv in sumry.invokeds:
+            method = method_in_summary_invoked(suminv)
             remaining_methods = [pr for pr in remaining_methods \
                     if not pr[1].search(method)]
             if not remaining_methods:
-                break  # for saminv
+                break  # for suminv
         remaining_literals = zip(self._literal_patterns, self._literal_regexs)
-        for w in sammary.literals:
+        for w in sumry.literals:
             remaining_literals = [pr for pr in remaining_literals \
                     if not pr[1].search(w)]
             if not remaining_literals:
                 break  # for w
         return [pr[0] for pr in remaining_types + remaining_methods + remaining_literals]
 
-    def matched_patterns(self, sammary):
+    def matched_patterns(self, sumry):
         remaining_types = zip(self._type_patterns, self._type_regexs)
         matched_type_patterns = []
-        for saminv in sammary.invokeds:
-            types = types_in_sammary_invoked(saminv)
+        for suminv in sumry.invokeds:
+            types = types_in_summary_invoked(suminv)
             rems = []
             for pr in remaining_types:
                 if any(pr[1].search(typ) for typ in types):
@@ -207,12 +207,12 @@ class Query(object):
             else:
                 rems.append(pr)
             if not rems:
-                break  # for saminv
+                break  # for suminv
             remaining_types = rems
         remaining_methods = zip(self._method_patterns, self._method_regexs)
         matched_method_patterns = []
-        for saminv in sammary.invokeds:
-            method = method_in_sammary_invoked(saminv)
+        for suminv in sumry.invokeds:
+            method = method_in_summary_invoked(suminv)
             rems = []
             for pr in remaining_methods:
                 if pr[1].search(method):
@@ -221,11 +221,11 @@ class Query(object):
             else:
                 rems.append(pr)
             if not rems:
-                break  # for saminv
+                break  # for suminv
             remaining_methods = rems
         remaining_literals = zip(self._literal_patterns, self._literal_regexs)
         matched_literal_patterns = []
-        for w in sammary.literals:
+        for w in sumry.literals:
             rems = []
             for pr in remaining_literals:
                 if pr[1].search(w):
@@ -287,7 +287,7 @@ def get_direct_sub_callnodes_of_body_node(body_node):
         return []
 
 
-def gen_callnode_fullfills_query_predicate_w_memo(query, node_sammary_table):
+def gen_callnode_fullfills_query_predicate_w_memo(query, node_summary_table):
     search_memo = {}
     def predicate(call_node):
         assert isinstance(call_node, ct.CallNode)
@@ -295,8 +295,8 @@ def gen_callnode_fullfills_query_predicate_w_memo(query, node_sammary_table):
         r = search_memo.get(node_label)
         if r is not None:
             return r
-        sammary = node_sammary_table.get(node_label)
-        result = sammary is not None and query.is_fullfilled_by(sammary)
+        sumry = node_summary_table.get(node_label)
+        result = sumry is not None and query.is_fullfilled_by(sumry)
         search_memo[node_label] = result
         return result
 
@@ -365,8 +365,8 @@ def treecut_with_callnode_depth(node, depth, has_deeper_nodes=[None]):
 
 def gen_treecut_fullfills_query_predicate(query):
     def predicate(treecut_with_callnode_depth):
-        sam = cs.get_node_sammary(treecut_with_callnode_depth, {})
-        return query.is_fullfilled_by(sam)
+        sumry = cs.get_node_summary(treecut_with_callnode_depth, {})
+        return query.is_fullfilled_by(sumry)
 
     return predicate
 

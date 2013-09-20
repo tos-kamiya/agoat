@@ -10,7 +10,7 @@ except:
 
 from _utilities import sort_uniq
 
-import sammary
+import summary
 import calltree as ct
 import calltree_builder as cb
 import jimp_parser as jp
@@ -48,15 +48,15 @@ def extract_callnode_invokeds_in_calltrees(call_trees):
     return sort_uniq(invoked_set)
 
 
-def get_node_sammary(node, sammary_table, progress=None):
+def get_node_summary(node, summary_table, progress=None):
     """
-    Get sammary of a node.
-    In case of sammary_table parameter given, caluclate sammary with memorization.
+    Get summary of a node.
+    In case of summary_table parameter given, caluclate summary with memorization.
     Otherwise (without memorization), if two child nodes of a node is the same node,
-    then calculate the sammary twice (for each child node).
+    then calculate the summary twice (for each child node).
     """
 
-    # sammary_table = {}  # (clz, MethodSig, recursive_context) -> Sammary
+    # summary_table = {}  # (clz, MethodSig, recursive_context) -> Summary
 
     def scan_invocation(node):
         assert isinstance(node, tuple)
@@ -74,40 +74,40 @@ def get_node_sammary(node, sammary_table, progress=None):
     stack = []
     def dig_node(node):
         if node is None:
-            return sammary.Sammary()
+            return summary.Summary()
         elif isinstance(node, list):
             n0 = node[0]
             assert n0 in (ct.ORDERED_AND, ct.ORDERED_OR)
             len_node = len(node)
             if len_node == 1:
-                return sammary.Sammary()
+                return summary.Summary()
             elif len_node == 2:
                 return dig_node(node[1])
             else:
-                sb = sammary.SammaryBuilder()
+                sb = summary.SummaryBuilder()
                 for subn in node[1:]:
-                    sb.append_sammary(dig_node(subn))
-                sam = sb.to_sammary()
-                return sam
+                    sb.append_summary(dig_node(subn))
+                sumry = sb.to_summary()
+                return sumry
         elif isinstance(node, ct.CallNode):
             invoked = node.invoked
             assert invoked[0] in (jp.INVOKE, jp.SPECIALINVOKE)
             clz, msig = invoked[1], invoked[2]
             k = (clz, msig, node.recursive_cxt)
             stack.append(k)
-            if sammary_table is not None and k in sammary_table:
-                nodesam = sammary_table[k]
+            if summary_table is not None and k in summary_table:
+                nodesum = summary_table[k]
             else:
                 progress and progress(k)
-                sb = sammary.SammaryBuilder()
+                sb = summary.SummaryBuilder()
                 subnode_literals = []
                 subnode = node.body
                 if subnode is None:
                     pass
                 elif isinstance(subnode, (list, ct.CallNode)):
-                    subnsam = dig_node(subnode)
-                    sb.append_sammary(subnsam)
-                    subnode_literals.append(subnsam.literals)
+                    subnsum = dig_node(subnode)
+                    sb.append_summary(subnsum)
+                    subnode_literals.append(subnsum.literals)
                 else:
                     sb.append_invoked(scan_invocation(subnode))
                     lits = subnode[3]
@@ -115,42 +115,42 @@ def get_node_sammary(node, sammary_table, progress=None):
                         assert isinstance(lits, tuple)
                         sb.extend_literal(lits)
                         subnode_literals.append(lits)
-                nodesam = sb.to_sammary()
-                nodesam.literals = intern_literals(nodesam.literals, subnode_literals)
-                if sammary_table is not None:
-                    sammary_table[k] = nodesam
+                nodesum = sb.to_summary()
+                nodesum.literals = intern_literals(nodesum.literals, subnode_literals)
+                if summary_table is not None:
+                    summary_table[k] = nodesum
             lits = invoked[3]
-            parentsam = nodesam + sammary.Sammary(['%s\t%s' % (clz, msig)], lits if lits else [])
-            parentsam.literals = intern_literals(parentsam.literals, [nodesam.literals])
+            parnetsum = nodesum + summary.Summary(['%s\t%s' % (clz, msig)], lits if lits else [])
+            parnetsum.literals = intern_literals(parnetsum.literals, [nodesum.literals])
             stack.pop()
-            return parentsam
+            return parnetsum
         else:
-            return sammary.Sammary([scan_invocation(node)], node[3])
+            return summary.Summary([scan_invocation(node)], node[3])
 
     try:
-        sam = dig_node(node)
+        sumry = dig_node(node)
     except:
-        sys.stderr.write("> warning: exception raised in get_node_sammary:\n")
+        sys.stderr.write("> warning: exception raised in get_node_summary:\n")
         pp = pprint.PrettyPrinter(indent=4, stream=sys.stderr)
         pp.pprint([format_clz_msig(clz, msig) for clz, msig, recursive_cxt in stack])
         sys.stderr.write('\n')
         raise
 
     assert not stack
-    return sam
+    return sumry
 
 
-def get_node_sammary_wo_memoization(node):
-    # sammary_table = {}  # (clz, MethodSig, recursive_context) -> Sammary
-    sammary_table = get_node_sammary(node, sammary_table=None)
-    return sammary_table
+def get_node_summary_wo_memoization(node):
+    # summary_table = {}  # (clz, MethodSig, recursive_context) -> Summary
+    summary_table = get_node_summary(node, summary_table=None)
+    return summary_table
 
 
-def extract_node_sammary_table(nodes, progress=None):
-    sammary_table = {}  # (clz, MethodSig, recursive_context) -> Sammary
+def extract_node_summary_table(nodes, progress=None):
+    summary_table = {}  # (clz, MethodSig, recursive_context) -> Summary
     for node in nodes:
-        get_node_sammary(node, sammary_table, progress=progress)
-    return sammary_table
+        get_node_summary(node, summary_table, progress=progress)
+    return summary_table
 
 
 def extract_entry_points(call_trees):
@@ -182,9 +182,9 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
 #     pp = pprint.PrettyPrinter(indent=4, stream=out)
 #     pp.pprint(call_andor_tree)
 
-    node_sammary_table = extract_node_sammary_table([call_andor_tree])
+    node_summary_table = extract_node_summary_table([call_andor_tree])
     pp = pprint.PrettyPrinter(indent=4, stream=out)
-    pp.pprint(node_sammary_table)
+    pp.pprint(node_summary_table)
 
 
 if __name__ == '__main__':

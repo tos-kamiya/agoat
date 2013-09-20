@@ -7,10 +7,10 @@ import os.path
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
-import sammary
+import summary
 import jimp_parser as jp
 import calltree as ct
-import calltree_sammarizer as cs
+import calltree_summarizer as cs
 
 def new_invoked(clz, msig, literals):
     return (jp.SPECIALINVOKE, clz, msig, literals, None)
@@ -74,46 +74,46 @@ SHARING_CALL_TREE = new_callnode("A", "a", ('"a"',), None,
 )
 
 class CalltreeSummarlizerTest(unittest.TestCase):
-    def test_get_node_sammary_empty(self):
-        self.assertEqual(cs.get_node_sammary_wo_memoization(None), sammary.Sammary())
+    def test_get_node_summary_empty(self):
+        self.assertEqual(cs.get_node_summary_wo_memoization(None), summary.Summary())
 
-    def test_get_node_sammary_table(self):
-        sammary_table = cs.extract_node_sammary_table([A_CALL_TREE])
-        asum = sammary_table.get(("A", "a", None))
-        aexpected = sammary.Sammary(['B\tb', 'C\tc', 'D\td', 'E\te', 'F\tf', 'G\tg', 'H\th'],
+    def test_get_node_summary_table(self):
+        summary_table = cs.extract_node_summary_table([A_CALL_TREE])
+        asum = summary_table.get(("A", "a", None))
+        aexpected = summary.Summary(['B\tb', 'C\tc', 'D\td', 'E\te', 'F\tf', 'G\tg', 'H\th'],
                 ['"b"', '"c"', '"d"', '"e"', '"f"', '"g"', '"h"'])
         self.assertEqual(asum, aexpected)
-        self.assertNotIn(("B", "b", None), sammary_table)
-        csum = sammary_table.get(("C", "c", None))
-        cexpected = sammary.Sammary(['D\td', 'E\te'], ['"d"', '"e"'])
+        self.assertNotIn(("B", "b", None), summary_table)
+        csum = summary_table.get(("C", "c", None))
+        cexpected = summary.Summary(['D\td', 'E\te'], ['"d"', '"e"'])
         self.assertEqual(csum, cexpected)
-        hsum = sammary_table.get(("H", "h", None))
-        self.assertEqual(hsum, sammary.Sammary())
+        hsum = summary_table.get(("H", "h", None))
+        self.assertEqual(hsum, summary.Summary())
 
-    def test_get_node_sammary_table_recursive(self):
-        sammary_table = cs.extract_node_sammary_table([RECURSIVE_CALL_TREE])
-        rrsum = sammary_table.get(("R", "r", ("R", "r")))
-        self.assertEqual(rrsum, sammary.Sammary(['R\tr', 'S\ts'], ['"r"', '"s"']))
+    def test_get_node_summary_table_recursive(self):
+        summary_table = cs.extract_node_summary_table([RECURSIVE_CALL_TREE])
+        rrsum = summary_table.get(("R", "r", ("R", "r")))
+        self.assertEqual(rrsum, summary.Summary(['R\tr', 'S\ts'], ['"r"', '"s"']))
 
-        srsum = sammary_table.get(("S", "s", ("R", "r")))
-        self.assertEqual(srsum, sammary.Sammary(['R\tr'], ['"r"']))
+        srsum = summary_table.get(("S", "s", ("R", "r")))
+        self.assertEqual(srsum, summary.Summary(['R\tr'], ['"r"']))
 
-        rssum = sammary_table.get(("R", "r", ("S", "s")))
-        self.assertEqual(rssum, sammary.Sammary(['S\ts'], ['"s2"']))
+        rssum = summary_table.get(("R", "r", ("S", "s")))
+        self.assertEqual(rssum, summary.Summary(['S\ts'], ['"s2"']))
 
-        sssum = sammary_table.get(("S", "s", ("S", "s")))
-        self.assertEqual(sssum, sammary.Sammary(['R\tr', 'S\ts'], ['"r"', '"s2"']))
+        sssum = summary_table.get(("S", "s", ("S", "s")))
+        self.assertEqual(sssum, summary.Summary(['R\tr', 'S\ts'], ['"r"', '"s2"']))
 
-    def test_get_node_sammary_table_sharing(self):
-        sammary_table = cs.extract_node_sammary_table([SHARING_CALL_TREE])
+    def test_get_node_summary_table_sharing(self):
+        summary_table = cs.extract_node_summary_table([SHARING_CALL_TREE])
         expected = {
-            ('A', 'a', None): sammary.Sammary(['B\tb', 'C\tc', 'S\ts', 'T\tt'],
+            ('A', 'a', None): summary.Summary(['B\tb', 'C\tc', 'S\ts', 'T\tt'],
                     ['"b"', '"c"', '"s1"', '"s2"', '"t"']),
-            ('B', 'b', None): sammary.Sammary(['S\ts', 'T\tt'], ['"s1"', '"t"']), 
-            ('S', 's', None): sammary.Sammary(['T\tt'], ['"t"']), 
-            ('C', 'c', None): sammary.Sammary(['S\ts', 'T\tt'], ['"s2"', '"t"'])
+            ('B', 'b', None): summary.Summary(['S\ts', 'T\tt'], ['"s1"', '"t"']), 
+            ('S', 's', None): summary.Summary(['T\tt'], ['"t"']), 
+            ('C', 'c', None): summary.Summary(['S\ts', 'T\tt'], ['"s2"', '"t"'])
         }
-        self.assertEqual(sammary_table, expected)
+        self.assertEqual(summary_table, expected)
 
 
 if __name__ == "__main__":

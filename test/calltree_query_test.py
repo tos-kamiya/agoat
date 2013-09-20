@@ -12,7 +12,7 @@ sys.path.insert(
 import jimp_parser as jp
 import calltree as ct
 import calltree_query as cq
-import sammary
+import summary
 
 def new_invoked(clz, msig):
     return (jp.SPECIALINVOKE, clz, msig, (), None)
@@ -75,74 +75,74 @@ class QueryTest(unittest.TestCase):
     def test_unmatched_patterns_to_methods(self):
         qp = [cq.QueryPattern(cq.TARGET_METHOD, "w", re.compile("w")), cq.QueryPattern(cq.TARGET_METHOD, "x", re.compile("x"))]
         query = cq.Query(qp)
-        sam = sammary.Sammary()
-        missings = query.unmatched_patterns(sam)
+        sumry = summary.Summary()
+        missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 2)
         self.assertEqual(missings[0].word, "w")
         self.assertEqual(missings[1].word, "x")
 
-        sam = sammary.Sammary(["AClass\tvoid\tsomeMehtod"])
-        missings = query.unmatched_patterns(sam)
+        sumry = summary.Summary(["AClass\tvoid\tsomeMehtod"])
+        missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 2)
         self.assertEqual(missings[0].word, "w")
         self.assertEqual(missings[1].word, "x")
 
-        sam = sammary.Sammary(["A\tvoid\tw"])
-        missings = query.unmatched_patterns(sam)
+        sumry = summary.Summary(["A\tvoid\tw"])
+        missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "x")
 
-        sam = sammary.Sammary(["B\tint\tx"])
-        missings = query.unmatched_patterns(sam)
+        sumry = summary.Summary(["B\tint\tx"])
+        missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "w")
 
-        sam = sammary.Sammary(["A\tvoid\tw", "B\tint\tx"])
-        missings = query.unmatched_patterns(sam)
+        sumry = summary.Summary(["A\tvoid\tw", "B\tint\tx"])
+        missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 0)
 
-        sam = sammary.Sammary(literals=['"w x someliteral string"'])
-        missings = query.unmatched_patterns(sam)
+        sumry = summary.Summary(literals=['"w x someliteral string"'])
+        missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 2)
 
     def test_unmatched_patterns_to_literals(self):
         qp = [cq.QueryPattern(cq.TARGET_LITERAL, "w", re.compile("w")), cq.QueryPattern(cq.TARGET_LITERAL, "x", re.compile("x"))]
         query = cq.Query(qp)
-        sam = sammary.Sammary()
-        missings = query.unmatched_patterns(sam)
+        sumry = summary.Summary()
+        missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 2)
         self.assertEqual(missings[0].word, "w")
         self.assertEqual(missings[1].word, "x")
-        self.assertFalse(query.is_partially_filled_by(sam))
-        self.assertFalse(query.is_fullfilled_by(sam))
+        self.assertFalse(query.is_partially_filled_by(sumry))
+        self.assertFalse(query.is_fullfilled_by(sumry))
 
-        sam = sammary.Sammary(["AClass\tvoid\tsomeMehtod"])
-        missings = query.unmatched_patterns(sam)
+        sumry = summary.Summary(["AClass\tvoid\tsomeMehtod"])
+        missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 2)
         self.assertEqual(missings[0].word, "w")
         self.assertEqual(missings[1].word, "x")
-        self.assertFalse(query.is_partially_filled_by(sam))
-        self.assertFalse(query.is_fullfilled_by(sam))
+        self.assertFalse(query.is_partially_filled_by(sumry))
+        self.assertFalse(query.is_fullfilled_by(sumry))
 
-        sam = sammary.Sammary(literals=['"x"'])
-        missings = query.unmatched_patterns(sam)
+        sumry = summary.Summary(literals=['"x"'])
+        missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "w")
-        self.assertTrue(query.is_partially_filled_by(sam))
-        self.assertFalse(query.is_fullfilled_by(sam))
+        self.assertTrue(query.is_partially_filled_by(sumry))
+        self.assertFalse(query.is_fullfilled_by(sumry))
 
-        sam = sammary.Sammary(literals=['"w"'])
-        missings = query.unmatched_patterns(sam)
+        sumry = summary.Summary(literals=['"w"'])
+        missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "x")
-        self.assertTrue(query.is_partially_filled_by(sam))
-        self.assertFalse(query.is_fullfilled_by(sam))
+        self.assertTrue(query.is_partially_filled_by(sumry))
+        self.assertFalse(query.is_fullfilled_by(sumry))
 
-        sam = sammary.Sammary(literals=['"x"', '"w"'])
-        missings = query.unmatched_patterns(sam)
+        sumry = summary.Summary(literals=['"x"', '"w"'])
+        missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 0)
-        self.assertTrue(query.is_partially_filled_by(sam))
-        self.assertTrue(query.is_fullfilled_by(sam))
+        self.assertTrue(query.is_partially_filled_by(sumry))
+        self.assertTrue(query.is_fullfilled_by(sumry))
     
     def test_get_direct_sub_callnodes_of_body_node(self):
         subns = cq.get_direct_sub_callnodes_of_body_node(A_CALL_TREE.body)

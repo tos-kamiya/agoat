@@ -13,7 +13,7 @@ import andor_tree as at
 import calltree as ct
 import calltree_builder as cb
 import calltree_query as cq
-from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SAMMARY, DATATAG_LINENUMBER_TABLE
+from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
 from _calltree_data_formatter import format_call_tree_node_compact, init_ansi_color, format_clz_msig
 
 
@@ -109,9 +109,9 @@ def remove_outermost_loc_info(call_node):
     return ct.CallNode((invoked[0], invoked[1], invoked[2], invoked[3], None), call_node.recursive_cxt, call_node.body)
 
 
-def search_in_call_trees(query, call_trees, node_sammary_table, max_depth,
+def search_in_call_trees(query, call_trees, node_summary_table, max_depth,
         treecut=True, removed_nodes_becauseof_limitation_of_depth=[None]):
-    pred = cq.gen_callnode_fullfills_query_predicate_w_memo(query, node_sammary_table)
+    pred = cq.gen_callnode_fullfills_query_predicate_w_memo(query, node_summary_table)
     call_nodes = cq.get_lower_bound_call_nodes(call_trees, pred)
 
     pred = cq.gen_treecut_fullfills_query_predicate(query)
@@ -134,7 +134,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
         # data = pickle.load(inp)  # very very slow in pypy
         data = pickle.loads(inp.read())
     call_trees = data[DATATAG_CALL_TREES]
-    node_sammary_table = data[DATATAG_NODE_SAMMARY]
+    node_summary_table = data[DATATAG_NODE_SUMMARY]
     del data
 
     clz_msig2conversion = None
@@ -155,7 +155,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
     query = cq.Query(query_patterns)
 
     if output_form == 'callnode':
-        nodes = search_in_call_trees(query, call_trees, node_sammary_table, max_depth, treecut=False)
+        nodes = search_in_call_trees(query, call_trees, node_summary_table, max_depth, treecut=False)
         clz_msigs = [(n.invoked[1], n.invoked[2]) for n in nodes]
         clz_msigs.sort()
         with open_w_default(output_file, "wb", sys.stdout) as out:
@@ -164,7 +164,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
         return
 
     removed_nodes_becauseof_limitation_of_depth = [None]
-    nodes = search_in_call_trees(query, call_trees, node_sammary_table, max_depth, 
+    nodes = search_in_call_trees(query, call_trees, node_summary_table, max_depth, 
             removed_nodes_becauseof_limitation_of_depth=removed_nodes_becauseof_limitation_of_depth)
     if not nodes:
         if removed_nodes_becauseof_limitation_of_depth[0] > 0:

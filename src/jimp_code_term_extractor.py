@@ -2,18 +2,18 @@
 
 import sys
 
-import sammary
+import summary
 import jimp_parser as jp
 import _jimp_code_body_to_tree_elem as jcbte
 
 
 def extract_referred_literals(inss, method_data, class_data):
     if inss is None:
-        return sammary.Sammary()
+        return summary.Summary()
 
     resolve_type = jcbte.gen_type_resolver(method_data, class_data)
 
-    sb = sammary.SammaryBuilder()
+    sb = summary.SummaryBuilder()
     for ins in inss:
         cmd = ins[0]
         if cmd in (jp.SPECIALINVOKE, jp.INVOKE):
@@ -25,24 +25,24 @@ def extract_referred_literals(inss, method_data, class_data):
             retvlit = resolve_type(retv)[1]
             sb.append_literal(retvlit)
 
-    return sb.to_sammary()
+    return sb.to_summary()
 
 
 def extract_defined_methods(class_data):
     clz = class_data.class_name
 
-    sb = sammary.SammaryBuilder()
+    sb = summary.SummaryBuilder()
     for msig, md in sorted(class_data.methods.iteritems()):
         sb.append_invoked((clz, msig))
 
-    return sb.to_sammary()
+    return sb.to_summary()
 
 
 def extract_defined_methods_table(class_table):
-    sb = sammary.SammaryBuilder()
+    sb = summary.SummaryBuilder()
     for clz, cd in class_table.iteritems():
-        sb.append_sammary(extract_defined_methods(cd))
-    return sb.to_sammary()
+        sb.append_summary(extract_defined_methods(cd))
+    return sb.to_summary()
 
 
 def main(argv, out=sys.stdout):
@@ -50,8 +50,8 @@ def main(argv, out=sys.stdout):
     class_table = {}
     for clz, cd in jp.read_class_table_from_dir_iter(dirname):
         class_table[clz] = cd
-    sam = extract_defined_methods_table(class_table)
-    for clz, msig in sam.invokeds:
+    sumry = extract_defined_methods_table(class_table)
+    for clz, msig in sumry.invokeds:
         out.write("%s\t%s\n" % (clz, msig))
 
 
