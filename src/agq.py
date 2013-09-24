@@ -149,9 +149,9 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
     cq.check_query_word_list(query_words)
     query_patterns = []
     for w in query_words:
-        query_patterns.append(cq.QueryPattern.compile(w))
+        query_patterns.append(cq.compile_query(w))
     for w in ignore_case_query_words:
-        query_patterns.append(cq.QueryPattern.compile(w, ignore_case=True))
+        query_patterns.append(cq.compile_query(w, ignore_case=True))
     query = cq.Query(query_patterns)
 
     if output_form == 'callnode':

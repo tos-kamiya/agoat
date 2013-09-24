@@ -73,7 +73,7 @@ def A_PREDICATE(call_node):
 
 class QueryTest(unittest.TestCase):
     def test_unmatched_patterns_to_methods(self):
-        qp = [cq.QueryPattern(cq.TARGET_METHOD, "w", re.compile("w")), cq.QueryPattern(cq.TARGET_METHOD, "x", re.compile("x"))]
+        qp = [cq.MethodQueryPattern("w"), cq.MethodQueryPattern("x")]
         query = cq.Query(qp)
         sumry = summary.Summary()
         missings = query.unmatched_patterns(sumry)
@@ -106,7 +106,7 @@ class QueryTest(unittest.TestCase):
         self.assertEqual(len(missings), 2)
 
     def test_unmatched_patterns_to_literals(self):
-        qp = [cq.QueryPattern(cq.TARGET_LITERAL, "w", re.compile("w")), cq.QueryPattern(cq.TARGET_LITERAL, "x", re.compile("x"))]
+        qp = [cq.LiteralQueryPattern("w"), cq.LiteralQueryPattern("x")]
         query = cq.Query(qp)
         sumry = summary.Summary()
         missings = query.unmatched_patterns(sumry)
@@ -212,14 +212,14 @@ class QueryTest(unittest.TestCase):
 
 class QueryPatternTest(unittest.TestCase):
     def test_compile(self):
-        pat = cq.QueryPattern.compile("w")
-        self.assertEqual(pat.target, cq.TARGET_METHOD)
+        pat = cq.compile_query("w")
+        self.assertTrue(isinstance(pat, cq.AnyQueryPattern))
 
-        pat = cq.QueryPattern.compile("m.w")
-        self.assertEqual(pat.target, cq.TARGET_METHOD)
+        pat = cq.compile_query("m.w")
+        self.assertTrue(isinstance(pat, cq.MethodQueryPattern))
 
-        pat = cq.QueryPattern.compile("t.w")
-        self.assertEqual(pat.target, cq.TARGET_TYPE)
+        pat = cq.compile_query("t.w")
+        self.assertTrue(isinstance(pat, cq.TypeQueryPattern))
 
-        pat = cq.QueryPattern.compile('"w')
-        self.assertEqual(pat.target, cq.TARGET_LITERAL)
+        pat = cq.compile_query('"w')
+        self.assertTrue(isinstance(pat, cq.LiteralQueryPattern))

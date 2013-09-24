@@ -10,45 +10,71 @@ import calltree_builder as cb
 import calltree_summarizer as cs
 
 
-TARGET_TYPE = 'target_type'
-TARGET_METHOD = 'target_method'
-TARGET_LITERAL = 'target_literal'
-
-
 class QueryPattern(object):
-    def __init__(self, target, word, regex):
-        self.target = target
+    def __init__(self, word, ignore_case=False):
+        regex = re.compile(word, re.IGNORECASE) if ignore_case else \
+            re.compile(word)
         self.word = word
         self.regex = regex
 
-    def __repr__(self):
-        return "QueryPattern(%s,%s,%s)" % (repr(self.target), repr(self.word), repr(self.regex))
+    def matches_type(self, typ):
+        return False
 
-    @staticmethod
+    def matches_method(self, method):
+        return False
+
+    def matches_literal(self, w):
+        return False
+
+
+class TypeQueryPattern(QueryPattern):
+    def matches_type(self, typ):
+        return not not self.regex.search(typ)
+
+
+class MethodQueryPattern(QueryPattern):
+    def matches_method(self, method):
+        return not not self.regex.search(method)
+
+
+class LiteralQueryPattern(QueryPattern):
+    def matches_literal(self, w):
+        return not not self.regex.search(w)
+
+
+class AnyQueryPattern(QueryPattern):
+    def matches_type(self, typ):
+        return not not self.regex.search(typ)
+
+    def matches_method(self, method):
+        return not not self.regex.search(method)
+
+    def matches_literal(self, w):
+        return not not self.regex.search(w)
+
+
+def compile_query(query_word, ignore_case=False):
     def _compile_i(target, query_word, ignore_case):
         pat = re.compile(query_word, re.IGNORECASE) if ignore_case else \
             re.compile(query_word)
         return QueryPattern(target, query_word, pat)
 
-    @staticmethod
-    def compile(query_word, ignore_case=False):
-        if query_word.startswith('"'):
-            query_word = query_word[1:]
-            if query_word.endswith('"'):
-                query_word = query_word[:-1]
-            return QueryPattern._compile_i(TARGET_LITERAL, query_word, ignore_case)
-        elif query_word.startswith('t.'):
-            query_word = query_word[2:]
-            query_word = quote(query_word.decode('utf-8').encode('utf-8'))
-            return QueryPattern._compile_i(TARGET_TYPE, query_word, ignore_case)
-        elif query_word.startswith('m.'):
-            query_word = query_word[2:]
-            query_word = quote(query_word.decode('utf-8').encode('utf-8'))
-            return QueryPattern._compile_i(TARGET_METHOD, query_word, ignore_case)
-        else:
-            # drop to method pattern
-            query_word = quote(query_word.decode('utf-8').encode('utf-8'))
-            return QueryPattern._compile_i(TARGET_METHOD, query_word, ignore_case)
+    if query_word.startswith('"'):
+        query_word = query_word[1:]
+        if query_word.endswith('"'):
+            query_word = query_word[:-1]
+        return LiteralQueryPattern(query_word, ignore_case)
+    elif query_word.startswith('t.'):
+        query_word = query_word[2:]
+        query_word = quote(query_word.decode('utf-8').encode('utf-8'))
+        return TypeQueryPattern(query_word, ignore_case)
+    elif query_word.startswith('m.'):
+        query_word = query_word[2:]
+        query_word = quote(query_word.decode('utf-8').encode('utf-8'))
+        return MethodQueryPattern(query_word, ignore_case)
+    else:
+        query_word = quote(query_word.decode('utf-8').encode('utf-8'))
+        return AnyQueryPattern(query_word, ignore_case)
 
 
 def types_in_summary_invoked(summury_invoked):
@@ -69,198 +95,100 @@ def types_in_msig(msig):
 
 class Query(object):
     def __init__(self, query_patterns):
-        self._type_patterns = []
-        self._method_patterns = []
-        self._literal_patterns = []
-        for p in query_patterns:
-            patterns = None
-            if p.target == TARGET_TYPE:
-                patterns = self._type_patterns
-            elif p.target == TARGET_METHOD:
-                patterns = self._method_patterns
-            elif p.target == TARGET_LITERAL:
-                patterns = self._literal_patterns
-            else:
-                assert False
-            patterns.append(p)
-        self._count_patterns = sum(map(len, [
-                self._type_patterns, self._method_patterns, self._literal_patterns]))
-        if self._type_patterns:
-            self._type_words, self._type_regexs = \
-                    zip(*[(p.word, p.regex) for p in self._type_patterns])
-        else:
-            self._type_words, self._type_regexs = [], []
-        if self._method_patterns:
-            self._method_words, self._method_regexs = \
-                    zip(*[(p.word, p.regex) for p in self._method_patterns])
-        else:
-            self._method_words, self._method_regexs = [], []
-        if self._literal_patterns:
-            self._literal_words, self._literal_regexs = \
-                    zip(*[(p.word, p.regex) for p in self._literal_patterns])
-        else:
-            self._literal_words, self._literal_regexs = [], []
+        self._patterns = query_patterns
 
     def count(self):
-        return self._count_patterns
+        return len(self._patterns)
 
     def is_fullfilled_by(self, sumry):
-        remaining_type_regexs = self._type_regexs[:]
-        if remaining_type_regexs:
-            for suminv in sumry.invokeds:
-                types = types_in_summary_invoked(suminv)
-                remaining_type_regexs = [r for r in remaining_type_regexs \
-                        if not any(r.search(typ) for typ in types)]
-                if not remaining_type_regexs:
-                    break  # for suminv
-            else:
-                return False
-        reamining_method_regexs = self._method_regexs[:]
-        if reamining_method_regexs:
-            for suminv in sumry.invokeds:
-                method = method_in_summary_invoked(suminv)
-                reamining_method_regexs = [r for r in reamining_method_regexs \
-                        if not r.search(method)]
-                if not reamining_method_regexs:
-                    break  # for suminv
-            else:
-                return False
-        if self._literal_regexs:
-            for p in self._literal_regexs:
-                for w in sumry.literals:
-                    if p.search(w):
-                        break  # for w
-                else:
-                    return False
-        return True
+        return not self.unmatched_patterns(sumry)
 
     def is_partially_filled_by(self, sumry):
-        if self._count_patterns == 0:
-            return True
         for suminv in sumry.invokeds:
             types = types_in_summary_invoked(suminv)
             for typ in types:
-                for r in self._type_regexs:
-                    if r.search(typ):
+                for p in self._patterns:
+                    if p.matches_type(typ):
                         return True
         for suminv in sumry.invokeds:
             method = method_in_summary_invoked(suminv)
-            for r in self._method_regexs:
-                if r.search(method):
+            for p in self._patterns:
+                if p.matches_method(method):
                     return True
-        for p in self._literal_regexs:
-            for w in sumry.literals:
-                if p.search(w):
+        for w in sumry.literals:
+            for p in self._patterns:
+                if p.matches_literal(w):
                     return True
         return False
 
     def has_matching_pattern_in(self, clz, msig, literals):
-        for p in self._type_regexs:
-            if p.search(clz):
+        method = jp.methodsig_name(msig)
+        types = [clz]
+        types.append(jp.methodsig_retv(msig))
+        types.extend(jp.methodsig_params(msig))
+        for p in self._patterns:
+            for typ in types:
+                if p.matches_type(typ):
+                    return True
+            if p.matches_method(method):
                 return True
-            if p.search(jp.methodsig_retv(msig)):
-                return True
-            if any(p.search(a) for a in jp.methodsig_params(msig)):
-                return True
-        for p in self._method_regexs:
-            if p.search(jp.methodsig_name(msig)):
-                return True
-        for p in self._literal_patterns:
             for w in literals:
-                if p.regex.search(w):
+                if p.matches_literal(w):
                     return True
         return False
 
     def unmatched_patterns(self, sumry):
-        remaining_types = zip(self._type_patterns, self._type_regexs)
+        remaining_patterns = self._patterns[:]
         for suminv in sumry.invokeds:
             types = types_in_summary_invoked(suminv)
-            remaining_types = [pr for pr in remaining_types \
-                    if not any(pr[1].search(typ) for typ in types)]
-            if not remaining_types:
-                break  # for suminv
-        remaining_methods = zip(self._method_patterns, self._method_regexs)
+            remaining_patterns = [p for p in remaining_patterns if \
+                    not any(p.matches_type(typ) for typ in types)]
+            if not remaining_patterns:
+                return []
         for suminv in sumry.invokeds:
             method = method_in_summary_invoked(suminv)
-            remaining_methods = [pr for pr in remaining_methods \
-                    if not pr[1].search(method)]
-            if not remaining_methods:
-                break  # for suminv
-        remaining_literals = zip(self._literal_patterns, self._literal_regexs)
-        for w in sumry.literals:
-            remaining_literals = [pr for pr in remaining_literals \
-                    if not pr[1].search(w)]
-            if not remaining_literals:
-                break  # for w
-        return [pr[0] for pr in remaining_types + remaining_methods + remaining_literals]
+            remaining_patterns = [p for p in remaining_patterns if \
+                    not p.matches_method(method)]
+            if not remaining_patterns:
+                return []
+        remaining_patterns = [p for p in remaining_patterns if \
+                not any(p.matches_literal(w) for w in sumry.literals)]
+        return remaining_patterns
 
     def matched_patterns(self, sumry):
-        remaining_types = zip(self._type_patterns, self._type_regexs)
-        matched_type_patterns = []
+        remaining_patterns = self._patterns[:]
+        matcheds = []
         for suminv in sumry.invokeds:
             types = types_in_summary_invoked(suminv)
             rems = []
-            for pr in remaining_types:
-                if any(pr[1].search(typ) for typ in types):
-                    matched_type_patterns.append(pr[0])
-                    break  # for pr
-            else:
-                rems.append(pr)
-            if not rems:
-                break  # for suminv
-            remaining_types = rems
-        remaining_methods = zip(self._method_patterns, self._method_regexs)
-        matched_method_patterns = []
+            for p in remaining_patterns:
+                (rems if not any(p.matches_type(typ) for typ in types) else \
+                    matcheds).append(p)
+            if not remaining_patterns:
+                return matcheds
+            remaining_patterns = rems
         for suminv in sumry.invokeds:
             method = method_in_summary_invoked(suminv)
             rems = []
-            for pr in remaining_methods:
-                if pr[1].search(method):
-                    matched_method_patterns.append(pr[0])
-                    break  # for pr
-            else:
-                rems.append(pr)
-            if not rems:
-                break  # for suminv
-            remaining_methods = rems
-        remaining_literals = zip(self._literal_patterns, self._literal_regexs)
-        matched_literal_patterns = []
-        for w in sumry.literals:
-            rems = []
-            for pr in remaining_literals:
-                if pr[1].search(w):
-                    matched_literal_patterns.append(pr[0])
-                    break  # for pr
-            else:
-                rems.append(pr)
-            if not rems:
-                break  # for w
-            remaining_literals = rems
-        return matched_type_patterns + matched_method_patterns + matched_literal_patterns
+            for p in remaining_patterns:
+                (rems if not p.matches_method(method) else matcheds).append(p)
+            if not remaining_patterns:
+                return matcheds
+            remaining_patterns = rems
+        method = method_in_summary_invoked(suminv)
+        for p in remaining_patterns:
+            if any(p.matches_literal(w) for w in sumry.literals):
+                matcheds.append(p)
+        return matcheds
 
     def matches_method(self, method):
-        for r in self._method_regexs:
-            if r.search(method):
-                return True
-        return False
+        return any(p.matches_method(method) for p in self._patterns)
 
-    def matches_msig(self, msig):
-        for r in self._type_regexs:
-            if any(r.search(typ) for typ in types_in_msig(msig)):
-                return True
-        for r in self._method_regexs:
-            if any(r.search(jp.methodsig_name(msig))):
-                return True
-        return False
+    def matches_type(self, typ):
+        return any(p.matches_type(typ) for p in self._patterns)
 
-    def matches_receiver(self, clz):
-        for r in self._type_regexs:
-            if r.search(clz):
-                return True
-        return False
-
-    def matches_literal(self, literal):
-        return any(p.search(literal) for p in self._literal_regexs)
+    def matches_literal(self, w):
+        return any(p.matches_literal(w) for p in self._patterns)
 
 
 def check_query_word_list(query_words):
@@ -397,7 +325,7 @@ def update_cont_items_by_invoked(cont_items, invoked, query):
         if typ in cont_types:
             invoked_cont = True
         else:
-            if query.matches_receiver(typ):
+            if query.matches_type(typ):
                 invoked_cont = True
                 cont_types.add(typ)
     m = jp.methodsig_name(msig)
