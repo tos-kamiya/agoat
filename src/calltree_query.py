@@ -99,16 +99,6 @@ def compile_query(query_word, ignore_case=False):
         return AnyQueryPattern(query_word, ignore_case)
 
 
-def types_in_summary_invoked(summury_invoked):
-    fields = summury_invoked.split('\t')  # clz, retv, method, param, ...
-    del fields[2]
-    return sort_uniq(fields)
-
-
-def method_in_summary_invoked(summary_invoked):
-    return summary_invoked.split('\t')[2]
-
-
 def types_in_clzmsig(clzmsig):
     types = [jp.clzmsig_clz(clzmsig)]
     types.append(jp.clzmsig_retv(clzmsig))
@@ -140,13 +130,8 @@ class Query(object):
         return False
 
     def has_matching_pattern_in(self, clzmsig, literals):
-        method = jp.clzmsig_method(clzmsig)
-        types = types_in_clzmsig(clzmsig)
         for p in self._patterns:
-            for typ in types:
-                if p.matches_type(typ):
-                    return True
-            if p.matches_method(method):
+            if p.matches_invoked(clzmsig):
                 return True
             for w in literals:
                 if p.matches_literal(w):
@@ -231,12 +216,6 @@ def gen_callnode_fullfills_query_predicate_w_memo(query, node_summary_table):
 
 
 def get_lower_bound_call_nodes(call_trees, predicate):
-    def get_recv_msig(call_node):
-        assert isinstance(call_node, ct.CallNode)
-        invoked = call_node.invoked
-        clz, msig = invoked[1], invoked[2]
-        return (clz, msig)
-
     already_searched_call_node_labels = set()
     lower_call_nodes = []
     def search_i(call_node):
@@ -276,7 +255,7 @@ def treecut_with_callnode_depth(node, depth, has_deeper_nodes=[None]):
                 assert False
         elif isinstance(node, ct.CallNode):
             if remaining_depth > 0:
-                node_label = (node.invoked[1], node.invoked[2], remaining_depth)
+                node_label = (node.invoked[1], remaining_depth)
                 cn = callnode_memo.get(node_label)
                 if cn is None:
                     cn = ct.CallNode(node.invoked, remaining_depth, treecut_i(node.body, remaining_depth - 1))

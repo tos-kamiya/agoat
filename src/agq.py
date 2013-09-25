@@ -106,7 +106,7 @@ def remove_recursive_contexts(call_node):
 
 def remove_outermost_loc_info(call_node):
     invoked = call_node.invoked
-    return ct.CallNode((invoked[0], invoked[1], invoked[2], invoked[3], None), call_node.recursive_cxt, call_node.body)
+    return ct.CallNode((invoked[0], invoked[1], invoked[2], None), call_node.recursive_cxt, call_node.body)
 
 
 def search_in_call_trees(query, call_trees, node_summary_table, max_depth,

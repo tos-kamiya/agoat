@@ -29,8 +29,8 @@ def _extract_callnode_invokeds_in_calltree(call_tree, invoked_set):
         elif isinstance(node, ct.CallNode):
             invoked = node.invoked
             assert invoked[0] in (jp.INVOKE, jp.SPECIALINVOKE)
-            clz, msig = invoked[1], invoked[2]
-            k = (clz, msig, node.recursive_cxt)
+            clzmsig = invoked[1]
+            k = (clzmsig, node.recursive_cxt)
             if k in invoked_set:
                 return
             invoked_set.add(k)
