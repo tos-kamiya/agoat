@@ -106,8 +106,8 @@ def make_dispatch_table(class_to_methods, class_to_descendants):
 
 
 def java_is_a(type_a, type_b, class_to_descendants):
-    if type_a is None:  # Java's void type
-        return 0 if type_b is None else -1
+    if type_a is None or type_b is None:  # Java's void type
+        return 0 if type_a == type_b else -1
     if type_a == 'null':
         if type_b in ('byte', 'short', 'int', 'long', 'boolean', 'char', 'float', 'double'):
             return -1
