@@ -49,22 +49,22 @@ def extract_class_hierarchy(class_table, include_indirect_decendants=True):
 #     return iterface_to_classes
 
 
-def methodsig_mnamc(msig):
-    return jp.methodsig_name(msig), len(jp.methodsig_params(msig))
+def clzmethodsig_mnamc(msig):
+    return jp.clzmethodsig_name(msig), len(jp.clzmethodsig_params(msig))
 
 
 def make_dispatch_table(class_to_methods, class_to_descendants):
     # class_to_descendants  # str -> str -> int
-    # class_to_methods  # str -> [MethodSig]
+    # class_to_methods  # str -> [ClzMethodSig]
 
-    recv_method_to_defs = {}  # recv_method_to_defs  # (clz, mnamc) -> [(clz, MethodSig)]
+    recv_method_to_defs = {}  # recv_method_to_defs  # (clz, mnamc) -> [ClzMethodSig]
 
     # expand towards descendants
     # Overriding methods (child class's methods) are possible to be dispatched
     # in case of parent class's method call.
     for clz_mtds in class_to_methods.iteritems():
-        clz, mtds = clz_mtds
-        mnamcs = _utilities.sort_uniq([methodsig_mnamc(msig) for msig in mtds])
+        clz, clzmsigs = clz_mtds
+        mnamcs = _utilities.sort_uniq([clzmethodsig_mnamc(clzmsig) for clzmsig in clzmsigs])
         assert clz
 
         cands = [clz]  # clz and its all descendant classes
@@ -74,9 +74,9 @@ def make_dispatch_table(class_to_methods, class_to_descendants):
 
         for d in cands:
             for mnamc in mnamcs:
-                for dmsig in class_to_methods.get(d, []):
-                    if methodsig_mnamc(dmsig) == mnamc:
-                        recv_method_to_defs.setdefault((clz, mnamc), []).append((d, dmsig))
+                for dclzmsig in class_to_methods.get(d, []):
+                    if clzmethodsig_mnamc(dclzmsig) == mnamc:
+                        recv_method_to_defs.setdefault((clz, mnamc), []).append(dclzmsig)
 
     # expand towards ascendants
     # When methods are defined in a class but not in its child class,
@@ -91,12 +91,14 @@ def make_dispatch_table(class_to_methods, class_to_descendants):
                     if d > max_depth:
                         max_depth = d  # found deeper inheritance
                     continue  # for des, d
-                clz_msigs = class_to_methods.get(clz, [])
-                if not clz_msigs: continue  # for des, d
-                des_msigs = set(class_to_methods.get(des, []))
-                for clz_msig in clz_msigs:
+                clz_clzmsigs = class_to_methods.get(clz, [])
+                if not clz_clzmsigs: continue  # for des, d
+                des_clzmsigs = set(class_to_methods.get(des, []))
+                des_msigs = map(jp.clzmethodsig_methodsig, des_clzmsigs)
+                for clz_clzmsig in clz_clzmsigs:
+                    clz_msig = jp.clzmethodsig_methodsig(clz_clzmsig)
                     if clz_msig not in des_msigs:  # if method defined in clz but not in des
-                        recv_method_to_defs.setdefault((des, methodsig_mnamc(clz_msig)), []).append((clz, clz_msig))
+                        recv_method_to_defs.setdefault((des, clzmethodsig_mnamc(clz_clzmsig)), []).append(clz_clzmsig)
 
     for cms in recv_method_to_defs.itervalues():
         cms.sort()
@@ -123,21 +125,22 @@ def java_is_a(type_a, type_b, class_to_descendants):
 
 def gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_to_defs):
     # class_table  # str -> ClassData
-    # recv_method_to_defs  # recv_method_to_defs  # (clz, mnamc) -> [(clz, MethodSig)]
-    def resolve_type(invoke_cmd, recv_msig):
+    # recv_method_to_defs  # recv_method_to_defs  # (clz, mnamc) -> [ClzMethodSig]
+    def resolve_dispatch(invoke_cmd, clzmsig):
         static_method = invoke_cmd == jp.SPECIALINVOKE
         resolved = []
-        recv, msig = recv_msig
-        mnamc = methodsig_mnamc(msig)
+        recv = jp.clzmethodsig_clz(clzmsig)
+        mnamc = clzmethodsig_mnamc(clzmsig)
         cands = recv_method_to_defs.get((recv, mnamc))
         if cands is None:
             return resolved
-        for cclz, cmsig in cands:
+        for cclzmsig in cands:
+            cclz = jp.clzmethodsig_clz(cclzmsig)
             if static_method and cclz != recv:
                 continue  # cclz, cmsig
             unmatch = False
             total_distance = 0
-            for p, cp in zip(jp.methodsig_params(msig), jp.methodsig_params(cmsig)):
+            for p, cp in zip(jp.clzmethodsig_params(clzmsig), jp.clzmethodsig_params(cclzmsig)):
                 d = java_is_a(p, cp, class_to_descendants)
                 if d < 0:
                     unmatch = True
@@ -145,7 +148,7 @@ def gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_
                 total_distance += d
             if unmatch:
                 continue  # cclz, cmsig
-            retv, cretv = jp.methodsig_retv(msig), jp.methodsig_retv(cmsig)
+            retv, cretv = jp.clzmethodsig_retv(clzmsig), jp.clzmethodsig_retv(cclzmsig)
             d = java_is_a(cretv, retv, class_to_descendants)
             if d < 0:
                 continue  # cclz, cmsig 
@@ -158,12 +161,11 @@ def gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_
 
             cd = class_table.get(cclz)
             if cd:
-                md = cd.methods.get(cmsig)
+                md = cd.methods.get(cclzmsig)
                 if md:
-                    c_m = cd.class_name, md.method_sig
-                    resolved.append((c_m, md))
+                    resolved.append(md)
         return resolved
-    return resolve_type
+    return resolve_dispatch
 
 
 def find_methods_involved_in_recursive_call_chain(entry_point, resolve_dispatch,
@@ -174,30 +176,29 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolve_dispatch,
     # set of (str, MethodSig) # methods involved in recursive call chain
     methods_ircc = set()
 
-    clz0, mtd0 = entry_point
+    cmzmsig0 = entry_point
     e = resolve_dispatch(jp.SPECIALINVOKE, entry_point)
     if not e:
         raise ValueError("entry_point not found")
-    c_m0, md0 = e[0]
+    md0 = e[0]
     aot = md0.code if md0 else None
     if aot is None:
         raise ValueError("entry_point not found")
 
-    def dig_node(node, callee, stack):
+    def dig_node(node, stack):
         len_stack0 = len(stack)
         try:
             if isinstance(node, tuple):
                 assert node
                 cmd = node[0]
                 if cmd in (jp.SPECIALINVOKE, jp.INVOKE):
-                    receiver_class, mtd = node[1], node[2]
-                    rc_mtd = (receiver_class, mtd)
-                    if not include_direct_recursive_calls and rc_mtd == stack[-1]:
+                    called_clzmsig = node[1]
+                    if not include_direct_recursive_calls and called_clzmsig == stack[-1]:
                         pass
                     else:
-                        r = resolve_dispatch(cmd, rc_mtd)
-                        for rc_mtd, md in r:
-                            dig_call(rc_mtd, md, stack)
+                        r = resolve_dispatch(cmd, called_clzmsig)
+                        for md in r:
+                            dig_call(md, stack)
                 elif cmd in (jp.LABEL, jp.RETURN, jp.THROW):
                     pass
                 else:
@@ -207,34 +208,35 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolve_dispatch,
                 assert node
                 assert node[0] in (jcbte.ORDERED_AND, jcbte.ORDERED_OR)
                 for item in node[1:]:
-                    dig_node(item, callee, stack)
+                    dig_node(item, stack)
         finally:
             if len(stack) > len_stack0:
                 stack[:] = stack[:len_stack0]
 
-    def dig_call(rc_mtd, md, stack):
+    def dig_call(md, stack):
+        clzmsig = md.clzmethod_sig
         len_stack0 = len(stack)
         try:
             aot = md.code
             if not aot:
                 return
             try:
-                i = stack.index(rc_mtd)
+                i = stack.index(clzmsig)
                 methods_ircc.update(stack[i:])
                 return
             except:
                 pass
-            if rc_mtd in methods_searched:
+            if clzmsig in methods_searched:
                 return
-            methods_searched.add(rc_mtd)
-            stack.append(rc_mtd)
-            dig_node(aot, rc_mtd, stack)
+            methods_searched.add(clzmsig)
+            stack.append(clzmsig)
+            dig_node(aot, stack)
         finally:
             if len(stack) > len_stack0:
                 stack[:] = stack[:len_stack0]
 
     stack_sentinel = None
-    dig_call(c_m0, md0, [stack_sentinel])
+    dig_call(md0, [stack_sentinel])
 
     s = list(methods_ircc)
     s.sort()
@@ -243,10 +245,10 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolve_dispatch,
 
 def find_entry_points(class_table, target_class_names=None):
     # class_table  # str -> ClassData
-    entrypoint_msigs = set([
-        jp.MethodSig(None, "main", ("java.lang.String[]",)), 
-        jp.MethodSig(None, "run", ()),
-        jp.MethodSig(None, "<clinit>", ())
+    entrypoint_retv_method_params = set([
+        (None, "main", ("java.lang.String[]",)), 
+        (None, "run", ()),
+        (None, "<clinit>", ())
     ])
     entry_points = []
 
@@ -255,9 +257,10 @@ def find_entry_points(class_table, target_class_names=None):
     for clz in target_class_names:
         class_data = class_table.get(clz)
         if not class_data: continue
-        for msig, md in class_data.methods.iteritems():
-            if msig in entrypoint_msigs:
-                entry_points.append((clz, msig))
+        for clzmsig in class_data.methods.iterkeys():
+            rmp = (jp.clzmethodsig_retv(clzmsig), jp.clzmethodsig_name(clzmsig), jp.clzmethodsig_params(clzmsig))
+            if rmp in entrypoint_retv_method_params:
+                entry_points.append(clzmsig)
     return entry_points
 
 
@@ -347,7 +350,7 @@ def build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node
 def extract_call_andor_trees(class_table, entry_points):
     class_to_descendants = extract_class_hierarchy(class_table)
     class_to_methods = dict((claz, cd.methods.keys()) for claz, cd in class_table.iteritems())
-    # class_to_methods  # str -> [MethodSig]
+    # class_to_methods  # str -> [ClzMethodSig]
 
     recv_method_to_defs = make_dispatch_table(class_to_methods, class_to_descendants)
 
@@ -391,19 +394,18 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
         return
 
     if entry_point_method:
-        entry_point_msig = None
+        entry_point = None
         for cd in class_table.itervalues():
-            if entry_point_msig:
+            if entry_point:
                 break  # for cd
             if cd.class_name == entry_point_class:
                 for md in cd.methods.itervalues():
-                    if entry_point_msig:
+                    if entry_point:
                         break  # for md
-                    if jp.methodsig_name(md.method_sig).find(entry_point_method) >= 0:
-                        entry_point_msig = md.method_sig
+                    if jp.clzmethodsig_name(md.clzmethod_sig).find(entry_point_method) >= 0:
+                        entry_point = md.clzmethod_sig
     else:
-        entry_point_msig = jp.MethodSig(None, "main", ("java.lang.String[]",))
-    entry_point = (entry_point_class, entry_point_msig)
+        entry_point = jp.ClzMethodSig(entry_point_class, None, "main", ("java.lang.String[]",))
     logout and logout.write("> entry point is: %s %s\n" % entry_point)
 
     logout and logout.write("> build aot\n")

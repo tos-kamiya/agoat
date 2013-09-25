@@ -72,44 +72,51 @@ def _none_to_void(t):
 def _void_to_none(t):
     return t if t is not 'void' else None
 
-if False:
-    MethodSig = namedtuple('MethodSig', 'retv name params')
-
-    def methodsig_retv(msig):
-        return msig.retv
-
-    def methodsig_name(msig):
-        return msig.name
-
-    def methodsig_params(msig):
-        return msig.params
-
-    def methodsig_to_str(msig):
-        return '%s\t%s\t%s' % (msig.retv, msig.name, '\t'.join(msig.params))
-
-    def methodsig_from_str(s):
-        fs = s.split('\t')
-        return MethodSig(fs[0], fs[1], tuple(fs[2:]))
-else:
-    def MethodSig(retv, name, params):
-        items = [_none_to_void(retv), name]
+# if False:
+#     MethodSig = namedtuple('MethodSig', 'retv name params')
+# 
+#     def methodsig_retv(msig):
+#         return msig.retv
+# 
+#     def methodsig_name(msig):
+#         return msig.name
+# 
+#     def methodsig_params(msig):
+#         return msig.params
+# 
+#     def methodsig_to_str(msig):
+#         return '%s\t%s\t%s' % (msig.retv, msig.name, '\t'.join(msig.params))
+# 
+#     def methodsig_from_str(s):
+#         fs = s.split('\t')
+#         return MethodSig(fs[0], fs[1], tuple(fs[2:]))
+# else:
+if True:
+    def ClzMethodSig(clz, retv, name, params):
+        items = [clz, _none_to_void(retv), name]
         items.extend(map(_none_to_void, params))
         return '\t'.join(items)
 
-    def methodsig_retv(msig):
-        return _void_to_none(msig.split('\t')[0])
+    def clzmethodsig_clz(msig):
+        return msig.split('\t')[0]
 
-    def methodsig_name(msig):
+    def clzmethodsig_retv(msig):
         return _void_to_none(msig.split('\t')[1])
 
-    def methodsig_params(msig):
-        return tuple(_void_to_none(t) for t in msig.split('\t')[2:])
+    def clzmethodsig_name(msig):
+        return _void_to_none(msig.split('\t')[2])
 
-    def methodsig_to_str(msig):
+    def clzmethodsig_params(msig):
+        return tuple(_void_to_none(t) for t in msig.split('\t')[3:])
+
+    def clzmethodsig_to_str(msig):
         return msig
 
-    def methodsig_from_str(s):
+    def clzmethodsig_from_str(s):
         return s
+
+    def clzmethodsig_methodsig(msig):
+        return '\t'.join(msig.split('\t')[1:])
 
 
 class InvalidText(ValueError):
@@ -118,14 +125,14 @@ class InvalidText(ValueError):
 
 class MethodData(object):
 
-    def __init__(self, method_sig, scope_class):
-        self.method_sig = method_sig
+    def __init__(self, clzmethod_sig, scope_class):
+        self.clzmethod_sig = clzmethod_sig
         self.scope_class = scope_class
         self.fields = {}  # name -> str
         self.code = None
 
     def __repr__(self):
-        return "MethodData(%s, %s, *)" % (repr(self.method_sig), repr(self.scope_class))
+        return "MethodData(%s, %s, *)" % (repr(self.clzmethod_sig), repr(self.scope_class))
 
 
 class ClassData(object):
@@ -140,12 +147,10 @@ class ClassData(object):
     def add_field(self, field_name, field_type):
         self.fields[field_name] = field_type
 
-    def add_method(self, method_sig, method_data):
-        self.methods[method_sig] = method_data
-
-    def gen_method(self, method_sig):
-        method_data = MethodData(method_sig, self)
-        self.methods[method_sig] = method_data
+    def gen_method(self, retv, method, params):
+        clzmsig = ClzMethodSig(self.class_name, retv, method, params)
+        method_data = MethodData(clzmsig, self)
+        self.methods[clzmsig] = method_data
         return method_data
 
     def __repr__(self):
@@ -232,7 +237,7 @@ def parse_jimp_lines(lines,
                 retv = gd["return_value"]
                 if retv == "void":
                     retv = None
-                curmtd = curcls.gen_method(MethodSig(retv, gd["method_name"], tuple(params)))
+                curmtd = curcls.gen_method(retv, gd["method_name"], tuple(params))
             curcode = []
             continue
         m = _PAT_METHOD_DEF_END.match(L)

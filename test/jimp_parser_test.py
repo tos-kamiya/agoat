@@ -44,11 +44,12 @@ def stub_store_jimp_method_code(mtd, line_and_linenums):
 
 class JimpParserTest(unittest.TestCase):
 
-    def test_method_sig(self):
-        msig = jp.MethodSig("int", "hoge", ())
-        self.assertEqual(jp.methodsig_retv(msig), "int")
-        self.assertEqual(jp.methodsig_name(msig), "hoge")
-        self.assertEqual(jp.methodsig_params(msig), ())
+    def test_clzmethodsig(self):
+        msig = jp.ClzMethodSig("A", "int", "hoge", ())
+        self.assertEqual(jp.clzmethodsig_clz(msig), "A")
+        self.assertEqual(jp.clzmethodsig_retv(msig), "int")
+        self.assertEqual(jp.clzmethodsig_name(msig), "hoge")
+        self.assertEqual(jp.clzmethodsig_params(msig), ())
 
     def test_hello_string(self):
         class_name, class_data = jp.parse_jimp_lines(
@@ -56,9 +57,11 @@ class JimpParserTest(unittest.TestCase):
             parse_jimp_method_code=stub_store_jimp_method_code)
         self.assertEqual(class_name, "Hello")
         self.assertEqual(class_data.base_name, "java.lang.Object")
-        for msig, m in class_data.methods.iteritems():
-            self.assertIn(
-                msig, [jp.MethodSig(None, "<init>", ()), jp.MethodSig(None, "main", ("java.lang.String[]", ))])
+        for clzmsig, m in class_data.methods.iteritems():
+            self.assertIn(clzmsig, [
+                jp.ClzMethodSig("Hello", None, "<init>", ()), 
+                jp.ClzMethodSig("Hello", None, "main", ("java.lang.String[]", ))
+            ])
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

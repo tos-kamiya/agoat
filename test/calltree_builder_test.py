@@ -13,28 +13,25 @@ import calltree_builder as cb
 
 
 class ClassDataStubOnlyBase(object):
-
     def __init__(self, base_name):
         self.base_name = base_name
         self.interf_names = None
 
 
 class ClassDataStubOnlyMethods(object):
-
     def __init__(self, class_name, methods):
         self.class_name = class_name
         self.methods = methods
 
 
 class MethodDataStubOnlyCode(object):
-
-    def __init__(self, method_sig, code):
-        self.method_sig = method_sig
+    def __init__(self, clzmethod_sig, code):
+        self.clzmethod_sig = clzmethod_sig
         self.code = code
 
 
-def rv(m):
-    return 'void\t' + m
+def crv(c, m):
+    return c + '\tvoid\t' + m
 
 def mnamc(m):
     return (m, 0)
@@ -66,88 +63,88 @@ class CalltreeBuilderTest(unittest.TestCase):
         })
 
     def test_resolve_dispatch_noinheritance(self):
-        class_to_methods = {'A': [rv('a'), rv('b')], 'M': [rv('m'), rv('n')], 'P': [rv('p'), rv('q')]}
+        class_to_methods = {'A': [crv('A', 'a'), crv('A', 'b')], 'M': [crv('M', 'm'), crv('M', 'n')], 'P': [crv('P', 'p'), crv('P', 'q')]}
         class_to_descendants = {}
         recv_method_to_defs = cb.make_dispatch_table(class_to_methods, class_to_descendants)
         self.assertEqual(recv_method_to_defs, {
-            ('A', mnamc('a')): [('A', rv('a'))],
-            ('A', mnamc('b')): [('A', rv('b'))],
-            ('M', mnamc('m')): [('M', rv('m'))],
-            ('M', mnamc('n')): [('M', rv('n'))],
-            ('P', mnamc('p')): [('P', rv('p'))],
-            ('P', mnamc('q')): [('P', rv('q'))]
+            ('A', mnamc('a')): [crv('A', 'a')],
+            ('A', mnamc('b')): [crv('A', 'b')],
+            ('M', mnamc('m')): [crv('M', 'm')],
+            ('M', mnamc('n')): [crv('M', 'n')],
+            ('P', mnamc('p')): [crv('P', 'p')],
+            ('P', mnamc('q')): [crv('P', 'q')]
         })
 
     def test_resolve_dispatch_nooverride(self):
-        class_to_methods = {'A': [rv('a'), rv('b')], 'M': [rv('m'), rv('n')], 'P': [rv('p'), rv('q')]}
+        class_to_methods = {'A': [crv('A', 'a'), crv('A', 'b')], 'M': [crv('M', 'm'), crv('M', 'n')], 'P': [crv('P', 'p'), crv('P', 'q')]}
         class_to_descendants = {'A': {'M': 1, 'P': 1}}
         recv_method_to_defs = cb.make_dispatch_table(class_to_methods, class_to_descendants)
         self.assertEqual(recv_method_to_defs, {
-            ('A', mnamc('a')): [('A', rv('a'))],
-            ('A', mnamc('b')): [('A', rv('b'))],
-            ('M', mnamc('a')): [('A', rv('a'))],
-            ('M', mnamc('b')): [('A', rv('b'))],
-            ('M', mnamc('m')): [('M', rv('m'))],
-            ('M', mnamc('n')): [('M', rv('n'))],
-            ('P', mnamc('a')): [('A', rv('a'))],
-            ('P', mnamc('b')): [('A', rv('b'))],
-            ('P', mnamc('p')): [('P', rv('p'))],
-            ('P', mnamc('q')): [('P', rv('q'))]
+            ('A', mnamc('a')): [crv('A', 'a')],
+            ('A', mnamc('b')): [crv('A', 'b')],
+            ('M', mnamc('a')): [crv('A', 'a')],
+            ('M', mnamc('b')): [crv('A', 'b')],
+            ('M', mnamc('m')): [crv('M', 'm')],
+            ('M', mnamc('n')): [crv('M', 'n')],
+            ('P', mnamc('a')): [crv('A', 'a')],
+            ('P', mnamc('b')): [crv('A', 'b')],
+            ('P', mnamc('p')): [crv('P', 'p')],
+            ('P', mnamc('q')): [crv('P', 'q')]
         })
 
     def test_resolve_dispatch_inheritance_override(self):
-        class_to_methods = {'A': [rv('a'), rv('b')], 'M': [rv('b'), rv('m')], 'P': [rv('b'), rv('p')]}
+        class_to_methods = {'A': [crv('A', 'a'), crv('A', 'b')], 'M': [crv('M', 'b'), crv('M', 'm')], 'P': [crv('P', 'b'), crv('P', 'p')]}
         class_to_descendants = {'A': {'M': 1, 'P': 1}}
         recv_method_to_defs = cb.make_dispatch_table(class_to_methods, class_to_descendants)
         self.assertEqual(recv_method_to_defs, {
-            ('A', mnamc('a')): [('A', rv('a'))],
-            ('A', mnamc('b')): [('A', rv('b')), ('M', rv('b')), ('P', rv('b'))],
-            ('M', mnamc('a')): [('A', rv('a'))],
-            ('M', mnamc('b')): [('M', rv('b'))],
-            ('M', mnamc('m')): [('M', rv('m'))],
-            ('P', mnamc('a')): [('A', rv('a'))],
-            ('P', mnamc('b')): [('P', rv('b'))],
-            ('P', mnamc('p')): [('P', rv('p'))]}
-        )
+            ('A', mnamc('a')): [crv('A', 'a')],
+            ('A', mnamc('b')): [crv('A', 'b'), crv('M', 'b'), crv('P', 'b')],
+            ('M', mnamc('a')): [crv('A', 'a')],
+            ('M', mnamc('b')): [crv('M', 'b')],
+            ('M', mnamc('m')): [crv('M', 'm')],
+            ('P', mnamc('a')): [crv('A', 'a')],
+            ('P', mnamc('b')): [crv('P', 'b')],
+            ('P', mnamc('p')): [crv('P', 'p')]
+        })
 
         class_to_descendants = {'A': {'M':1, 'P': 2}, 'M': {'P': 1}}
         recv_method_to_defs = cb.make_dispatch_table(class_to_methods, class_to_descendants)
         self.assertEqual(recv_method_to_defs, {
-            ('A', mnamc('a')): [('A', rv('a'))], 
-            ('A', mnamc('b')): [('A', rv('b')), ('M', rv('b')), ('P', rv('b'))],
-            ('M', mnamc('a')): [('A', rv('a'))], 
-            ('M', mnamc('b')): [('M', rv('b')), ('P', rv('b'))], 
-            ('M', mnamc('m')): [('M', rv('m'))],
-            ('P', mnamc('a')): [('A', rv('a'))], 
-            ('P', mnamc('m')): [('M', rv('m'))],
-            ('P', mnamc('b')): [('P', rv('b'))], 
-            ('P', mnamc('p')): [('P', rv('p'))]
+            ('A', mnamc('a')): [crv('A', 'a')], 
+            ('A', mnamc('b')): [crv('A', 'b'), crv('M', 'b'), crv('P', 'b')],
+            ('M', mnamc('a')): [crv('A', 'a')], 
+            ('M', mnamc('b')): [crv('M', 'b'), crv('P', 'b')], 
+            ('M', mnamc('m')): [crv('M', 'm')],
+            ('P', mnamc('a')): [crv('A', 'a')], 
+            ('P', mnamc('m')): [crv('M', 'm')],
+            ('P', mnamc('b')): [crv('P', 'b')], 
+            ('P', mnamc('p')): [crv('P', 'p')]
         })
 
     def test_find_methods_involved_in_recursive_call_chain_direct(self):
         class_table = {
             'A': ClassDataStubOnlyMethods('A', {
-                rv('main'): MethodDataStubOnlyCode(rv('main'), [at.ORDERED_AND,
-                    (jp.INVOKE, 'B', rv('b'))
+                crv('A', 'main'): MethodDataStubOnlyCode(crv('Main', 'main'), [at.ORDERED_AND,
+                    (jp.INVOKE, crv('B', 'b'))
                 ])
             }),
             'B': ClassDataStubOnlyMethods('B', {
-                rv('b'): MethodDataStubOnlyCode(rv('b'), [at.ORDERED_AND,
-                    (jp.INVOKE, 'B', rv('b'))
+                crv('B', 'b'): MethodDataStubOnlyCode(crv('B', 'b'), [at.ORDERED_AND,
+                    (jp.INVOKE, crv('B', 'b'))
                 ])
             }),
         }
         class_to_descendants = {}
         recv_method_to_defs = {
-            ('A', mnamc('main')): [('A', rv('main'))],
-            ('B', mnamc('b')): [('B', rv('b'))],
+            ('A', mnamc('main')): [crv('A', 'main')],
+            ('B', mnamc('b')): [crv('B', 'b')],
         }
         resolve_dispatch = cb.gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_to_defs)
-        entry_point = ('A', rv('main'))
+        entry_point = crv('A', 'main')
         methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
             entry_point, resolve_dispatch,
             include_direct_recursive_calls=True)
-        self.assertEqual(methods_ircc, [('B', rv('b'))])
+        self.assertEqual(methods_ircc, [crv('B', 'b')])
         methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
             entry_point, resolve_dispatch,
             include_direct_recursive_calls=False)
@@ -156,37 +153,37 @@ class CalltreeBuilderTest(unittest.TestCase):
     def test_find_methods_involved_in_recursive_call_chain_indirect(self):
         class_table = {
             'A': ClassDataStubOnlyMethods('A', {
-                rv('main'): MethodDataStubOnlyCode(rv('main'), [at.ORDERED_AND,
-                    (jp.INVOKE, 'B', rv('b'))
+                crv('A', 'main'): MethodDataStubOnlyCode(crv('A', 'main'), [at.ORDERED_AND,
+                    (jp.INVOKE, crv('B', 'b'))
                 ])
             }),
             'B': ClassDataStubOnlyMethods('B', {
-                rv('b'): MethodDataStubOnlyCode(rv('b'), [at.ORDERED_AND,
-                    (jp.INVOKE, 'C', rv('c'))
+                crv('B', 'b'): MethodDataStubOnlyCode(crv('B', 'b'), [at.ORDERED_AND,
+                    (jp.INVOKE, crv('C', 'c'))
                 ])
             }),
             'C': ClassDataStubOnlyMethods('C', {
-                rv('c'): MethodDataStubOnlyCode(rv('c'), [at.ORDERED_AND,
-                    (jp.INVOKE, 'B', rv('b'))
+                crv('C', 'c'): MethodDataStubOnlyCode(crv('C', 'c'), [at.ORDERED_AND,
+                    (jp.INVOKE, crv('B', 'b'))
                 ])
             }),
         }
         recv_method_to_defs = {
-            ('A', mnamc('main')): [('A', rv('main'))],
-            ('B', mnamc('b')): [('B', rv('b'))],
-            ('C', mnamc('c')): [('C', rv('c'))],
+            ('A', mnamc('main')): [crv('A', 'main')],
+            ('B', mnamc('b')): [crv('B', 'b')],
+            ('C', mnamc('c')): [crv('C', 'c')],
         }
         class_to_descendants = {}
         resolve_dispatch = cb.gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_to_defs)
-        entry_point = ('A', rv('main'))
+        entry_point = crv('A', 'main')
         methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
             entry_point, resolve_dispatch,
             include_direct_recursive_calls=True)
-        self.assertEqual(methods_ircc, [('B', rv('b')), ('C', rv('c'))])
+        self.assertEqual(methods_ircc, [crv('B', 'b'), crv('C', 'c')])
         methods_ircc = cb.find_methods_involved_in_recursive_call_chain(
             entry_point, resolve_dispatch,
             include_direct_recursive_calls=False)
-        self.assertEqual(methods_ircc, [('B', rv('b')), ('C', rv('c'))])
+        self.assertEqual(methods_ircc, [crv('B', 'b'), crv('C', 'c')])
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

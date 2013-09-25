@@ -18,17 +18,18 @@ from _jimp_code_box_generator import BOX, BLOCK
 import _jimp_code_box_generator
 
 
-if False:
-    MethodSigInternTable = dict()
-
-    def method_sig_intern(msig):
-        v = MethodSigInternTable.get(msig)
-        if v:
-            return v
-        MethodSigInternTable[msig] = msig
-        return msig
-else:
-    def method_sig_intern(msig):
+# if False:
+#     MethodSigInternTable = dict()
+# 
+#     def clzmethodsig_intern(msig):
+#         v = MethodSigInternTable.get(msig)
+#         if v:
+#             return v
+#         MethodSigInternTable[msig] = msig
+#         return msig
+# else:
+if True:
+    def clzmethodsig_intern(msig):
         return intern(msig)
 
 
@@ -89,9 +90,9 @@ def resolve_types_in_code(inss, method_data, class_data):
             rargs = tuple(rargs)
             rretv, lit = resolve_type(retv)
             lit and literals.add(lit)
-            msig = method_sig_intern(jp.MethodSig(rretv, method_name, rargs))
+            clzmsig = clzmethodsig_intern(jp.ClzMethodSig(rrecv, rretv, method_name, rargs))
             literals = tuple(sorted(literals))
-            resolved_inss.append((cmd, rrecv, msig, literals, linenum))
+            resolved_inss.append((cmd, clzmsig, literals, linenum))
         else:
             resolved_inss.append(ins)
 
@@ -413,9 +414,9 @@ def inss_to_tree_in_class_table(class_table, branches_atmost=None, progress_repo
     for clz, cd in class_table.iteritems():
         new_tbl[clz] = new_cd = jp.ClassData(cd.class_name, cd.base_name, interf_names=cd.interf_names)
         for msig, md in cd.methods.iteritems():
-            progress_repo and progress_repo(current=(cd.class_name, md.method_sig))
+            progress_repo and progress_repo(current=(cd.class_name, md.clzmethod_sig))
 
-            new_md = jp.MethodData(md.method_sig, md.scope_class)
+            new_md = jp.MethodData(md.clzmethod_sig, md.scope_class)
             new_md.fields = md.fields
             if md.code is not None:
                 new_md.code = inss_to_tree(md, cd, branches_atmost=branches_atmost)
@@ -435,12 +436,12 @@ def main(argv, out=sys.stdout):
     target_method_name_pattern = argv[2] if len(argv) >= 3 else None
 
     clz, cd = r
-    for method_sig, md in cd.methods.iteritems():
-        if target_method_name_pattern and jp.methodsig_name(method_sig).find(target_method_name_pattern) < 0:
+    for clzmethod_sig, md in cd.methods.iteritems():
+        if target_method_name_pattern and jp.clzmethodsig_name(clzmethod_sig).find(target_method_name_pattern) < 0:
             continue
-        out.write("method: %s\n" % method_sig)
+        out.write("method: %s\n" % clzmethod_sig)
         inss = resolve_types_in_code(md.code, md, cd)
-#         out.write("%s, %s:\n" % (clz, method_sig))
+#         out.write("%s, %s:\n" % (clz, clzmethod_sig))
 #         for ins in inss:
 #             out.write("  %s\n" % repr(ins))
         bis = _jimp_code_box_generator.make_block_and_box(inss)
