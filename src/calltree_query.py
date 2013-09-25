@@ -29,15 +29,31 @@ class QueryPattern(object):
     def matches_literal(self, w):
         return False
 
+    def matches_invoked(self, summary_invoked):
+        return False
+
 
 class TypeQueryPattern(QueryPattern):
     def matches_type(self, typ):
         return not not self.regex.search(typ)
 
+    def matches_invoked(self, summary_invoked):
+        for i, t in enumerate(summary_invoked.split('\t')):  # clz, retv, method, param, ...
+            if i == 2:
+                continue
+            if self.regex.search(t):
+                return True
+        else:
+            return False
+
 
 class MethodQueryPattern(QueryPattern):
     def matches_method(self, method):
         return not not self.regex.search(method)
+
+    def matches_invoked(self, summary_invoked):
+        m = summary_invoked.split('\t')[2] # clz, retv, method, param, ...
+        return self.regex.search(m)
 
 
 class LiteralQueryPattern(QueryPattern):
@@ -55,6 +71,12 @@ class AnyQueryPattern(QueryPattern):
     def matches_literal(self, w):
         return not not self.regex.search(w)
 
+    def matches_invoked(self, summary_invoked):
+        for t in summary_invoked.split('\t'):  # clz, retv, method, param, ...
+            if self.regex.search(t):
+                return True
+        else:
+            return False
 
 def compile_query(query_word, ignore_case=False):
     def _compile_i(target, query_word, ignore_case):
@@ -108,15 +130,8 @@ class Query(object):
 
     def is_partially_filled_by(self, sumry):
         for suminv in sumry.invokeds:
-            types = types_in_summary_invoked(suminv)
-            for typ in types:
-                for p in self._patterns:
-                    if p.matches_type(typ):
-                        return True
-        for suminv in sumry.invokeds:
-            method = method_in_summary_invoked(suminv)
             for p in self._patterns:
-                if p.matches_method(method):
+                if p.matches_invoked(suminv):
                     return True
         for w in sumry.literals:
             for p in self._patterns:
@@ -141,15 +156,8 @@ class Query(object):
     def unmatched_patterns(self, sumry):
         remaining_patterns = self._patterns[:]
         for suminv in sumry.invokeds:
-            types = types_in_summary_invoked(suminv)
             remaining_patterns = [p for p in remaining_patterns if \
-                    not any(p.matches_type(typ) for typ in types)]
-            if not remaining_patterns:
-                return []
-        for suminv in sumry.invokeds:
-            method = method_in_summary_invoked(suminv)
-            remaining_patterns = [p for p in remaining_patterns if \
-                    not p.matches_method(method)]
+                    not p.matches_invoked(suminv)]
             if not remaining_patterns:
                 return []
         remaining_patterns = [p for p in remaining_patterns if \
@@ -158,25 +166,15 @@ class Query(object):
 
     def matched_patterns(self, sumry):
         remaining_patterns = self._patterns[:]
+        rems = []
         matcheds = []
         for suminv in sumry.invokeds:
-            types = types_in_summary_invoked(suminv)
-            rems = []
             for p in remaining_patterns:
-                (rems if not any(p.matches_type(typ) for typ in types) else \
+                (rems if not p.matches_invoked(suminv) else \
                     matcheds).append(p)
             if not remaining_patterns:
                 return matcheds
             remaining_patterns = rems
-        for suminv in sumry.invokeds:
-            method = method_in_summary_invoked(suminv)
-            rems = []
-            for p in remaining_patterns:
-                (rems if not p.matches_method(method) else matcheds).append(p)
-            if not remaining_patterns:
-                return matcheds
-            remaining_patterns = rems
-        method = method_in_summary_invoked(suminv)
         for p in remaining_patterns:
             if any(p.matches_literal(w) for w in sumry.literals):
                 matcheds.append(p)
