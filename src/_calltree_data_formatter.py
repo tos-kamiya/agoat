@@ -22,11 +22,8 @@ def init_ansi_color():
     colorama.init()
 
 
-def format_msig(msig):
-    return "%s %s(%s)" % (jp.methodsig_retv(msig), jp.methodsig_name(msig), ','.join(jp.methodsig_params(msig)))
-
-def format_clz_msig(clz, msig):
-    return "%s %s %s(%s)" % (clz, jp.methodsig_retv(msig), jp.methodsig_name(msig), ','.join(jp.methodsig_params(msig)))
+def format_clzmsig(clzmsig):
+    return "%s %s %s(%s)" % (jp.clzmsig_clz(clzmsig), jp.clzmsig_retv(clzmsig), jp.clzmsig_method(clzmsig), ','.join(jp.clzmsig_params(clzmsig)))
 
 
 OMITTED_PACKAGES = ["java.lang."]
@@ -104,22 +101,30 @@ def gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi
     if not fully_qualified_package_name:
         if ansi_color:
             def fmt_type(typ):
+                if typ is None:  # Java's void type
+                    typ = 'void'
                 if typ in cont_types:
                     return a_enhanced + omit_trivial_pakcage(typ) + a_reset
                 else:
                     return omit_trivial_pakcage(typ)
         else:
             def fmt_type(typ):
+                if typ is None:  # Java's void type
+                    typ = 'void'
                 return omit_trivial_pakcage(typ)
     else:
         if ansi_color:
             def fmt_type(typ):
+                if typ is None:  # Java's void type
+                    typ = 'void'
                 if type in cont_types:
                     return a_enhanced + typ + a_reset
                 else:
                     return typ
         else:
             def fmt_type(typ):
+                if typ is None:  # Java's void type
+                    typ = 'void'
                 return typ
 
     if ansi_color:
@@ -144,20 +149,20 @@ def gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi
                 return None
             return ', '.join(lits)
 
-    def fmt_msig(msig):
+    def fmt_clzmsig(clzmsig):
         return "%s %s(%s)" % (
-            fmt_type(jp.methodsig_retv(msig)),
-            fmt_method_name(jp.methodsig_name(msig)),
-            ','.join(fmt_type(typ) for typ in jp.methodsig_params(msig))
+            fmt_type(jp.clzmsig_retv(clzmsig)),
+            fmt_method_name(jp.clzmsig_method(clzmsig)),
+            ','.join(fmt_type(typ) for typ in jp.clzmsig_params(clzmsig))
         )
-    return fmt_type, fmt_msig, fmt_lits
+    return fmt_type, fmt_clzmsig, fmt_lits
 
 
 def format_call_tree_node_compact(node, out, contribution_data, print_node_once_appeared=True,
         indent_width=2, clz_msig2conversion=None, fully_qualified_package_name=False, ansi_color=False):
     node_id_to_cont, contribution_items = contribution_data[0], contribution_data[1:]
 
-    fmt_clz, fmt_msig, fmt_lits = gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi_color)
+    fmt_typ, fmt_clzmsig, fmt_lits = gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi_color)
 
     def label_w_lit(invoked, recursive_cxt):
         items = [recursive_cxt, invoked[1], invoked[2]]
@@ -181,13 +186,13 @@ def format_call_tree_node_compact(node, out, contribution_data, print_node_once_
 
     def put_callnode(node, loc_info_str):
         invoked = node.invoked
-        clz, msig = invoked[1], invoked[2]
+        clzmsig = invoked[1]
         if loc_info_str is None:
-            loc_info_str = format_loc_info(invoked[4])
+            loc_info_str = format_loc_info(invoked[3])
         node_label = label_w_lit(invoked, node.recursive_cxt)
         if print_node_once_appeared or node_label not in printed_node_label_w_lits:
-            buf = [(0, '%s %s {' % (fmt_clz(clz), fmt_msig(msig)), loc_info_str)]
-            s = fmt_lits(invoked[3])
+            buf = [(0, '%s {' % fmt_clzmsig(clzmsig), loc_info_str)]
+            s = fmt_lits(invoked[2])
             if s:
                 buf.append((0, '    ' + s, ''))
             b = format_i(node.body)
@@ -207,12 +212,12 @@ def format_call_tree_node_compact(node, out, contribution_data, print_node_once_
         assert node
         assert node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
         if loc_info_str is None:
-            loc_info_str = format_loc_info(node[4])
+            loc_info_str = format_loc_info(node[3])
         node_label = label_w_lit(node, None)  # context unknown, use non-context as default
         if print_node_once_appeared or node_label not in printed_node_label_w_lits:
             printed_node_label_w_lits.add(node_label)
-            buf = [(0, '%s %s' % (fmt_clz(node[1]), fmt_msig(node[2])), loc_info_str)]
-            s = fmt_lits(node[3])
+            buf = [(0, fmt_clzmsig(node[1]), loc_info_str)]
+            s = fmt_lits(node[2])
             if s:
                 buf.append((0, '    ' + s, ''))
             return buf

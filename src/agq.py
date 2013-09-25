@@ -14,7 +14,7 @@ import calltree as ct
 import calltree_builder as cb
 import calltree_query as cq
 from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
-from _calltree_data_formatter import format_call_tree_node_compact, init_ansi_color, format_clz_msig
+from _calltree_data_formatter import format_call_tree_node_compact, init_ansi_color, format_clzmsig
 
 
 def gen_expander_of_call_tree_to_paths(query):
@@ -69,9 +69,9 @@ def gen_expander_of_call_tree_to_paths(query):
                 else:
                     return [[node]]
             elif isinstance(node, tuple):
-                clz, msig = node[1], node[2]
-                literals = node[3]
-                if query.has_matching_pattern_in(clz, msig, literals):
+                clzmsig = node[1]
+                literals = node[2]
+                if query.has_matching_pattern_in(clzmsig, literals):
                     return [[node]]
                 return None
             else:
@@ -156,11 +156,11 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
 
     if output_form == 'callnode':
         nodes = search_in_call_trees(query, call_trees, node_summary_table, max_depth, treecut=False)
-        clz_msigs = [(n.invoked[1], n.invoked[2]) for n in nodes]
-        clz_msigs.sort()
+        clzmsigs = [n.invoked[1] for n in nodes]
+        clzmsigs.sort()
         with open_w_default(output_file, "wb", sys.stdout) as out:
-            for clz, msig in clz_msigs:
-                out.write('%s\n' % format_clz_msig(clz, msig))
+            for cm in clzmsigs:
+                out.write('%s\n' % format_clzmsig(cm))
         return
 
     removed_nodes_becauseof_limitation_of_depth = [None]

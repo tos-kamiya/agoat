@@ -12,25 +12,28 @@ import jimp_parser as jp
 import calltree as ct
 import calltree_summarizer as cs
 
-def new_invoked(clz, msig, literals):
-    return (jp.SPECIALINVOKE, clz, msig, literals, None)
+def cm(clz, method):
+    return jp.ClzMethodSig(clz, 'void', method, ())
 
-def new_callnode(clz, msig, literals, recursive_cxt, body):
-    return ct.CallNode((jp.SPECIALINVOKE, clz, msig, literals, None), recursive_cxt, body)
+def new_invoked(clzmsig, literals):
+    return (jp.SPECIALINVOKE, clzmsig, literals, None)
 
-A_CALL_TREE = new_callnode("A", "a", ('"a"',), None,
+def new_callnode(clzmsig, literals, recursive_cxt, body):
+    return ct.CallNode((jp.SPECIALINVOKE, clzmsig, literals, None), recursive_cxt, body)
+
+A_CALL_TREE = new_callnode(cm('A', 'a'), ('"a"',), None,
     [ct.ORDERED_AND,
-        new_invoked("B", "b", ('"b"',)),
-        new_callnode("C", "c", ('"c"',), None,
+        new_invoked(cm('B', 'b'), ('"b"',)),
+        new_callnode(cm('C', 'c'), ('"c"',), None,
             [ct.ORDERED_OR,
-                new_invoked("D", "d", ('"d"',)),
-                new_invoked("E", "e", ('"e"',)),
+                new_invoked(cm('D', 'd'), ('"d"',)),
+                new_invoked(cm('E', 'e'), ('"e"',)),
             ]
         ),
-        new_callnode("F", "f", ('"f"',), None,
+        new_callnode(cm('F', 'f'), ('"f"',), None,
             [ct.ORDERED_AND,
-                new_invoked("G", "g", ('"g"',)),
-                new_callnode("H", "h", ('"h"',), None,
+                new_invoked(cm('G', 'g'), ('"g"',)),
+                new_callnode(cm('H', 'h'), ('"h"',), None,
                     [ct.ORDERED_AND,
                     ]
                 )
@@ -39,19 +42,19 @@ A_CALL_TREE = new_callnode("A", "a", ('"a"',), None,
     ]
 )
 
-RECURSIVE_CALL_TREE = new_callnode("A", "a", (), None,
+RECURSIVE_CALL_TREE = new_callnode(cm('A', 'a'), (), None,
     [ct.ORDERED_AND,
-        new_callnode("R", "r", ('"r"',), ("R", "r"),
+        new_callnode(cm('R', 'r'), ('"r"',), (cm('R', 'r')),
             [ct.ORDERED_AND,
-                new_callnode("S", "s", ('"s"',), ("R", "r"),
-                    new_invoked("R", "r", ('"r"',))
+                new_callnode(cm('S', 's'), ('"s"',), (cm('R', 'r')),
+                    new_invoked(cm('R', 'r'), ('"r"',))
                 )
             ]
         ),
-        new_callnode("S", "s", ('"s1"',), ("S", "s"),
+        new_callnode(cm('S', 's'), ('"s1"',), (cm('S', 's')),
             [ct.ORDERED_AND,
-                new_callnode("R", "r", ('"r"',), ("S", "s"),
-                    new_invoked("S", "s", ('"s2"',))
+                new_callnode(cm('R', 'r'), ('"r"',), (cm('S', 's')),
+                    new_invoked(cm('S', 's'), ('"s2"',))
                 )
             ]
         )
@@ -59,16 +62,16 @@ RECURSIVE_CALL_TREE = new_callnode("A", "a", (), None,
 )
 
 S_BODY = [ct.ORDERED_AND,
-    new_invoked("T", "t", ('"t"',))
+    new_invoked(cm('T', 't'), ('"t"',))
 ]
 
-SHARING_CALL_TREE = new_callnode("A", "a", ('"a"',), None,
+SHARING_CALL_TREE = new_callnode(cm('A', 'a'), ('"a"',), None,
     [ct.ORDERED_AND,
-        new_callnode("B", "b", ('"b"',), None,
-            new_callnode("S", "s", ('"s1"',), None, S_BODY)
+        new_callnode(cm('B', 'b'), ('"b"',), None,
+            new_callnode(cm('S', 's'), ('"s1"',), None, S_BODY)
         ),
-        new_callnode("C", "c", ('"c"',), None,
-            new_callnode("S", "s", ('"s2"',), None, S_BODY)
+        new_callnode(cm('C', 'c'), ('"c"',), None,
+            new_callnode(cm('S', 's'), ('"s2"',), None, S_BODY)
         )
     ]
 )
@@ -79,39 +82,39 @@ class CalltreeSummarlizerTest(unittest.TestCase):
 
     def test_get_node_summary_table(self):
         summary_table = cs.extract_node_summary_table([A_CALL_TREE])
-        asum = summary_table.get(("A", "a", None))
-        aexpected = summary.Summary(['B\tb', 'C\tc', 'D\td', 'E\te', 'F\tf', 'G\tg', 'H\th'],
-                ['"b"', '"c"', '"d"', '"e"', '"f"', '"g"', '"h"'])
+        asum = summary_table.get((cm('A', 'a'), None))
+        aexpected = summary.Summary([cm('B', 'b'), cm('C', 'c'), cm('D', 'd'), cm('E', 'e'), cm('F', 'f'), cm('G', 'g'), cm('H', 'h')],
+                ('"b"', '"c"', '"d"', '"e"', '"f"', '"g"', '"h"'))
         self.assertEqual(asum, aexpected)
-        self.assertNotIn(("B", "b", None), summary_table)
-        csum = summary_table.get(("C", "c", None))
-        cexpected = summary.Summary(['D\td', 'E\te'], ['"d"', '"e"'])
+        self.assertNotIn((cm("B", "b"), None), summary_table)
+        csum = summary_table.get((cm("C", "c"), None))
+        cexpected = summary.Summary([cm('D', 'd'), cm('E', 'e')], ('"d"', '"e"'))
         self.assertEqual(csum, cexpected)
-        hsum = summary_table.get(("H", "h", None))
+        hsum = summary_table.get((cm("H", "h"), None))
         self.assertEqual(hsum, summary.Summary())
 
     def test_get_node_summary_table_recursive(self):
         summary_table = cs.extract_node_summary_table([RECURSIVE_CALL_TREE])
-        rrsum = summary_table.get(("R", "r", ("R", "r")))
-        self.assertEqual(rrsum, summary.Summary(['R\tr', 'S\ts'], ['"r"', '"s"']))
+        rrsum = summary_table.get((cm('R', 'r'), (cm('R', 'r'))))
+        self.assertEqual(rrsum, summary.Summary([cm('R', 'r'), cm('S', 's')], ('"r"', '"s"')))
 
-        srsum = summary_table.get(("S", "s", ("R", "r")))
-        self.assertEqual(srsum, summary.Summary(['R\tr'], ['"r"']))
+        srsum = summary_table.get((cm('S', 's'), (cm('R', 'r'))))
+        self.assertEqual(srsum, summary.Summary([cm('R', 'r')], ('"r"',)))
 
-        rssum = summary_table.get(("R", "r", ("S", "s")))
-        self.assertEqual(rssum, summary.Summary(['S\ts'], ['"s2"']))
+        rssum = summary_table.get((cm('R', 'r'), (cm('S', 's'))))
+        self.assertEqual(rssum, summary.Summary([cm('S', 's')], ('"s2"',)))
 
-        sssum = summary_table.get(("S", "s", ("S", "s")))
-        self.assertEqual(sssum, summary.Summary(['R\tr', 'S\ts'], ['"r"', '"s2"']))
+        sssum = summary_table.get((cm('S', 's'), (cm('S', 's'))))
+        self.assertEqual(sssum, summary.Summary([cm('R', 'r'), cm('S', 's')], ('"r"', '"s2"')))
 
     def test_get_node_summary_table_sharing(self):
         summary_table = cs.extract_node_summary_table([SHARING_CALL_TREE])
         expected = {
-            ('A', 'a', None): summary.Summary(['B\tb', 'C\tc', 'S\ts', 'T\tt'],
-                    ['"b"', '"c"', '"s1"', '"s2"', '"t"']),
-            ('B', 'b', None): summary.Summary(['S\ts', 'T\tt'], ['"s1"', '"t"']), 
-            ('S', 's', None): summary.Summary(['T\tt'], ['"t"']), 
-            ('C', 'c', None): summary.Summary(['S\ts', 'T\tt'], ['"s2"', '"t"'])
+            (cm('A', 'a'), None): summary.Summary([cm('B', 'b'), cm('C', 'c'), cm('S', 's'), cm('T', 't')],
+                    ('"b"', '"c"', '"s1"', '"s2"', '"t"')),
+            (cm('B', 'b'), None): summary.Summary([cm('S', 's'), cm('T', 't')], ('"s1"', '"t"')), 
+            (cm('S', 's'), None): summary.Summary([cm('T', 't')], ['"t"']), 
+            (cm('C', 'c'), None): summary.Summary([cm('S', 's'), cm('T', 't')], ('"s2"', '"t"'))
         }
         self.assertEqual(summary_table, expected)
 

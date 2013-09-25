@@ -18,12 +18,12 @@ def extract_referred_literals(inss, method_data, class_data):
         cmd = ins[0]
         if cmd in (jp.SPECIALINVOKE, jp.INVOKE):
             receiver, method_name, args, retv, linenum = ins[1:]
-            recvlit = resolve_type(receiver)[1]
-            sb.append_literal(recvlit)
-            arglits = tuple(resolve_type(a)[1] for a in args)
-            sb.extend_literal(arglits)
-            retvlit = resolve_type(retv)[1]
-            sb.append_literal(retvlit)
+            lits = []
+            lits.append(resolve_type(receiver)[1])
+            lits.extend(resolve_type(a)[1] for a in args)
+            lits.append(resolve_type(retv)[1])
+            lits = filter(lambda L: L is not None, lits)
+            sb.extend_literal(lits)
 
     return sb.to_summary()
 

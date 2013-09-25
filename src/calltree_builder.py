@@ -11,7 +11,7 @@ from _jimp_code_body_to_tree_elem import inss_to_tree, inss_to_tree_in_class_tab
 
 
 def callnode_label(call_node):
-    node_label = (call_node.invoked[1], call_node.invoked[2], call_node.recursive_cxt)
+    node_label = (call_node.invoked[1], call_node.recursive_cxt)
     return node_label
 
 
@@ -106,6 +106,8 @@ def make_dispatch_table(class_to_methods, class_to_descendants):
 
 
 def java_is_a(type_a, type_b, class_to_descendants):
+    if type_a is None:  # Java's void type
+        return 0 if type_b is None else -1
     if type_a == 'null':
         if type_b in ('byte', 'short', 'int', 'long', 'boolean', 'char', 'float', 'double'):
             return -1
@@ -269,7 +271,7 @@ def build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node
     # methods_ircc  # set of (str, MethodSig)
     # call_node_memo = {}  # (str, MethodSig, recursive_context) -> node
 
-    def dig_node(aot, recursive_context, clz_msig):
+    def dig_node(aot, recursive_context, clzmsig):
         if isinstance(aot, list):
             assert aot
             aot0 = aot[0]
@@ -277,7 +279,7 @@ def build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node
                 has_empty_subs = False
                 n = [aot0]
                 for item in aot[1:]:
-                    v = dig_node(item, recursive_context, clz_msig)
+                    v = dig_node(item, recursive_context, clzmsig)
                     if v is None:
                         has_empty_subs = True
                     else:
@@ -296,42 +298,41 @@ def build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node
             assert aot
             cmd = aot[0]
             if cmd in (jp.SPECIALINVOKE, jp.INVOKE):
-                recv_msig = (aot[1], aot[2])
-                if recv_msig == clz_msig or recv_msig == recursive_context:
+                recv_clzmsig = aot[1]
+                if recv_clzmsig == clzmsig or recv_clzmsig == recursive_context:
                     return None
-                loc_info = '\n'.join([clz_msig[0], clz_msig[1], "%d" % aot[4]])
-                v = dig_dispatch(cmd, recv_msig, recursive_context, aot[3], loc_info)
+                loc_info = '\n'.join([clzmsig, "%d" % aot[3]])
+                v = dig_dispatch(cmd, recv_clzmsig, recursive_context, aot[2], loc_info)
                 if v: 
                     return v
                 return tuple(list(aot[:-1]) + [loc_info])
             else:
                 return None
-                # loc_info = clz_msig, aot[-1]
-                # return tuple(list(aot[:-1]) + [loc_info])
         else:
             return None
 
     digging_calls = []
-    def dig_dispatch(cmd, recv_msig, recursive_context, literals, loc_info):
-        cand_methods = resolve_dispatch(cmd, recv_msig)
+    def dig_dispatch(cmd, recv_clzmsig, recursive_context, literals, loc_info):
+        cand_methods = resolve_dispatch(cmd, recv_clzmsig)
         if not cand_methods:
-            return (cmd, recv_msig[0], recv_msig[1], literals, loc_info)
+            return (cmd, recv_clzmsig, literals, loc_info)
         dispatch_node = [ct.ORDERED_OR]
-        for clz_method, md in cand_methods:
+        for md in cand_methods:
+            clzmsig = md.clzmsig
             rc = recursive_context
-            if clz_method in digging_calls:
+            if clzmsig in digging_calls:
                 # a recursive call is always a leaf node
-                dispatch_node.append((cmd, clz_method[0], clz_method[1], literals, loc_info))
+                dispatch_node.append((cmd, clzmsig, literals, loc_info))
             else:
-                if rc is None and clz_method in methods_ircc:
-                    rc = clz_method
-                cn = ct.CallNode((cmd, clz_method[0], clz_method[1], literals, loc_info), rc, None)
+                if rc is None and clzmsig in methods_ircc:
+                    rc = clzmsig
+                cn = ct.CallNode((cmd, clzmsig, literals, loc_info), rc, None)
                 node_label = callnode_label(cn)
                 v = call_node_memo.get(node_label)
                 if v is None:
-                    assert clz_method not in digging_calls  # assert this call is not a recursive one
-                    digging_calls.append(clz_method)
-                    v = dig_node(md.code, rc, clz_method)
+                    assert clzmsig not in digging_calls  # assert this call is not a recursive one
+                    digging_calls.append(clzmsig)
+                    v = dig_node(md.code, rc, clzmsig)
                     digging_calls.pop()
                     call_node_memo[node_label] = v
                 cn.body = v
@@ -344,7 +345,7 @@ def build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node
         else:
             return dispatch_node
 
-    return dig_dispatch(jp.SPECIALINVOKE, entry_point, None, None, None)
+    return dig_dispatch(jp.SPECIALINVOKE, entry_point, None, (), None)
 
 
 def extract_call_andor_trees(class_table, entry_points):

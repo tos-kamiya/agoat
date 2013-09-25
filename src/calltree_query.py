@@ -87,9 +87,12 @@ def method_in_summary_invoked(summary_invoked):
     return summary_invoked.split('\t')[2]
 
 
-def types_in_msig(msig):
-    types = [jp.methodsig_retv(msig)]
-    types.extend(jp.methodsig_params(msig))
+def types_in_clzmsig(clzmsig):
+    types = [jp.clzmsig_clz(clzmsig)]
+    types.append(jp.clzmsig_retv(clzmsig))
+    types.extend(jp.clzmsig_params(clzmsig))
+    types = ['void' if typ is None else typ for typ in types]
+    types = sort_uniq(types)
     return types
 
 
@@ -121,11 +124,9 @@ class Query(object):
                     return True
         return False
 
-    def has_matching_pattern_in(self, clz, msig, literals):
-        method = jp.methodsig_name(msig)
-        types = [clz]
-        types.append(jp.methodsig_retv(msig))
-        types.extend(jp.methodsig_params(msig))
+    def has_matching_pattern_in(self, clzmsig, literals):
+        method = jp.clzmsig_method(clzmsig)
+        types = types_in_clzmsig(clzmsig)
         for p in self._patterns:
             for typ in types:
                 if p.matches_type(typ):
@@ -317,9 +318,8 @@ def extract_shallowest_treecut(call_node, predicate, max_depth=-1):
 
 def update_cont_items_by_invoked(cont_items, invoked, query):
     cont_types, cont_method_names, cont_literals = cont_items
-    clz, msig, literals = invoked[1], invoked[2], invoked[3]
-    appeared_types = [clz, jp.methodsig_retv(msig)]
-    appeared_types.extend(jp.methodsig_params(msig))
+    clzmsig, literals = invoked[1], invoked[2]
+    appeared_types = types_in_clzmsig(clzmsig)
     invoked_cont = False
     for typ in appeared_types:
         if typ in cont_types:
@@ -328,7 +328,7 @@ def update_cont_items_by_invoked(cont_items, invoked, query):
             if query.matches_type(typ):
                 invoked_cont = True
                 cont_types.add(typ)
-    m = jp.methodsig_name(msig)
+    m = jp.clzmsig_method(clzmsig)
     if m in cont_method_names:
         invoked_cont = True
     else:

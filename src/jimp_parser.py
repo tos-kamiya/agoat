@@ -70,7 +70,7 @@ def _none_to_void(t):
 
 
 def _void_to_none(t):
-    return t if t is not 'void' else None
+    return t if t != 'void' else None
 
 # if False:
 #     MethodSig = namedtuple('MethodSig', 'retv name params')

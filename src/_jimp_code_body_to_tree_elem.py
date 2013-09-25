@@ -436,10 +436,10 @@ def main(argv, out=sys.stdout):
     target_method_name_pattern = argv[2] if len(argv) >= 3 else None
 
     clz, cd = r
-    for clzmethod_sig, md in cd.methods.iteritems():
-        if target_method_name_pattern and jp.clzmsig_method(clzmsig).find(target_method_name_pattern) < 0:
+    for md in cd.methods.itervalues():
+        if target_method_name_pattern and jp.clzmsig_method(md.clzmsig).find(target_method_name_pattern) < 0:
             continue
-        out.write("method: %s\n" % clzmethod_sig)
+        out.write("method: %s\n" % md.clzmsig)
         inss = resolve_types_in_code(md.code, md, cd)
 #         out.write("%s, %s:\n" % (clz, clzmsig))
 #         for ins in inss:

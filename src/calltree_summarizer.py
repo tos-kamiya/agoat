@@ -14,7 +14,7 @@ import summary
 import calltree as ct
 import calltree_builder as cb
 import jimp_parser as jp
-from _calltree_data_formatter import format_clz_msig
+from _calltree_data_formatter import format_clzmsig
 
 
 def _extract_callnode_invokeds_in_calltree(call_tree, invoked_set):
@@ -61,8 +61,7 @@ def get_node_summary(node, summary_table, progress=None):
     def scan_invocation(node):
         assert isinstance(node, tuple)
         assert node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
-        invoked = '%s\t%s' % (node[1], node[2])
-        return intern(invoked)
+        return intern(node[1])
 
     def intern_literals(lits, lits_pool):
         for ls in lits_pool:
@@ -91,9 +90,9 @@ def get_node_summary(node, summary_table, progress=None):
                 return sumry
         elif isinstance(node, ct.CallNode):
             invoked = node.invoked
+            clzmsig = invoked[1]
             assert invoked[0] in (jp.INVOKE, jp.SPECIALINVOKE)
-            clz, msig = invoked[1], invoked[2]
-            k = (clz, msig, node.recursive_cxt)
+            k = (clzmsig, node.recursive_cxt)
             stack.append(k)
             if summary_table is not None and k in summary_table:
                 nodesum = summary_table[k]
@@ -110,7 +109,7 @@ def get_node_summary(node, summary_table, progress=None):
                     subnode_literals.append(subnsum.literals)
                 else:
                     sb.append_invoked(scan_invocation(subnode))
-                    lits = subnode[3]
+                    lits = subnode[2]
                     if lits:
                         assert isinstance(lits, tuple)
                         sb.extend_literal(lits)
@@ -119,20 +118,20 @@ def get_node_summary(node, summary_table, progress=None):
                 nodesum.literals = intern_literals(nodesum.literals, subnode_literals)
                 if summary_table is not None:
                     summary_table[k] = nodesum
-            lits = invoked[3]
-            parnetsum = nodesum + summary.Summary(['%s\t%s' % (clz, msig)], lits if lits else [])
+            lits = invoked[2]
+            parnetsum = nodesum + summary.Summary([clzmsig], lits if lits else [])
             parnetsum.literals = intern_literals(parnetsum.literals, [nodesum.literals])
             stack.pop()
             return parnetsum
         else:
-            return summary.Summary([scan_invocation(node)], node[3])
+            return summary.Summary([scan_invocation(node)], node[2])
 
     try:
         sumry = dig_node(node)
     except:
         sys.stderr.write("> warning: exception raised in get_node_summary:\n")
         pp = pprint.PrettyPrinter(indent=4, stream=sys.stderr)
-        pp.pprint([format_clz_msig(clz, msig) for clz, msig, recursive_cxt in stack])
+        pp.pprint([format_clzmsig(clzmsig) for clzmsig, recursive_cxt in stack])
         sys.stderr.write('\n')
         raise
 
@@ -147,7 +146,7 @@ def get_node_summary_wo_memoization(node):
 
 
 def extract_node_summary_table(nodes, progress=None):
-    summary_table = {}  # (clz, MethodSig, recursive_context) -> Summary
+    summary_table = {}  # (ClzMethodSig, recursive_context) -> Summary
     for node in nodes:
         get_node_summary(node, summary_table, progress=progress)
     return summary_table
@@ -158,8 +157,8 @@ def extract_entry_points(call_trees):
     for call_tree in call_trees:
         assert isinstance(call_tree, ct.CallNode)
         invoked = call_tree.invoked
-        clz_msig = invoked[1], invoked[2]
-        entry_points.append(clz_msig)
+        clzmsig = invoked[1]
+        entry_points.append(clzmsig)
     entry_points.sort()
     return entry_points
 
@@ -175,8 +174,7 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
 
     class_table = cb.inss_to_tree_in_class_table(class_table)
 
-    entry_point_msig = jp.MethodSig(None, "main", ("java.lang.String[]",))
-    entry_point = (entry_point_class, entry_point_msig)
+    entry_point = jp.ClzMethodSig(entry_point_class, None, "main", ("java.lang.String[]",))
 
     call_andor_tree = cb.extract_call_andor_trees(class_table, [entry_point])[0]
 #     pp = pprint.PrettyPrinter(indent=4, stream=out)

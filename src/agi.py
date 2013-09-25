@@ -15,7 +15,7 @@ import jimp_code_term_extractor as jcte
 import calltree_builder as cb
 import calltree_summarizer as cs
 import src_linenumber_converter as slc
-from _calltree_data_formatter import format_clz_msig
+from _calltree_data_formatter import format_clzmsig
 from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
 from _calltree_data_formatter import pretty_print_pickle_data
 import summary
@@ -35,20 +35,21 @@ def list_entry_points(soot_dir, output_file, option_method_sig=False):
     with open_w_default(output_file, "wb", sys.stdout) as out:
         for ep in sorted(entry_points):
             if not option_method_sig:
-                out.write("%s\n" % ep[0])
+                out.write("%s\n" % jp.clzmsig_clz(ep))
             else:
-                out.write("%s\n" % format_clz_msig(*ep))
+                out.write("%s\n" % format_clzmsig(ep))
 
 
 def list_methods(soot_dir, output_file):
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
     sumry = jcte.extract_defined_methods_table(class_table)
-    methods = sumry.invokeds
+    invokeds = sumry.invokeds
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        for clz, msig in methods:
-            out.write("%s\n" % format_clz_msig(clz, msig))
+        for invoked in invokeds:
+            clzmsig = invoked[1]
+            out.write("%s\n" % format_clzmsig(clzmsig))
 
 
 def list_literals(soot_dir, output_file):
@@ -56,7 +57,7 @@ def list_literals(soot_dir, output_file):
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
     sb = summary.SummaryBuilder()
     for clz, cd in class_table.iteritems():
-        for msig, md in cd.methods.iteritems():
+        for clzmsig, md in cd.methods.iteritems():
             sb.append_summary(jcte.extract_referred_literals(md.code, md, cd))
     literals = sb.to_summary().literals
 
@@ -77,14 +78,9 @@ def list_entry_points_from_calltrees(call_tree_file, output_file, option_method_
     with open_w_default(output_file, "wb", sys.stdout) as out:
         for ep in sorted(entry_points):
             if not option_method_sig:
-                out.write("%s\n" % ep[0])
+                out.write("%s\n" % jp.clzmsig_clz(ep))
             else:
-                out.write("%s\n" % format_clz_msig(*ep))
-
-
-def add_recursive_cxt_to_entrypoint(entry_point):
-    clz, msig = entry_point
-    return [(clz, msig, None), (clz, msig, entry_point)]
+                out.write("%s\n" % format_clzmsig(ep))
 
 
 def list_methods_from_calltrees(call_tree_file, output_file):
@@ -100,19 +96,17 @@ def list_methods_from_calltrees(call_tree_file, output_file):
 
     tot_sumry = summary.Summary()
     for ep in entry_points:
-        for ep_w_rc in add_recursive_cxt_to_entrypoint(ep):
+        ep_with_possible_recursive_cxts = [(ep, None), (ep, ep)]
+        for ep_w_rc in ep_with_possible_recursive_cxts:
             sumry = summary_table.get(ep_w_rc)
             if sumry:
                 sumry.literals = ()
                 tot_sumry = tot_sumry + sumry
-    methods = tot_sumry.invokeds
+    invokeds = tot_sumry.invokeds
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        for clz_msig_str in methods:
-            p = clz_msig_str.index('\t')
-            clz = clz_msig_str[:p]
-            msig = clz_msig_str[p + 1:]
-            out.write("%s\n" % format_clz_msig(clz, msig))
+        for invoked in invokeds:
+            out.write("%s\n" % format_clzmsig(invoked))
 
 
 def list_literals_from_calltrees(call_tree_file, output_file):
@@ -128,7 +122,8 @@ def list_literals_from_calltrees(call_tree_file, output_file):
 
     tot_sumry = summary.Summary()
     for ep in entry_points:
-        for ep_w_rc in add_recursive_cxt_to_entrypoint(ep):
+        ep_with_possible_recursive_cxts = [(ep, None), (ep, ep)]
+        for ep_w_rc in ep_with_possible_recursive_cxts:
             sumry = summary_table.get(ep_w_rc)
             if sumry:
                 sumry.invokeds = ()
