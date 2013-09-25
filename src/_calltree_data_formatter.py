@@ -158,7 +158,8 @@ def gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi
             return ', '.join(lits)
 
     def fmt_clzmsig(clzmsig):
-        return "%s %s(%s)" % (
+        return "%s %s %s(%s)" % (
+            fmt_type(jp.clzmsig_clz(clzmsig)),
             fmt_type(jp.clzmsig_retv(clzmsig)),
             fmt_method_name(jp.clzmsig_method(clzmsig)),
             ','.join(fmt_type(typ) for typ in jp.clzmsig_params(clzmsig))
@@ -173,8 +174,8 @@ def format_call_tree_node_compact(node, out, contribution_data, print_node_once_
     fmt_typ, fmt_clzmsig, fmt_lits = gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi_color)
 
     def label_w_lit(invoked, recursive_cxt):
-        items = [recursive_cxt, invoked[1], invoked[2]]
-        invoked[3] and items.extend(invoked[3])
+        items = [recursive_cxt, invoked[1]]
+        invoked[2] and items.extend(invoked[2])
         return tuple(items)
 
     if clz_msig2conversion:
