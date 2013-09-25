@@ -173,9 +173,8 @@ def format_call_tree_node_compact(node, out, contribution_data, print_node_once_
 
     fmt_typ, fmt_clzmsig, fmt_lits = gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi_color)
 
-    def label_w_lit(invoked, recursive_cxt):
-        items = [recursive_cxt, invoked[1]]
-        invoked[2] and items.extend(invoked[2])
+    def label_w_lit(clzmsig, recursive_cxt):
+        items = [recursive_cxt, clzmsig]
         return tuple(items)
 
     if clz_msig2conversion:
@@ -198,7 +197,7 @@ def format_call_tree_node_compact(node, out, contribution_data, print_node_once_
         clzmsig = invoked[1]
         if loc_info_str is None:
             loc_info_str = format_loc_info(invoked[3])
-        node_label = label_w_lit(invoked, node.recursive_cxt)
+        node_label = label_w_lit(clzmsig, node.recursive_cxt)
         if print_node_once_appeared or node_label not in printed_node_label_w_lits:
             buf = [(0, '%s {' % fmt_clzmsig(clzmsig), loc_info_str)]
             s = fmt_lits(invoked[2])
@@ -222,10 +221,11 @@ def format_call_tree_node_compact(node, out, contribution_data, print_node_once_
         assert node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
         if loc_info_str is None:
             loc_info_str = format_loc_info(node[3])
-        node_label = label_w_lit(node, None)  # context unknown, use non-context as default
+        clzmsig = node[1]
+        node_label = label_w_lit(clzmsig, None)  # context unknown, use non-context as default
         if print_node_once_appeared or node_label not in printed_node_label_w_lits:
             printed_node_label_w_lits.add(node_label)
-            buf = [(0, fmt_clzmsig(node[1]), loc_info_str)]
+            buf = [(0, fmt_clzmsig(clzmsig), loc_info_str)]
             s = fmt_lits(node[2])
             if s:
                 buf.append((0, '    ' + s, ''))
