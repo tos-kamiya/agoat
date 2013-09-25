@@ -46,10 +46,10 @@ class JimpParserTest(unittest.TestCase):
 
     def test_clzmethodsig(self):
         msig = jp.ClzMethodSig("A", "int", "hoge", ())
-        self.assertEqual(jp.clzmethodsig_clz(msig), "A")
-        self.assertEqual(jp.clzmethodsig_retv(msig), "int")
-        self.assertEqual(jp.clzmethodsig_name(msig), "hoge")
-        self.assertEqual(jp.clzmethodsig_params(msig), ())
+        self.assertEqual(jp.clzmsig_clz(msig), "A")
+        self.assertEqual(jp.clzmsig_retv(msig), "int")
+        self.assertEqual(jp.clzmsig_method(msig), "hoge")
+        self.assertEqual(jp.clzmsig_params(msig), ())
 
     def test_hello_string(self):
         class_name, class_data = jp.parse_jimp_lines(

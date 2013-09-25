@@ -25,8 +25,8 @@ class ClassDataStubOnlyMethods(object):
 
 
 class MethodDataStubOnlyCode(object):
-    def __init__(self, clzmethod_sig, code):
-        self.clzmethod_sig = clzmethod_sig
+    def __init__(self, clzmsig, code):
+        self.clzmsig = clzmsig
         self.code = code
 
 

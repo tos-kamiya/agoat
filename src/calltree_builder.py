@@ -49,8 +49,8 @@ def extract_class_hierarchy(class_table, include_indirect_decendants=True):
 #     return iterface_to_classes
 
 
-def clzmethodsig_mnamc(msig):
-    return jp.clzmethodsig_name(msig), len(jp.clzmethodsig_params(msig))
+def clzmsig_mnamc(msig):
+    return jp.clzmsig_method(msig), len(jp.clzmsig_params(msig))
 
 
 def make_dispatch_table(class_to_methods, class_to_descendants):
@@ -64,7 +64,7 @@ def make_dispatch_table(class_to_methods, class_to_descendants):
     # in case of parent class's method call.
     for clz_mtds in class_to_methods.iteritems():
         clz, clzmsigs = clz_mtds
-        mnamcs = _utilities.sort_uniq([clzmethodsig_mnamc(clzmsig) for clzmsig in clzmsigs])
+        mnamcs = _utilities.sort_uniq([clzmsig_mnamc(clzmsig) for clzmsig in clzmsigs])
         assert clz
 
         cands = [clz]  # clz and its all descendant classes
@@ -75,7 +75,7 @@ def make_dispatch_table(class_to_methods, class_to_descendants):
         for d in cands:
             for mnamc in mnamcs:
                 for dclzmsig in class_to_methods.get(d, []):
-                    if clzmethodsig_mnamc(dclzmsig) == mnamc:
+                    if clzmsig_mnamc(dclzmsig) == mnamc:
                         recv_method_to_defs.setdefault((clz, mnamc), []).append(dclzmsig)
 
     # expand towards ascendants
@@ -94,11 +94,11 @@ def make_dispatch_table(class_to_methods, class_to_descendants):
                 clz_clzmsigs = class_to_methods.get(clz, [])
                 if not clz_clzmsigs: continue  # for des, d
                 des_clzmsigs = set(class_to_methods.get(des, []))
-                des_msigs = map(jp.clzmethodsig_methodsig, des_clzmsigs)
+                des_msigs = map(jp.clzmsig_methodsig, des_clzmsigs)
                 for clz_clzmsig in clz_clzmsigs:
-                    clz_msig = jp.clzmethodsig_methodsig(clz_clzmsig)
+                    clz_msig = jp.clzmsig_methodsig(clz_clzmsig)
                     if clz_msig not in des_msigs:  # if method defined in clz but not in des
-                        recv_method_to_defs.setdefault((des, clzmethodsig_mnamc(clz_clzmsig)), []).append(clz_clzmsig)
+                        recv_method_to_defs.setdefault((des, clzmsig_mnamc(clz_clzmsig)), []).append(clz_clzmsig)
 
     for cms in recv_method_to_defs.itervalues():
         cms.sort()
@@ -129,18 +129,18 @@ def gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_
     def resolve_dispatch(invoke_cmd, clzmsig):
         static_method = invoke_cmd == jp.SPECIALINVOKE
         resolved = []
-        recv = jp.clzmethodsig_clz(clzmsig)
-        mnamc = clzmethodsig_mnamc(clzmsig)
+        recv = jp.clzmsig_clz(clzmsig)
+        mnamc = clzmsig_mnamc(clzmsig)
         cands = recv_method_to_defs.get((recv, mnamc))
         if cands is None:
             return resolved
         for cclzmsig in cands:
-            cclz = jp.clzmethodsig_clz(cclzmsig)
+            cclz = jp.clzmsig_clz(cclzmsig)
             if static_method and cclz != recv:
                 continue  # cclz, cmsig
             unmatch = False
             total_distance = 0
-            for p, cp in zip(jp.clzmethodsig_params(clzmsig), jp.clzmethodsig_params(cclzmsig)):
+            for p, cp in zip(jp.clzmsig_params(clzmsig), jp.clzmsig_params(cclzmsig)):
                 d = java_is_a(p, cp, class_to_descendants)
                 if d < 0:
                     unmatch = True
@@ -148,7 +148,7 @@ def gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_
                 total_distance += d
             if unmatch:
                 continue  # cclz, cmsig
-            retv, cretv = jp.clzmethodsig_retv(clzmsig), jp.clzmethodsig_retv(cclzmsig)
+            retv, cretv = jp.clzmsig_retv(clzmsig), jp.clzmsig_retv(cclzmsig)
             d = java_is_a(cretv, retv, class_to_descendants)
             if d < 0:
                 continue  # cclz, cmsig 
@@ -214,7 +214,7 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolve_dispatch,
                 stack[:] = stack[:len_stack0]
 
     def dig_call(md, stack):
-        clzmsig = md.clzmethod_sig
+        clzmsig = md.clzmsig
         len_stack0 = len(stack)
         try:
             aot = md.code
@@ -258,7 +258,7 @@ def find_entry_points(class_table, target_class_names=None):
         class_data = class_table.get(clz)
         if not class_data: continue
         for clzmsig in class_data.methods.iterkeys():
-            rmp = (jp.clzmethodsig_retv(clzmsig), jp.clzmethodsig_name(clzmsig), jp.clzmethodsig_params(clzmsig))
+            rmp = (jp.clzmsig_retv(clzmsig), jp.clzmsig_method(clzmsig), jp.clzmsig_params(clzmsig))
             if rmp in entrypoint_retv_method_params:
                 entry_points.append(clzmsig)
     return entry_points
@@ -402,8 +402,8 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
                 for md in cd.methods.itervalues():
                     if entry_point:
                         break  # for md
-                    if jp.clzmethodsig_name(md.clzmethod_sig).find(entry_point_method) >= 0:
-                        entry_point = md.clzmethod_sig
+                    if jp.clzmsig_method(md.clzmsig).find(entry_point_method) >= 0:
+                        entry_point = md.clzmsig
     else:
         entry_point = jp.ClzMethodSig(entry_point_class, None, "main", ("java.lang.String[]",))
     logout and logout.write("> entry point is: %s %s\n" % entry_point)

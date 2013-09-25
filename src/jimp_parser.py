@@ -97,25 +97,25 @@ if True:
         items.extend(map(_none_to_void, params))
         return '\t'.join(items)
 
-    def clzmethodsig_clz(msig):
+    def clzmsig_clz(msig):
         return msig.split('\t')[0]
 
-    def clzmethodsig_retv(msig):
+    def clzmsig_retv(msig):
         return _void_to_none(msig.split('\t')[1])
 
-    def clzmethodsig_name(msig):
+    def clzmsig_method(msig):
         return _void_to_none(msig.split('\t')[2])
 
-    def clzmethodsig_params(msig):
+    def clzmsig_params(msig):
         return tuple(_void_to_none(t) for t in msig.split('\t')[3:])
 
-    def clzmethodsig_to_str(msig):
+    def clzmsig_to_str(msig):
         return msig
 
-    def clzmethodsig_from_str(s):
+    def clzmsig_from_str(s):
         return s
 
-    def clzmethodsig_methodsig(msig):
+    def clzmsig_methodsig(msig):
         return '\t'.join(msig.split('\t')[1:])
 
 
@@ -125,14 +125,14 @@ class InvalidText(ValueError):
 
 class MethodData(object):
 
-    def __init__(self, clzmethod_sig, scope_class):
-        self.clzmethod_sig = clzmethod_sig
+    def __init__(self, clzmsig, scope_class):
+        self.clzmsig = clzmsig
         self.scope_class = scope_class
         self.fields = {}  # name -> str
         self.code = None
 
     def __repr__(self):
-        return "MethodData(%s, %s, *)" % (repr(self.clzmethod_sig), repr(self.scope_class))
+        return "MethodData(%s, %s, *)" % (repr(self.clzmsig), repr(self.scope_class))
 
 
 class ClassData(object):
