@@ -1,6 +1,7 @@
 #coding: utf-8
 
 import re
+import sys
 
 from _utilities import quote, sort_uniq
 
@@ -12,10 +13,12 @@ import calltree_summarizer as cs
 
 class QueryPattern(object):
     def __init__(self, word, ignore_case=False):
-        regex = re.compile(word, re.IGNORECASE) if ignore_case else \
-            re.compile(word)
+        uw = word.decode('utf-8')
+        quoted_word = quote(uw.encode('unicode-escape'))
+        backslash_doubled = quoted_word.replace(r"\u", r"\\u").replace(r"\U", r"\\U")
+        self.regex = re.compile(backslash_doubled, re.IGNORECASE) if ignore_case else \
+            re.compile(backslash_doubled)
         self.word = word
-        self.regex = regex
 
     def matches_type(self, typ):
         return False
@@ -66,14 +69,11 @@ def compile_query(query_word, ignore_case=False):
         return LiteralQueryPattern(query_word, ignore_case)
     elif query_word.startswith('t.'):
         query_word = query_word[2:]
-        query_word = quote(query_word.decode('utf-8').encode('utf-8'))
         return TypeQueryPattern(query_word, ignore_case)
     elif query_word.startswith('m.'):
         query_word = query_word[2:]
-        query_word = quote(query_word.decode('utf-8').encode('utf-8'))
         return MethodQueryPattern(query_word, ignore_case)
     else:
-        query_word = quote(query_word.decode('utf-8').encode('utf-8'))
         return AnyQueryPattern(query_word, ignore_case)
 
 

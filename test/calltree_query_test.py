@@ -9,6 +9,8 @@ import os.path
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
+from _utilities import quote
+
 import jimp_parser as jp
 import calltree as ct
 import calltree_query as cq
@@ -143,7 +145,33 @@ class QueryTest(unittest.TestCase):
         self.assertEqual(len(missings), 0)
         self.assertTrue(query.is_partially_filled_by(sumry))
         self.assertTrue(query.is_fullfilled_by(sumry))
-    
+
+    def test_quoted_and_unquoted(self):
+        word_japanese_a = u"あ"
+        l = quote(word_japanese_a)
+        m = quote(word_japanese_a)
+        t = quote(word_japanese_a)
+
+        qpl = cq.LiteralQueryPattern(word_japanese_a)
+        self.assertTrue(qpl.matches_literal(l))
+        self.assertFalse(qpl.matches_method(m))
+        self.assertFalse(qpl.matches_type(t))
+
+        qpm = cq.MethodQueryPattern(word_japanese_a)
+        self.assertFalse(qpm.matches_literal(l))
+        self.assertTrue(qpm.matches_method(m))
+        self.assertFalse(qpm.matches_type(t))
+
+        qpt = cq.TypeQueryPattern(word_japanese_a)
+        self.assertFalse(qpt.matches_literal(l))
+        self.assertFalse(qpt.matches_method(m))
+        self.assertTrue(qpt.matches_type(t))
+
+        qpa = cq.AnyQueryPattern(word_japanese_a)
+        self.assertTrue(qpa.matches_literal(l))
+        self.assertTrue(qpa.matches_method(m))
+        self.assertTrue(qpa.matches_type(t))
+
     def test_get_direct_sub_callnodes_of_body_node(self):
         subns = cq.get_direct_sub_callnodes_of_body_node(A_CALL_TREE.body)
         self.assertEqual(len(subns), 2)

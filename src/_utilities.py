@@ -1,32 +1,32 @@
 # coding: utf-8
 
-__author__ = 'Toshihiro Kamiya <kamiya@mbj.nifty.com>'
-__status__ = 'experimental'
-
 import contextlib
 import sys
-import urllib2
+import re
 
 
-ASCII_SYMBOLS_EXCEPT_FOR_PERCENT = " \t!\"#$&`()*+,-./:;<=>?@[\\]^_'{|}~"
-
-
-def quote(byte_str):
-    return urllib2.quote(byte_str, safe=ASCII_SYMBOLS_EXCEPT_FOR_PERCENT)
+def quote(unicode_str):
+    pat_unicode_escape = re.compile(r"[\\](u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})")
+    buf = []
+    last_pos = 0
+    for m in pat_unicode_escape.finditer(unicode_str):
+        s, e = m.span()
+        buf.append(unicode_str[last_pos:s].encode("unicode-escape"))
+        buf.append(unicode_str[s:e].encode('utf-8'))
+        last_pos = e
+    else:
+        buf.append(unicode_str[last_pos:].encode("unicode-escape"))
+    return ''.join(buf)
 
 
 def readline_iter(filename):
     if filename != '-':
         with open(filename, "rb") as f:
             for L in f:
-                L = L.decode('utf-8').encode('utf-8').rstrip()
-                L = urllib2.quote(L, safe=ASCII_SYMBOLS_EXCEPT_FOR_PERCENT)
-                yield L
+                yield quote(L.decode("utf-8").rstrip())
     else:
         for L in sys.stdin:
-            L = L.decode('utf-8').encode('utf-8').rstrip()
-            L = urllib2.quote(L, safe=ASCII_SYMBOLS_EXCEPT_FOR_PERCENT)
-            yield L
+            yield quote(L.decode("utf-8").rstrip())
 
 
 def sort_uniq(lst, key=None):

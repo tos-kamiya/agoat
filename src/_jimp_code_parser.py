@@ -3,7 +3,7 @@
 import re
 
 _IDENTIFIER = r"([\w.$]+|'\w+')"
-_METHOD_NAME = r"(([\w<>]|%[0-9A-F]{2})+|access[$]\d+)"
+_METHOD_NAME = r"(([\w<>\\])+|access[$]\d+|class[$])"
 _LEFT = r"%s(\[%s\])?" % (_IDENTIFIER, _IDENTIFIER)
 
 _PAT_BIND = re.compile(r"^\s*%s\s*:=\s*@?%s\s*;$" % (_IDENTIFIER, _IDENTIFIER))
