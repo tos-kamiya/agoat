@@ -129,6 +129,14 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
         show_progress=False):
     log = sys.stderr.write if show_progress else None
 
+    cq.check_query_word_list(query_words)
+    query_patterns = []
+    for w in query_words:
+        query_patterns.append(cq.compile_query(w))
+    for w in ignore_case_query_words:
+        query_patterns.append(cq.compile_query(w, ignore_case=True))
+    query = cq.Query(query_patterns)
+
     log and log("> loading index data\n")
     with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
         # data = pickle.load(inp)  # very very slow in pypy
@@ -146,14 +154,6 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
         del data
 
     log and log("> searching query in index\n")
-    cq.check_query_word_list(query_words)
-    query_patterns = []
-    for w in query_words:
-        query_patterns.append(cq.compile_query(w))
-    for w in ignore_case_query_words:
-        query_patterns.append(cq.compile_query(w, ignore_case=True))
-    query = cq.Query(query_patterns)
-
     if output_form == 'callnode':
         nodes = search_in_call_trees(query, call_trees, node_summary_table, max_depth, treecut=False)
         clzmsigs = [n.invoked[1] for n in nodes]
