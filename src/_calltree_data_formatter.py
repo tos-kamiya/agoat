@@ -22,10 +22,6 @@ def init_ansi_color():
     colorama.init()
 
 
-def format_clzmsig(clzmsig):
-    return "%s %s %s(%s)" % (jp.clzmsig_clz(clzmsig), jp.clzmsig_retv(clzmsig), jp.clzmsig_method(clzmsig), ','.join(jp.clzmsig_params(clzmsig)))
-
-
 OMITTED_PACKAGES = ["java.lang."]
 _OMITTING_TABLE = [(p, len(p)) for p in OMITTED_PACKAGES]
 
@@ -35,6 +31,18 @@ def omit_trivial_pakcage(s):
         if s.startswith(p):
             return s[lp:]
     return s
+
+
+def format_clzmsig(clzmsig):
+    retv = jp.clzmsig_retv(clzmsig)
+    if retv is None:
+        retv = "void"
+    return "%s %s %s(%s)" % (
+        omit_trivial_pakcage(jp.clzmsig_clz(clzmsig)), 
+        omit_trivial_pakcage(retv), 
+        jp.clzmsig_method(clzmsig), 
+        ','.join(map(omit_trivial_pakcage, jp.clzmsig_params(clzmsig)))
+    )
 
 
 def replace_callnode_body_with_label(node, label_to_body_tbl={}):
