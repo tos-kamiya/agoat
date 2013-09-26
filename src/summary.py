@@ -4,9 +4,17 @@ from _utilities import sort_uniq
 
 
 class Summary(object):
-    def __init__(self, callees=(), literals=()):
-        self.callees = tuple(sort_uniq(callees))
-        self.literals = tuple(sort_uniq(literals))
+    __slots__ = ('callees', 'literals')
+
+    def __getstate__(self):
+        return tuple(self.callees), tuple(self.literals)
+
+    def __setstate__(self, tpl):
+        self.callees, self.literals = tpl
+
+    def __init__(self, callees=[], literals=[]):
+        self.callees = sort_uniq(callees)
+        self.literals = sort_uniq(literals)
 
     def __add__(self, other):
         return Summary(self.callees + other.callees,

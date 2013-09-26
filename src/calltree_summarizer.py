@@ -114,7 +114,8 @@ def get_node_summary(node, summary_table, progress=None):
                     summary_table[k] = nodesum
             lits = invoked.literals
             parnetsum = nodesum + summary.Summary([invoked.callee], lits if lits else [])
-            parnetsum.literals = intern_literals(parnetsum.literals, [nodesum.literals])
+            if len(parnetsum.literals) == len(nodesum.literals):
+                parnetsum.literals = nodesum.literals
             stack.pop()
             return parnetsum
         else:

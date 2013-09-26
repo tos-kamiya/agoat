@@ -37,8 +37,11 @@ def sort_uniq(lst, key=None):
     if len(lst) <= 1:
         return lst
 
-    dummy = None if lst[0] is not None else 1
-    return [item for item, prev_item in zip(lst, [dummy] + lst) if item != prev_item]
+    t = [lst[0]]
+    for item in lst:
+        if item != t[-1]:
+            t.append(item)
+    return t
 
 
 # @contextlib.contextmanager
