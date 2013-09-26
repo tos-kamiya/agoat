@@ -4,37 +4,37 @@ from _utilities import sort_uniq
 
 
 class Summary(object):
-    def __init__(self, invokeds=[], literals=[]):
-        self.invokeds = tuple(sort_uniq(invokeds))
+    def __init__(self, callees=[], literals=[]):
+        self.callees = tuple(sort_uniq(callees))
         self.literals = tuple(sort_uniq(literals))
 
     def __add__(self, other):
-        return Summary(self.invokeds + other.invokeds,
+        return Summary(self.callees + other.callees,
                 self.literals + other.literals)
 
     def __eq__(self, other):
         return isinstance(other, Summary) and \
-            self.invokeds == other.invokeds and \
+            self.callees == other.callees and \
             self.literals == other.literals
 
     def __ne__(self, other):
         return not (isinstance(other, Summary) and \
-            self.invokeds == other.invokeds and \
+            self.callees == other.callees and \
             self.literals == other.literals)
 
     def __repr__(self):
-        return 'Summary(%s, %s)' % (repr(self.invokeds), repr(self.literals))
+        return 'Summary(%s, %s)' % (repr(self.callees), repr(self.literals))
 
 class SummaryBuilder(object):
     def __init__(self):
-        self.invokeds = []
+        self.callees = []
         self.literals = []
 
-    def append_invoked(self, invoked):
-        self.invokeds.append(invoked)
+    def append_callee(self, callee):
+        self.callees.append(callee)
 
-    def extend_invoked(self, invokeds):
-        self.invokeds.extend(invokeds)
+    def extend_callee(self, callees):
+        self.callees.extend(callees)
 
     def append_literal(self, literal):
         self.literals.append(literal)
@@ -43,14 +43,14 @@ class SummaryBuilder(object):
         self.literals.extend(literals)
 
     def append_summary(self, sumry):
-        self.invokeds.extend(sumry.invokeds)
+        self.callees.extend(sumry.callees)
         self.literals.extend(sumry.literals)
 
     def extend_summary(self, summaries):
         for sumry in summaries:
-            self.invokeds.extend(sumry.invokeds)
+            self.callees.extend(sumry.callees)
             self.literals.extend(sumry.literals)
 
     def to_summary(self):
-        return Summary(self.invokeds, self.literals)
+        return Summary(self.callees, self.literals)
 

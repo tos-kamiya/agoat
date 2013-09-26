@@ -44,12 +44,9 @@ def list_methods(soot_dir, output_file):
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
     sumry = jcte.extract_defined_methods_table(class_table)
-    invokeds = sumry.invokeds
-
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        for invoked in invokeds:
-            clzmsig = invoked[1]
-            out.write("%s\n" % format_clzmsig(clzmsig))
+        for callee in sumry.callees:
+            out.write("%s\n" % format_clzmsig(callee))
 
 
 def list_literals(soot_dir, output_file):
@@ -57,7 +54,7 @@ def list_literals(soot_dir, output_file):
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
     sb = summary.SummaryBuilder()
     for clz, cd in class_table.iteritems():
-        for clzmsig, md in cd.methods.iteritems():
+        for md in cd.methods.itervalues():
             sb.append_summary(jcte.extract_referred_literals(md.code, md, cd))
     literals = sb.to_summary().literals
 
@@ -102,11 +99,11 @@ def list_methods_from_calltrees(call_tree_file, output_file):
             if sumry:
                 sumry.literals = ()
                 tot_sumry = tot_sumry + sumry
-    invokeds = tot_sumry.invokeds
+    callees = tot_sumry.callees
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
-        for invoked in invokeds:
-            out.write("%s\n" % format_clzmsig(invoked))
+        for callee in callees:
+            out.write("%s\n" % format_clzmsig(callee))
 
 
 def list_literals_from_calltrees(call_tree_file, output_file):
@@ -126,7 +123,7 @@ def list_literals_from_calltrees(call_tree_file, output_file):
         for ep_w_rc in ep_with_possible_recursive_cxts:
             sumry = summary_table.get(ep_w_rc)
             if sumry:
-                sumry.invokeds = ()
+                sumry.callees = ()
                 tot_sumry = tot_sumry + sumry
     literals = tot_sumry.literals
 
@@ -149,12 +146,12 @@ def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_fi
 
     if show_progress:
         log and log("> extracting summary from each node\n")
-        invoked_set = cs.extract_callnode_invokeds_in_calltrees(call_trees)
-        with progress_bar.drawer(len(invoked_set)) as rep:
-            done_invokeds = [0]
-            def p(invoked):
-                done_invokeds[0] += 1
-                rep(done_invokeds[0])
+        label_set = cs.extract_callnode_labels_in_calltrees(call_trees)
+        with progress_bar.drawer(len(label_set)) as rep:
+            done_labels = [0]
+            def p(label):
+                done_labels[0] += 1
+                rep(done_labels[0])
             node_summary_table = cs.extract_node_summary_table(call_trees, progress=p)
     else:
         node_summary_table = cs.extract_node_summary_table(call_trees)

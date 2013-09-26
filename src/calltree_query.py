@@ -29,7 +29,7 @@ class QueryPattern(object):
     def matches_literal(self, w):
         return False
 
-    def matches_invoked(self, summary_invoked):
+    def matches_callee(self, callee):
         return False
 
 
@@ -37,8 +37,8 @@ class TypeQueryPattern(QueryPattern):
     def matches_type(self, typ):
         return not not self.regex.search(typ)
 
-    def matches_invoked(self, summary_invoked):
-        for i, t in enumerate(summary_invoked.split('\t')):  # clz, retv, method, param, ...
+    def matches_callee(self, callee):
+        for i, t in enumerate(callee.split('\t')):  # clz, retv, method, param, ...
             if i == 2:
                 continue
             if self.regex.search(t):
@@ -51,8 +51,8 @@ class MethodQueryPattern(QueryPattern):
     def matches_method(self, method):
         return not not self.regex.search(method)
 
-    def matches_invoked(self, summary_invoked):
-        m = summary_invoked.split('\t')[2] # clz, retv, method, param, ...
+    def matches_callee(self, callee):
+        m = callee.split('\t')[2] # clz, retv, method, param, ...
         return self.regex.search(m)
 
 
@@ -71,8 +71,8 @@ class AnyQueryPattern(QueryPattern):
     def matches_literal(self, w):
         return not not self.regex.search(w)
 
-    def matches_invoked(self, summary_invoked):
-        for t in summary_invoked.split('\t'):  # clz, retv, method, param, ...
+    def matches_callee(self, callee):
+        for t in callee.split('\t'):  # clz, retv, method, param, ...
             if self.regex.search(t):
                 return True
         else:
@@ -119,9 +119,9 @@ class Query(object):
         return not self.unmatched_patterns(sumry)
 
     def is_partially_filled_by(self, sumry):
-        for suminv in sumry.invokeds:
+        for suminv in sumry.callees:
             for p in self._patterns:
-                if p.matches_invoked(suminv):
+                if p.matches_callee(suminv):
                     return True
         for w in sumry.literals:
             for p in self._patterns:
@@ -131,7 +131,7 @@ class Query(object):
 
     def has_matching_pattern_in(self, clzmsig, literals):
         for p in self._patterns:
-            if p.matches_invoked(clzmsig):
+            if p.matches_callee(clzmsig):
                 return True
             for w in literals:
                 if p.matches_literal(w):
@@ -140,9 +140,9 @@ class Query(object):
 
     def unmatched_patterns(self, sumry):
         remaining_patterns = self._patterns[:]
-        for suminv in sumry.invokeds:
+        for suminv in sumry.callees:
             remaining_patterns = [p for p in remaining_patterns if \
-                    not p.matches_invoked(suminv)]
+                    not p.matches_callee(suminv)]
             if not remaining_patterns:
                 return []
         remaining_patterns = [p for p in remaining_patterns if \
@@ -153,9 +153,9 @@ class Query(object):
         remaining_patterns = self._patterns[:]
         rems = []
         matcheds = []
-        for suminv in sumry.invokeds:
+        for suminv in sumry.callees:
             for p in remaining_patterns:
-                (rems if not p.matches_invoked(suminv) else \
+                (rems if not p.matches_callee(suminv) else \
                     matcheds).append(p)
             if not remaining_patterns:
                 return matcheds

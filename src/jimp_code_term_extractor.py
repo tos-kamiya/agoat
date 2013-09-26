@@ -29,12 +29,8 @@ def extract_referred_literals(inss, method_data, class_data):
 
 
 def extract_defined_methods(class_data):
-    clz = class_data.class_name
-
     sb = summary.SummaryBuilder()
-    for msig, md in sorted(class_data.methods.iteritems()):
-        sb.append_invoked((clz, msig))
-
+    sb.extend_callee(class_data.methods.iterkeys())
     return sb.to_summary()
 
 
@@ -51,7 +47,7 @@ def main(argv, out=sys.stdout):
     for clz, cd in jp.read_class_table_from_dir_iter(dirname):
         class_table[clz] = cd
     sumry = extract_defined_methods_table(class_table)
-    for clz, msig in sumry.invokeds:
+    for clz, msig in sumry.callees:
         out.write("%s\t%s\n" % (clz, msig))
 
 

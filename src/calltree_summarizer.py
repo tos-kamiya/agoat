@@ -17,7 +17,7 @@ import jimp_parser as jp
 from _calltree_data_formatter import format_clzmsig
 
 
-def _extract_callnode_invokeds_in_calltree(call_tree, invoked_set):
+def _extract_callnode_labels_in_calltree(call_tree, label_set):
     def dig_node(node):
         if node is None:
             return
@@ -27,13 +27,10 @@ def _extract_callnode_invokeds_in_calltree(call_tree, invoked_set):
             for subn in node[1:]:
                 dig_node(subn)
         elif isinstance(node, ct.CallNode):
-            invoked = node.invoked
-            assert invoked[0] in (jp.INVOKE, jp.SPECIALINVOKE)
-            clzmsig = invoked[1]
-            k = (clzmsig, node.recursive_cxt)
-            if k in invoked_set:
+            node_label = cb.callnode_label(node)
+            if node_label in label_set:
                 return
-            invoked_set.add(k)
+            label_set.add(node_label)
             if node.body:
                 subnode = node.body
                 if isinstance(subnode, (list, ct.CallNode)):
@@ -41,11 +38,11 @@ def _extract_callnode_invokeds_in_calltree(call_tree, invoked_set):
     dig_node(call_tree)
 
 
-def extract_callnode_invokeds_in_calltrees(call_trees):
-    invoked_set = set()
+def extract_callnode_labels_in_calltrees(call_trees):
+    label_set = set()
     for ct in call_trees:
-        _extract_callnode_invokeds_in_calltree(ct, invoked_set)
-    return sort_uniq(invoked_set)
+        _extract_callnode_labels_in_calltree(ct, label_set)
+    return sort_uniq(label_set)
 
 
 def get_node_summary(node, summary_table, progress=None):
@@ -108,7 +105,7 @@ def get_node_summary(node, summary_table, progress=None):
                     sb.append_summary(subnsum)
                     subnode_literals.append(subnsum.literals)
                 else:
-                    sb.append_invoked(scan_invocation(subnode))
+                    sb.append_callee(scan_invocation(subnode))
                     lits = subnode[2]
                     if lits:
                         assert isinstance(lits, tuple)
