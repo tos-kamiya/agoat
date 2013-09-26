@@ -326,8 +326,8 @@ def build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node
             else:
                 if rc is None and clzmsig in methods_ircc:
                     rc = clzmsig
-                cn = ct.CallNode(ct.Invoked(cmd, clzmsig, literals, loc_info), rc, None)
-                node_label = callnode_label(cn)
+                invoked = ct.Invoked(cmd, clzmsig, literals, loc_info)
+                node_label = callnode_label(ct.CallNode(invoked, rc, None))
                 v = call_node_memo.get(node_label)
                 if v is None:
                     assert clzmsig not in digging_calls  # assert this call is not a recursive one
@@ -335,7 +335,7 @@ def build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node
                     v = dig_node(md.code, rc, clzmsig)
                     digging_calls.pop()
                     call_node_memo[node_label] = v
-                cn.body = v
+                cn = ct.CallNode(invoked, rc, v)
                 dispatch_node.append(cn)
         len_dispatch_node = len(dispatch_node)
         if len_dispatch_node == 1:
