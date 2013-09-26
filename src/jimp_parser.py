@@ -72,51 +72,31 @@ def _none_to_void(t):
 def _void_to_none(t):
     return t if t != 'void' else None
 
-# if False:
-#     MethodSig = namedtuple('MethodSig', 'retv name params')
-# 
-#     def methodsig_retv(msig):
-#         return msig.retv
-# 
-#     def methodsig_name(msig):
-#         return msig.name
-# 
-#     def methodsig_params(msig):
-#         return msig.params
-# 
-#     def methodsig_to_str(msig):
-#         return '%s\t%s\t%s' % (msig.retv, msig.name, '\t'.join(msig.params))
-# 
-#     def methodsig_from_str(s):
-#         fs = s.split('\t')
-#         return MethodSig(fs[0], fs[1], tuple(fs[2:]))
-# else:
-if True:
-    def ClzMethodSig(clz, retv, name, params):
-        items = [clz, _none_to_void(retv), name]
-        items.extend(map(_none_to_void, params))
-        return '\t'.join(items)
+def ClzMethodSig(clz, retv, name, params):
+    items = [clz, _none_to_void(retv), name]
+    items.extend(map(_none_to_void, params))
+    return '\t'.join(items)
 
-    def clzmsig_clz(msig):
-        return msig.split('\t')[0]
+def clzmsig_clz(msig):
+    return msig.split('\t')[0]
 
-    def clzmsig_retv(msig):
-        return _void_to_none(msig.split('\t')[1])
+def clzmsig_retv(msig):
+    return _void_to_none(msig.split('\t')[1])
 
-    def clzmsig_method(msig):
-        return _void_to_none(msig.split('\t')[2])
+def clzmsig_method(msig):
+    return _void_to_none(msig.split('\t')[2])
 
-    def clzmsig_params(msig):
-        return tuple(_void_to_none(t) for t in msig.split('\t')[3:])
+def clzmsig_params(msig):
+    return tuple(_void_to_none(t) for t in msig.split('\t')[3:])
 
-    def clzmsig_to_str(msig):
-        return msig
+def clzmsig_to_str(msig):
+    return msig
 
-    def clzmsig_from_str(s):
-        return s
+def clzmsig_from_str(s):
+    return s
 
-    def clzmsig_methodsig(msig):
-        return '\t'.join(msig.split('\t')[1:])
+def clzmsig_methodsig(msig):
+    return '\t'.join(msig.split('\t')[1:])
 
 
 class InvalidText(ValueError):
@@ -142,7 +122,7 @@ class ClassData(object):
         self.base_name = base_name
         self.interf_names = interf_names
         self.fields = {}  # name -> str
-        self.methods = {}  # MethodSig -> MethodData
+        self.methods = {}  # ClzMethodSig -> MethodData
 
     def add_field(self, field_name, field_type):
         self.fields[field_name] = field_type

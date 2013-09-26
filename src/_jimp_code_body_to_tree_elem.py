@@ -17,19 +17,8 @@ from andor_tree import ORDERED_AND, ORDERED_OR, normalize_tree
 from _jimp_code_box_generator import BOX, BLOCK
 import _jimp_code_box_generator
 
-# if False:
-#     MethodSigInternTable = dict()
-# 
-#     def clzmethodsig_intern(msig):
-#         v = MethodSigInternTable.get(msig)
-#         if v:
-#             return v
-#         MethodSigInternTable[msig] = msig
-#         return msig
-# else:
-if True:
-    def clzmethodsig_intern(msig):
-        return intern(msig)
+def clzmethodsig_intern(msig):
+    return intern(msig)
 
 
 def gen_type_resolver(method_data, class_data):

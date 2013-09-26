@@ -53,7 +53,7 @@ def get_node_summary(node, summary_table, progress=None):
     then calculate the summary twice (for each child node).
     """
 
-    # summary_table = {}  # (clz, MethodSig, recursive_context) -> Summary
+    # summary_table = {}  # (ClzMethodSig, recursive_context) -> Summary
 
     def scan_invocation(node):
         assert isinstance(node, ct.Invoked)
@@ -134,7 +134,7 @@ def get_node_summary(node, summary_table, progress=None):
 
 
 def get_node_summary_wo_memoization(node):
-    # summary_table = {}  # (clz, MethodSig, recursive_context) -> Summary
+    # summary_table = {}  # (ClzMethodSig, recursive_context) -> Summary
     summary_table = get_node_summary(node, summary_table=None)
     return summary_table
 

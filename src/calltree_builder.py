@@ -172,10 +172,10 @@ def gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_
 
 def find_methods_involved_in_recursive_call_chain(entry_point, resolve_dispatch,
           include_direct_recursive_calls=False):
-    # entry_points  # list of (str, MethodSig)
+    # entry_points  # list of ClzMethodSig
 
     methods_searched = set()
-    # set of (str, MethodSig) # methods involved in recursive call chain
+    # set of ClzMethodSig # methods involved in recursive call chain
     methods_ircc = set()
 
     cmzmsig0 = entry_point
@@ -267,9 +267,9 @@ def find_entry_points(class_table, target_class_names=None):
 
 
 def build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node_memo={}):
-    # entry_point  # (str, MethodSig)
-    # methods_ircc  # set of (str, MethodSig)
-    # call_node_memo = {}  # (str, MethodSig, recursive_context) -> node
+    # entry_point  # ClzMethodSig
+    # methods_ircc  # set of ClzMethodSig
+    # call_node_memo = {}  # (ClzMethodSig, recursive_context) -> node
 
     def dig_node(aot, recursive_context, clzmsig):
         if isinstance(aot, list):
@@ -427,7 +427,7 @@ def main(argv, out=sys.stdout, logout=sys.stderr):
     logout and logout.write("> reslove dispatch\n")
     class_to_methods = dict((claz, cd.methods.keys())
             for claz, cd in class_table.iteritems())
-    # class_to_methods  # str -> [MethodSig]
+    # class_to_methods  # str -> [ClzMethodSig]
 
     recv_method_to_defs = make_dispatch_table(
         class_to_methods, class_to_descendants)
