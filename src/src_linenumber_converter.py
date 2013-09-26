@@ -75,7 +75,7 @@ def split_into_method_iter(asmfile, lines):
         p = class_name.find('<')
         if p >= 0:
             class_name = class_name[:p]
-        return ((class_name, method_sig), method_body)
+        return (class_name, method_sig), method_body
 
     class_name, method_sig, method_body = None, None, None
 
@@ -199,7 +199,7 @@ def get_asm_info_iter(asm_dir):
 
        when typ == INHERITANCE, values is a tuple, which contains:
          claz: (str)
-         extends: its exntending classes (list of str, length is 0 or 1)
+         extends: its extending classes (list of str, length is 0 or 1)
          implements: its implementing interfaces (list of str)
     """
 
@@ -289,7 +289,7 @@ def make_invocationindex_to_src_linenum_table(javap_asm_dir):
 
 
 def jimp_linnum_to_src_linenum_table(class_table, claz_msig2invocationindex2linenum):
-    clz_msig2conversion = {}  # clz_msig -> jimp_linenum -> src_linenum
+    clz_msig2conversion = {}  # ClzMethodSig -> jimp_linenum -> src_linenum
     for clz, cd in sorted(class_table.iteritems()):
         for clzmsig, md in sorted(cd.methods.iteritems()):
             invocationindex2linenum = claz_msig2invocationindex2linenum.get(clzmsig)

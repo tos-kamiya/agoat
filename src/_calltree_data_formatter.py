@@ -19,7 +19,7 @@ DATATAG_LINENUMBER_TABLE = "linenumber_table"
 
 
 def init_ansi_color():
-    import colorama  # ensure colorama is loaded. othewise, runtime error
+    import colorama  # ensure colorama is loaded. otherwise, runtime error
     colorama.init()
 
 
@@ -27,7 +27,7 @@ OMITTED_PACKAGES = ["java.lang."]
 _OMITTING_TABLE = [(p, len(p)) for p in OMITTED_PACKAGES]
 
 
-def omit_trivial_pakcage(s):
+def omit_trivial_package(s):
     for p, lp in _OMITTING_TABLE:
         if s.startswith(p):
             return s[lp:]
@@ -39,10 +39,10 @@ def format_clzmsig(clzmsig):
     if retv is None:
         retv = "void"
     return "%s %s %s(%s)" % (
-        omit_trivial_pakcage(jp.clzmsig_clz(clzmsig)), 
-        omit_trivial_pakcage(retv), 
+        omit_trivial_package(jp.clzmsig_clz(clzmsig)),
+        omit_trivial_package(retv),
         jp.clzmsig_method(clzmsig), 
-        ','.join(map(omit_trivial_pakcage, jp.clzmsig_params(clzmsig)))
+        ','.join(map(omit_trivial_package, jp.clzmsig_params(clzmsig)))
     )
 
 
@@ -122,14 +122,14 @@ def gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi
                 if typ is None:  # Java's void type
                     typ = 'void'
                 if typ in cont_types:
-                    return a_enhanced + omit_trivial_pakcage(typ) + a_reset
+                    return a_enhanced + omit_trivial_package(typ) + a_reset
                 else:
-                    return omit_trivial_pakcage(typ)
+                    return omit_trivial_package(typ)
         else:
             def fmt_type(typ):
                 if typ is None:  # Java's void type
                     typ = 'void'
-                return omit_trivial_pakcage(typ)
+                return omit_trivial_package(typ)
     else:
         if ansi_color:
             def fmt_type(typ):

@@ -116,7 +116,7 @@ class QueryTest(unittest.TestCase):
         self.assertEqual(missings[0].word, "w")
         self.assertEqual(missings[1].word, "x")
         self.assertFalse(query.is_partially_filled_by(sumry))
-        self.assertFalse(query.is_fullfilled_by(sumry))
+        self.assertFalse(query.is_fulfilled_by(sumry))
 
         sumry = summary.Summary(["AClass\tvoid\tsomeMehtod"])
         missings = query.unmatched_patterns(sumry)
@@ -124,27 +124,27 @@ class QueryTest(unittest.TestCase):
         self.assertEqual(missings[0].word, "w")
         self.assertEqual(missings[1].word, "x")
         self.assertFalse(query.is_partially_filled_by(sumry))
-        self.assertFalse(query.is_fullfilled_by(sumry))
+        self.assertFalse(query.is_fulfilled_by(sumry))
 
         sumry = summary.Summary(literals=['"x"'])
         missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "w")
         self.assertTrue(query.is_partially_filled_by(sumry))
-        self.assertFalse(query.is_fullfilled_by(sumry))
+        self.assertFalse(query.is_fulfilled_by(sumry))
 
         sumry = summary.Summary(literals=['"w"'])
         missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "x")
         self.assertTrue(query.is_partially_filled_by(sumry))
-        self.assertFalse(query.is_fullfilled_by(sumry))
+        self.assertFalse(query.is_fulfilled_by(sumry))
 
         sumry = summary.Summary(literals=['"x"', '"w"'])
         missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 0)
         self.assertTrue(query.is_partially_filled_by(sumry))
-        self.assertTrue(query.is_fullfilled_by(sumry))
+        self.assertTrue(query.is_fulfilled_by(sumry))
 
     def test_quoted_and_unquoted(self):
         word_japanese_a = u"あ"

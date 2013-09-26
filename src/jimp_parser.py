@@ -77,26 +77,26 @@ def ClzMethodSig(clz, retv, name, params):
     items.extend(map(_none_to_void, params))
     return '\t'.join(items)
 
-def clzmsig_clz(msig):
-    return msig.split('\t')[0]
+def clzmsig_clz(clzmsig):
+    return clzmsig.split('\t')[0]
 
-def clzmsig_retv(msig):
-    return _void_to_none(msig.split('\t')[1])
+def clzmsig_retv(clzmsig):
+    return _void_to_none(clzmsig.split('\t')[1])
 
-def clzmsig_method(msig):
-    return _void_to_none(msig.split('\t')[2])
+def clzmsig_method(clzmsig):
+    return _void_to_none(clzmsig.split('\t')[2])
 
-def clzmsig_params(msig):
-    return tuple(_void_to_none(t) for t in msig.split('\t')[3:])
+def clzmsig_params(clzmsig):
+    return tuple(_void_to_none(t) for t in clzmsig.split('\t')[3:])
 
-def clzmsig_to_str(msig):
-    return msig
+def clzmsig_to_str(clzmsig):
+    return clzmsig
 
 def clzmsig_from_str(s):
     return s
 
-def clzmsig_methodsig(msig):
-    return '\t'.join(msig.split('\t')[1:])
+def clzmsig_methodsig(clzmsig):
+    return '\t'.join(clzmsig.split('\t')[1:])
 
 
 class InvalidText(ValueError):
@@ -146,7 +146,6 @@ def togd(m):
 def parse_jimp_field_decl(entity, linenum, line):
     gd = togd(_PAT_DECL.match(line))
     if not gd:
-        assert False
         raise InvalidText("line %d: invalid field decl" % linenum)
     names = gd["names"].split(", ")
     typ = gd["typ"]
@@ -245,7 +244,7 @@ def parse_jimp_lines(lines,
     return class_name, class_data
 
 
-def read_class_table_from_dir_iter(dirname, trace_invocation_via_interface=True):
+def read_class_table_from_dir_iter(dirname):
     files = sorted(os.listdir(dirname))
     for f in files:
         if f.endswith(".jimp"):

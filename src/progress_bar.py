@@ -10,9 +10,9 @@ class drawer(object):
         self.total_count = total_count
         self.prev_per = None
         self.bar_picture = ''.join(
-            ('|' if i % (self.bar_length / 2) == 0 else \
-            '+' if i % (self.bar_length / 10) == 0 else \
-            '-') \
+            ('|' if i % (self.bar_length / 2) == 0 else
+            '+' if i % (self.bar_length / 10) == 0 else
+            '-')
             for i in range(1, self.bar_length))
 
     def progress(self, count):

@@ -18,7 +18,7 @@ from _calltree_data_formatter import format_call_tree_node_compact, init_ansi_co
 
 
 def gen_expander_of_call_tree_to_paths(query):
-    treecut_fullfills_query = cq.gen_treecut_fullfills_query_predicate(query)
+    treecut_fulfills_query = cq.gen_treecut_fulfills_query_predicate(query)
 
     def expand_call_tree_to_paths(node):
         def expand_i(node):
@@ -78,7 +78,7 @@ def gen_expander_of_call_tree_to_paths(query):
         paths = expand_i(node)
         paths = sort_uniq(paths)
         paths = [at.normalize_tree([ct.ORDERED_AND] + path) for path in paths]
-        paths = [path for path in paths if treecut_fullfills_query(path)]
+        paths = [path for path in paths if treecut_fulfills_query(path)]
         return paths
 
     return expand_call_tree_to_paths
@@ -109,12 +109,14 @@ def remove_outermost_loc_info(call_node):
 
 
 def search_in_call_trees(query, call_trees, node_summary_table, max_depth,
-        treecut=True, removed_nodes_becauseof_limitation_of_depth=[None]):
-    pred = cq.gen_callnode_fullfills_query_predicate_w_memo(query, node_summary_table)
+        removed_nodes_becauseof_limitation_of_depth=None):
+    if removed_nodes_becauseof_limitation_of_depth:
+        removed_nodes_becauseof_limitation_of_depth = [None]
+    pred = cq.gen_callnode_fulfills_query_predicate_w_memo(query, node_summary_table)
     call_nodes = cq.get_lower_bound_call_nodes(call_trees, pred)
 
-    pred = cq.gen_treecut_fullfills_query_predicate(query)
-    shallowers = filter(None, (cq.extract_shallowest_treecut(call_node, pred, max_depth) for call_node in call_nodes))
+    pred = cq.gen_treecut_fulfills_query_predicate(query)
+    shallowers = list(filter(None, (cq.extract_shallowest_treecut(call_node, pred, max_depth) for call_node in call_nodes)))
     removed_nodes_becauseof_limitation_of_depth[0] = len(call_nodes) - len(shallowers)
 
     contextlesses = [remove_outermost_loc_info(remove_recursive_contexts(cn)) for cn in shallowers]
@@ -154,7 +156,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
 
     log and log("> searching query in index\n")
     if output_form == 'callnode':
-        nodes = search_in_call_trees(query, call_trees, node_summary_table, max_depth, treecut=False)
+        nodes = search_in_call_trees(query, call_trees, node_summary_table, max_depth)
         clzmsigs = [n.callee for n in nodes]
         clzmsigs.sort()
         with open_w_default(output_file, "wb", sys.stdout) as out:
@@ -167,7 +169,8 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
             removed_nodes_becauseof_limitation_of_depth=removed_nodes_becauseof_limitation_of_depth)
     if not nodes:
         if removed_nodes_becauseof_limitation_of_depth[0] > 0:
-            sys.stderr.write("> warning: all found code exceeds max call-tree depth. give option -d explicitly to show these code.\n")
+            sys.stderr.write("> warning: all found code exceeds max call-tree depth." +
+                    " give option -d explicitly to show these code.\n")
         return
 
     if output_form == 'treecut':
@@ -178,7 +181,8 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
                 out.write("---\n")
                 format_call_tree_node_compact(node, out, contribution_data, 
                         print_node_once_appeared=False,
-                        # because duplicated nodes (nodes which equals to each other after removing non-contributing nodes) exist
+                        # because duplicated nodes (nodes which equals to each other
+                        # after removing non-contributing nodes) exist
                         # in result, so need to suppress such duplication
                         clz_msig2conversion=clz_msig2conversion, 
                         fully_qualified_package_name=fully_qualified_package_name, 
@@ -189,15 +193,16 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
     log and log("> printing results\n")
     expand_call_tree_to_paths = gen_expander_of_call_tree_to_paths(query)
     path_nodes = []
-    count_removed_path_becauseof_not_fullfilling_query = 0
+    count_removed_path_becauseof_not_fulfilling_query = 0
     for node in nodes:
         pns = expand_call_tree_to_paths(node)
         if not pns:
-            count_removed_path_becauseof_not_fullfilling_query += 1
+            count_removed_path_becauseof_not_fulfilling_query += 1
         path_nodes.extend(pns)
     if not path_nodes:
-        if count_removed_path_becauseof_not_fullfilling_query > 0:
-            sys.stderr.write("> warning: no found paths includes all query words. use '-f treecut' to show them as treecut, not as path.\n")
+        if count_removed_path_becauseof_not_fulfilling_query > 0:
+            sys.stderr.write("> warning: no found paths includes all query words." +
+                    " use '-f treecut' to show them as treecut, not as path.\n")
         return
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
@@ -226,8 +231,8 @@ def main(argv):
             help="line-number table file. '-' for standard input. (default '%s')" % _c.default_linenumbertable_path,
             default=None)
     psr_q.add_argument('-d', '--max-depth', action='store', type=int, 
-            help="max depth of subtree. -1 for unlimited depth. (default '%d')" % _c.defalut_max_depth_of_subtree,
-            default=_c.defalut_max_depth_of_subtree)
+            help="max depth of subtree. -1 for unlimited depth. (default '%d')" % _c.default_max_depth_of_subtree,
+            default=_c.default_max_depth_of_subtree)
     psr_q.add_argument('-f', '--output-form', choices=('callnode', 'treecut', 'path'), 
             default='treecut')
     color_choices=('always', 'never', 'auto')

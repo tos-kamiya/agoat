@@ -48,7 +48,7 @@ def extract_callnode_labels_in_calltrees(call_trees):
 def get_node_summary(node, summary_table, progress=None):
     """
     Get summary of a node.
-    In case of summary_table parameter given, caluclate summary with memorization.
+    In case of summary_table parameter given, calculate summary with memorization.
     Otherwise (without memorization), if two child nodes of a node is the same node,
     then calculate the summary twice (for each child node).
     """

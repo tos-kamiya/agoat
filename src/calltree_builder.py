@@ -178,7 +178,6 @@ def find_methods_involved_in_recursive_call_chain(entry_point, resolve_dispatch,
     # set of ClzMethodSig # methods involved in recursive call chain
     methods_ircc = set()
 
-    cmzmsig0 = entry_point
     e = resolve_dispatch(jp.SPECIALINVOKE, entry_point)
     if not e:
         raise ValueError("entry_point not found")

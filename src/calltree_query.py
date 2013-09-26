@@ -100,8 +100,7 @@ def compile_query(query_word, ignore_case=False):
 
 
 def types_in_clzmsig(clzmsig):
-    types = [jp.clzmsig_clz(clzmsig)]
-    types.append(jp.clzmsig_retv(clzmsig))
+    types = [jp.clzmsig_clz(clzmsig), jp.clzmsig_retv(clzmsig)]
     types.extend(jp.clzmsig_params(clzmsig))
     types = ['void' if typ is None else typ for typ in types]
     types = sort_uniq(types)
@@ -115,7 +114,7 @@ class Query(object):
     def count(self):
         return len(self._patterns)
 
-    def is_fullfilled_by(self, sumry):
+    def is_fulfilled_by(self, sumry):
         return not self.unmatched_patterns(sumry)
 
     def is_partially_filled_by(self, sumry):
@@ -140,9 +139,9 @@ class Query(object):
 
     def unmatched_patterns(self, sumry):
         remaining_patterns = self._patterns[:]
-        for suminv in sumry.callees:
+        for callee in sumry.callees:
             remaining_patterns = [p for p in remaining_patterns if \
-                    not p.matches_callee(suminv)]
+                    not p.matches_callee(callee)]
             if not remaining_patterns:
                 return []
         remaining_patterns = [p for p in remaining_patterns if \
@@ -153,9 +152,9 @@ class Query(object):
         remaining_patterns = self._patterns[:]
         rems = []
         matcheds = []
-        for suminv in sumry.callees:
+        for callee in sumry.callees:
             for p in remaining_patterns:
-                (rems if not p.matches_callee(suminv) else \
+                (rems if not p.matches_callee(callee) else \
                     matcheds).append(p)
             if not remaining_patterns:
                 return matcheds
@@ -199,7 +198,7 @@ def get_direct_sub_callnodes_of_body_node(body_node):
         return []
 
 
-def gen_callnode_fullfills_query_predicate_w_memo(query, node_summary_table):
+def gen_callnode_fulfills_query_predicate_w_memo(query, node_summary_table):
     search_memo = {}
     def predicate(call_node):
         assert isinstance(call_node, ct.CallNode)
@@ -208,7 +207,7 @@ def gen_callnode_fullfills_query_predicate_w_memo(query, node_summary_table):
         if r is not None:
             return r
         sumry = node_summary_table.get(node_label)
-        result = sumry is not None and query.is_fullfilled_by(sumry)
+        result = sumry is not None and query.is_fulfilled_by(sumry)
         search_memo[node_label] = result
         return result
 
@@ -223,12 +222,12 @@ def get_lower_bound_call_nodes(call_trees, predicate):
         if node_label in already_searched_call_node_labels:
             return
         subcs = get_direct_sub_callnodes_of_body_node(call_node.body)
-        any_subc_fullfill_query = False
+        any_subc_fulfill_query = False
         for subc in subcs:
             if predicate(subc):
-                any_subc_fullfill_query = True
+                any_subc_fulfill_query = True
                 search_i(subc)
-        if not any_subc_fullfill_query:
+        if not any_subc_fulfill_query:
             lower_call_nodes.append(call_node)
         already_searched_call_node_labels.add(node_label)
 
@@ -240,7 +239,9 @@ def get_lower_bound_call_nodes(call_trees, predicate):
     return lower_call_nodes
 
 
-def treecut_with_callnode_depth(node, depth, has_deeper_nodes=[None]):
+def treecut_with_callnode_depth(node, depth, has_deeper_nodes=None):
+    if has_deeper_nodes is None:
+        has_deeper_nodes = [None]
     callnode_memo = {}
     def treecut_i(node, remaining_depth):
         if isinstance(node, list):
@@ -269,10 +270,10 @@ def treecut_with_callnode_depth(node, depth, has_deeper_nodes=[None]):
     return treecut_i(node, depth)
 
 
-def gen_treecut_fullfills_query_predicate(query):
+def gen_treecut_fulfills_query_predicate(query):
     def predicate(treecut_with_callnode_depth):
         sumry = cs.get_node_summary(treecut_with_callnode_depth, {})
-        return query.is_fullfilled_by(sumry)
+        return query.is_fulfilled_by(sumry)
 
     return predicate
 

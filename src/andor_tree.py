@@ -46,6 +46,3 @@ def normalize_tree(node):
         return t[1]
     return t
 
-
-def is_valid_tree(t):
-    raise NameError("Not Yet Implemented")

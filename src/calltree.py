@@ -8,6 +8,14 @@ from andor_tree import ORDERED_AND, ORDERED_OR  # re-export
 # Invoked = collections.namedtuple('Invoked', 'cmd callee literals locinfo')
 ## would like to the above definition, but pickle doesn't allow. http://bugs.python.org/issue15535
 class Invoked(object):
+    __slots__ = ('cmd', 'callee', 'literals', 'locinfo')
+
+    def __getstate__(self):
+        return self.cmd, self.callee, self.literals, self.locinfo
+
+    def __setstate__(self, tpl):
+        self.cmd, self.callee, self.literals, self.locinfo = tpl
+
     def __init__(self, cmd, callee, literals, locinfo):
         self.cmd = cmd
         self.callee = callee
@@ -37,6 +45,14 @@ class Invoked(object):
 # CallNode = collections.namedtuple('Invoked', 'invoked recursive_cxt body')
 ## would like to the above definition, but pickle doesn't allow. http://bugs.python.org/issue15535
 class CallNode(object):
+    __slots__ = ('invoked', 'recursive_cxt', 'body')
+
+    def __getstate__(self):
+        return self.invoked, self.recursive_cxt, self.body
+
+    def __setstate__(self, tpl):
+        self.invoked, self.recursive_cxt, self.body = tpl
+
     def __init__(self, invoked, recursive_cxt, body):
         self.invoked = invoked
         self.recursive_cxt = recursive_cxt

@@ -174,9 +174,7 @@ def make_nested_blocks(bis):
                         merged_block.extend(ss[3])
                         nb.append(merged_block)
                     else:
-                        b = [BOX]
-                        b.appnd(recurse_if_box(ss[1]))
-                        b.appnd(recurse_if_box(ss[3]))
+                        b = [BOX, recurse_if_box(ss[1]), recurse_if_box(ss[3])]
                         nb.append(b)
                     i += 6
                     eat = True

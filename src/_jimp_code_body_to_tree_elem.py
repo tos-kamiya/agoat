@@ -218,7 +218,7 @@ def convert_to_execution_paths(inss):
         return path
 
     splitted_paths = []
-    def split_path_including_existting_cmd(inss, trace):
+    def split_path_including_exiting_cid(inss, trace):
         if not inss:
             return inss
         starting_i = 0
@@ -234,7 +234,7 @@ def convert_to_execution_paths(inss):
                 return None
             elif cmd == BLOCK:
                 trace.append((inss, starting_i, i))
-                r = split_path_including_existting_cmd(ins, trace)
+                r = split_path_including_exiting_cid(ins, trace)
                 trace.pop()
                 if r is None:
                     return None
@@ -242,7 +242,7 @@ def convert_to_execution_paths(inss):
                 remaining_paths = []
                 trace.append((inss, starting_i, i))
                 for path in ins[1:]:
-                    r = split_path_including_existting_cmd(path, trace)
+                    r = split_path_including_exiting_cid(path, trace)
                     if r is not None:
                         remaining_paths.append(path)
                 trace.pop()
@@ -255,14 +255,14 @@ def convert_to_execution_paths(inss):
 
     for path in paths:
         trace = []
-        split_path_including_existting_cmd(path, trace)
+        split_path_including_exiting_cid(path, trace)
         assert not trace
 
     paths = paths + splitted_paths
     paths = sort_uniq(paths)
     return paths
 
-def paths_to_ordred_andor_tree(paths):
+def paths_to_ordered_andor_tree(paths):
     if not paths:
         return [ORDERED_AND]
 
@@ -343,7 +343,7 @@ def paths_to_ordred_andor_tree(paths):
             assert node
             n0 = node[0]
             if n0 == BOX:
-                return paths_to_ordred_andor_tree(node[1:])
+                return paths_to_ordered_andor_tree(node[1:])
             if n0 in (ORDERED_AND, ORDERED_OR):
                 t = [n0]
                 t.extend(convert_internal_box(n) for n in node[1:])
@@ -391,7 +391,7 @@ def inss_to_tree(method_data, class_data, branches_atmost=None):
         raise BranchCountExceedingLimitation()
     else:
         paths = convert_to_execution_paths(obis)
-        aot = paths_to_ordred_andor_tree(paths)
+        aot = paths_to_ordered_andor_tree(paths)
         aot = expand_blocks(aot)
         aot = normalize_tree(aot)
         return aot
@@ -437,7 +437,7 @@ def main(argv, out=sys.stdout):
         nbranch = get_max_branches_of_boxes(obis)
         out.write("branches: %d\n" % nbranch)
         paths = convert_to_execution_paths(obis)
-        aot = paths_to_ordred_andor_tree(paths)
+        aot = paths_to_ordered_andor_tree(paths)
         aot = expand_blocks(aot)
         aot = normalize_tree(aot)
 
