@@ -68,10 +68,8 @@ def gen_expander_of_call_tree_to_paths(query):
                         return [[ct.CallNode(node.invoked, node.recursive_cxt, None)]]
                 else:
                     return [[node]]
-            elif isinstance(node, tuple):
-                clzmsig = node[1]
-                literals = node[2]
-                if query.has_matching_pattern_in(clzmsig, literals):
+            elif isinstance(node, ct.Invoked):
+                if query.has_matching_pattern_in(node.callee, node.literals):
                     return [[node]]
                 return None
             else:
@@ -106,7 +104,8 @@ def remove_recursive_contexts(call_node):
 
 def remove_outermost_loc_info(call_node):
     invoked = call_node.invoked
-    return ct.CallNode((invoked[0], invoked[1], invoked[2], None), call_node.recursive_cxt, call_node.body)
+    return ct.CallNode(ct.Invoked(invoked.cmd, invoked.callee, invoked.literals, None), 
+            call_node.recursive_cxt, call_node.body)
 
 
 def search_in_call_trees(query, call_trees, node_summary_table, max_depth,
@@ -156,7 +155,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
     log and log("> searching query in index\n")
     if output_form == 'callnode':
         nodes = search_in_call_trees(query, call_trees, node_summary_table, max_depth, treecut=False)
-        clzmsigs = [n.invoked[1] for n in nodes]
+        clzmsigs = [n.callee for n in nodes]
         clzmsigs.sort()
         with open_w_default(output_file, "wb", sys.stdout) as out:
             for cm in clzmsigs:

@@ -174,8 +174,7 @@ def format_call_tree_node_compact(node, out, contribution_data, print_node_once_
     fmt_typ, fmt_clzmsig, fmt_lits = gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi_color)
 
     def label_w_lit(clzmsig, recursive_cxt):
-        items = [recursive_cxt, clzmsig]
-        return tuple(items)
+        return (recursive_cxt, clzmsig)
 
     if clz_msig2conversion:
         def format_loc_info(loc_info):
@@ -194,13 +193,12 @@ def format_call_tree_node_compact(node, out, contribution_data, print_node_once_
 
     def put_callnode(node, loc_info_str):
         invoked = node.invoked
-        clzmsig = invoked[1]
         if loc_info_str is None:
-            loc_info_str = format_loc_info(invoked[3])
-        node_label = label_w_lit(clzmsig, node.recursive_cxt)
+            loc_info_str = format_loc_info(invoked.locinfo)
+        node_label = label_w_lit(invoked.callee, node.recursive_cxt)
         if print_node_once_appeared or node_label not in printed_node_label_w_lits:
-            buf = [(0, '%s {' % fmt_clzmsig(clzmsig), loc_info_str)]
-            s = fmt_lits(invoked[2])
+            buf = [(0, '%s {' % fmt_clzmsig(invoked.callee), loc_info_str)]
+            s = fmt_lits(invoked.literals)
             if s:
                 buf.append((0, '    ' + s, ''))
             b = format_i(node.body)
@@ -216,17 +214,15 @@ def format_call_tree_node_compact(node, out, contribution_data, print_node_once_
             return buf
         return None
 
-    def put_tuple(node, loc_info_str):
+    def put_invoked(node, loc_info_str):
         assert node
-        assert node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
         if loc_info_str is None:
-            loc_info_str = format_loc_info(node[3])
-        clzmsig = node[1]
-        node_label = label_w_lit(clzmsig, None)  # context unknown, use non-context as default
+            loc_info_str = format_loc_info(node.locinfo)
+        node_label = label_w_lit(node.callee, None)  # context unknown, use non-context as default
         if print_node_once_appeared or node_label not in printed_node_label_w_lits:
             printed_node_label_w_lits.add(node_label)
-            buf = [(0, fmt_clzmsig(clzmsig), loc_info_str)]
-            s = fmt_lits(node[2])
+            buf = [(0, fmt_clzmsig(node.callee), loc_info_str)]
+            s = fmt_lits(node.literals)
             if s:
                 buf.append((0, '    ' + s, ''))
             return buf
@@ -256,15 +252,15 @@ def format_call_tree_node_compact(node, out, contribution_data, print_node_once_
                 return buf
         elif isinstance(node, ct.CallNode):
             return put_callnode(node, None)
-        elif isinstance(node, tuple):
-            return put_tuple(node, None)
+        elif isinstance(node, ct.Invoked):
+            return put_invoked(node, None)
         else:
             assert None
 
     if isinstance(node, ct.CallNode):
         buf = put_callnode(node, '')
     elif isinstance(node, tuple):
-        buf = put_tuple(node, '')
+        buf = put_invoked(node, '')
     else:
         assert False
 

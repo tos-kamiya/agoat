@@ -255,7 +255,7 @@ def treecut_with_callnode_depth(node, depth, has_deeper_nodes=[None]):
                 assert False
         elif isinstance(node, ct.CallNode):
             if remaining_depth > 0:
-                node_label = (node.invoked[1], remaining_depth)
+                node_label = (node.invoked.callee, remaining_depth)
                 cn = callnode_memo.get(node_label)
                 if cn is None:
                     cn = ct.CallNode(node.invoked, remaining_depth, treecut_i(node.body, remaining_depth - 1))
@@ -295,8 +295,7 @@ def extract_shallowest_treecut(call_node, predicate, max_depth=-1):
 
 def update_cont_items_by_invoked(cont_items, invoked, query):
     cont_types, cont_method_names, cont_literals = cont_items
-    clzmsig, literals = invoked[1], invoked[2]
-    appeared_types = types_in_clzmsig(clzmsig)
+    appeared_types = types_in_clzmsig(invoked.callee)
     invoked_cont = False
     for typ in appeared_types:
         if typ in cont_types:
@@ -305,15 +304,15 @@ def update_cont_items_by_invoked(cont_items, invoked, query):
             if query.matches_type(typ):
                 invoked_cont = True
                 cont_types.add(typ)
-    m = jp.clzmsig_method(clzmsig)
+    m = jp.clzmsig_method(invoked.callee)
     if m in cont_method_names:
         invoked_cont = True
     else:
         if query.matches_method(m):
             invoked_cont = True
             cont_method_names.add(m)
-    if literals:
-        for lit in literals:
+    if invoked.literals:
+        for lit in invoked.literals:
             if query.matches_literal(lit):
                 invoked_cont = True
                 cont_literals.add(lit)
@@ -346,8 +345,7 @@ def extract_node_contribution(call_node, query):
                 invoked_cont = update_cont_items_by_invoked(cont_items, invoked, query)
                 body_cont = mark_i(node.body)
                 node_cont = invoked_cont or body_cont
-            elif isinstance(node, tuple):
-                assert node and node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
+            elif isinstance(node, ct.Invoked):
                 node_cont = update_cont_items_by_invoked(cont_items, node, query)
             else:
                 assert False

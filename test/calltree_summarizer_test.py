@@ -16,10 +16,10 @@ def cm(clz, method):
     return jp.ClzMethodSig(clz, 'void', method, ())
 
 def new_invoked(clzmsig, literals):
-    return (jp.SPECIALINVOKE, clzmsig, literals, None)
+    return ct.Invoked(jp.SPECIALINVOKE, clzmsig, literals, None)
 
 def new_callnode(clzmsig, literals, recursive_cxt, body):
-    return ct.CallNode((jp.SPECIALINVOKE, clzmsig, literals, None), recursive_cxt, body)
+    return ct.CallNode(ct.Invoked(jp.SPECIALINVOKE, clzmsig, literals, None), recursive_cxt, body)
 
 A_CALL_TREE = new_callnode(cm('A', 'a'), ('"a"',), None,
     [ct.ORDERED_AND,

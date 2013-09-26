@@ -17,7 +17,6 @@ from andor_tree import ORDERED_AND, ORDERED_OR, normalize_tree
 from _jimp_code_box_generator import BOX, BLOCK
 import _jimp_code_box_generator
 
-
 # if False:
 #     MethodSigInternTable = dict()
 # 

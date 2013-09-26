@@ -17,13 +17,13 @@ import calltree_query as cq
 import summary
 
 def new_invoked(clz, msig):
-    return (jp.SPECIALINVOKE, clz, msig, (), None)
+    return ct.Invoked(jp.SPECIALINVOKE, clz + '\t' + msig, (), None)
 
 def new_callnode(clz, msig, body):
-    return ct.CallNode((jp.SPECIALINVOKE, clz, msig, (), None), None, body)
+    return ct.CallNode(ct.Invoked(jp.SPECIALINVOKE, clz + '\t' + msig, (), None), None, body)
 
 def new_callnode_w_rc(clz, msig, rc, body):
-    return ct.CallNode((jp.SPECIALINVOKE, clz, msig, (), None), rc, body)
+    return ct.CallNode(ct.Invoked(jp.SPECIALINVOKE, clz + '\t' + msig, (), None), rc, body)
 
 A_CALL_TREE = new_callnode("A", "a", 
     [ct.ORDERED_AND,
@@ -70,7 +70,7 @@ A_CALL_TREE_W_DEPTH = new_callnode_w_rc("A", "a", 3,
 
 
 def A_PREDICATE(call_node):
-    return call_node.invoked[1] in ('A', 'B', 'C', 'F')
+    return call_node.invoked.callee.split('\t')[0] in ('A', 'B', 'C', 'F')
 
 
 class QueryTest(unittest.TestCase):

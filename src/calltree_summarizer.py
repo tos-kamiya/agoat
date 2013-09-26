@@ -56,9 +56,8 @@ def get_node_summary(node, summary_table, progress=None):
     # summary_table = {}  # (clz, MethodSig, recursive_context) -> Summary
 
     def scan_invocation(node):
-        assert isinstance(node, tuple)
-        assert node[0] in (jp.INVOKE, jp.SPECIALINVOKE)
-        return intern(node[1])
+        assert isinstance(node, ct.Invoked)
+        return intern(node.callee)
 
     def intern_literals(lits, lits_pool):
         for ls in lits_pool:
@@ -87,9 +86,7 @@ def get_node_summary(node, summary_table, progress=None):
                 return sumry
         elif isinstance(node, ct.CallNode):
             invoked = node.invoked
-            clzmsig = invoked[1]
-            assert invoked[0] in (jp.INVOKE, jp.SPECIALINVOKE)
-            k = (clzmsig, node.recursive_cxt)
+            k = cb.callnode_label(node)
             stack.append(k)
             if summary_table is not None and k in summary_table:
                 nodesum = summary_table[k]
@@ -106,7 +103,7 @@ def get_node_summary(node, summary_table, progress=None):
                     subnode_literals.append(subnsum.literals)
                 else:
                     sb.append_callee(scan_invocation(subnode))
-                    lits = subnode[2]
+                    lits = subnode.literals
                     if lits:
                         assert isinstance(lits, tuple)
                         sb.extend_literal(lits)
@@ -115,13 +112,13 @@ def get_node_summary(node, summary_table, progress=None):
                 nodesum.literals = intern_literals(nodesum.literals, subnode_literals)
                 if summary_table is not None:
                     summary_table[k] = nodesum
-            lits = invoked[2]
-            parnetsum = nodesum + summary.Summary([clzmsig], lits if lits else [])
+            lits = invoked.literals
+            parnetsum = nodesum + summary.Summary([invoked.callee], lits if lits else [])
             parnetsum.literals = intern_literals(parnetsum.literals, [nodesum.literals])
             stack.pop()
             return parnetsum
         else:
-            return summary.Summary([scan_invocation(node)], node[2])
+            return summary.Summary([scan_invocation(node)], node.literals)
 
     try:
         sumry = dig_node(node)
@@ -154,8 +151,7 @@ def extract_entry_points(call_trees):
     for call_tree in call_trees:
         assert isinstance(call_tree, ct.CallNode)
         invoked = call_tree.invoked
-        clzmsig = invoked[1]
-        entry_points.append(clzmsig)
+        entry_points.append(invoked.callee)
     entry_points.sort()
     return entry_points
 
