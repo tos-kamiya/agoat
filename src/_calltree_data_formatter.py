@@ -1,5 +1,6 @@
 #coding: utf-8
 
+import collections
 import pprint
 
 try:
@@ -45,6 +46,9 @@ def format_clzmsig(clzmsig):
     )
 
 
+Node = collections.namedtuple('Node', 'label')
+
+
 def replace_callnode_body_with_label(node, label_to_body_tbl={}):
     # label_to_body_tbl  # node_label -> (object id of original body, transformed body)
     def replace_i(node):
@@ -60,7 +64,7 @@ def replace_callnode_body_with_label(node, label_to_body_tbl={}):
             e = label_to_body_tbl.get(node_label)
             if not e:
                 body = node.body
-                if not body or isinstance(body, tuple):
+                if not body or isinstance(body, ct.Invoked):
                     label_to_body_tbl[node_label] = id(body), body
                 elif isinstance(body, (list, ct.CallNode)):
                     label_to_body_tbl[node_label] = id(body), replace_i(body)
@@ -69,7 +73,7 @@ def replace_callnode_body_with_label(node, label_to_body_tbl={}):
             else:
                 original_body_id, transformed_body = e
                 assert original_body_id == id(node.body)
-            return ct.CallNode(node.invoked, node.recursive_cxt, ct.Node(node_label))
+            return ct.CallNode(node.invoked, node.recursive_cxt, Node(node_label))
         else:
             return node
     return replace_i(node), label_to_body_tbl
@@ -97,6 +101,12 @@ def pretty_print_pickle_data(data, out):
             out.write("node summary:\n")
             pp.pprint((node_label, sumry))
             out.write("\n")
+
+    linenumber_table = data.get(DATATAG_LINENUMBER_TABLE)
+    if linenumber_table:
+        out.write("linenumber table:\n")
+        pp.pprint(linenumber_table)
+        out.write("\n")
 
 
 def gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi_color):
@@ -180,9 +190,9 @@ def format_call_tree_node_compact(node, out, contribution_data, print_node_once_
         def format_loc_info(loc_info):
             if loc_info is None:
                 return "-"
-            clz, msig, jimp_linenum_str = loc_info.split('\n')
+            clzmsig, jimp_linenum_str = loc_info.split('\n')
             jimp_linenum = int(jimp_linenum_str)
-            conv = clz_msig2conversion.get((clz, msig))
+            conv = clz_msig2conversion.get(clzmsig)
             src_linenum = conv[jimp_linenum] if conv else "*"
             return "(line: %s)" % src_linenum
     else:

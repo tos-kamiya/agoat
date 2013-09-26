@@ -273,6 +273,7 @@ def make_invocationindex_to_src_linenum_table(javap_asm_dir):
     for typ, values in get_asm_info_iter(javap_asm_dir):
         if typ == METHOD_CODE:
             claz_sig, code, etbl, ltbl = values
+            clzmsig = '%s\t%s' % claz_sig
             invocationindex2linenum = []
             lineseq, indexseq = scan_linumber_table(ltbl)
             for L in code:
@@ -283,18 +284,18 @@ def make_invocationindex_to_src_linenum_table(javap_asm_dir):
                     assert i >= 0
                     linenum = lineseq[i]
                     invocationindex2linenum.append(linenum)
-            claz_msig2invocationindex2linenum[claz_sig] = invocationindex2linenum
+            claz_msig2invocationindex2linenum[clzmsig] = invocationindex2linenum
     return claz_msig2invocationindex2linenum
 
 
 def jimp_linnum_to_src_linenum_table(class_table, claz_msig2invocationindex2linenum):
     clz_msig2conversion = {}  # clz_msig -> jimp_linenum -> src_linenum
-    for clz, cd in class_table.iteritems():
-        for msig, md in cd.methods.iteritems():
-            invocationindex2linenum = claz_msig2invocationindex2linenum.get((clz, msig))
+    for clz, cd in sorted(class_table.iteritems()):
+        for clzmsig, md in sorted(cd.methods.iteritems()):
+            invocationindex2linenum = claz_msig2invocationindex2linenum.get(clzmsig)
             if invocationindex2linenum:
                 conversion = {}
-                clz_msig2conversion[(clz, msig)] = conversion
+                clz_msig2conversion[clzmsig] = conversion
                 invocationindex = -1
                 for ins in md.code:
                     if ins and ins[0] in (jp.INVOKE, jp.SPECIALINVOKE):
