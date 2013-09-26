@@ -16,10 +16,6 @@ class Summary(object):
         self.callees = sort_uniq(callees)
         self.literals = sort_uniq(literals)
 
-    def __add__(self, other):
-        return Summary(self.callees + other.callees,
-                self.literals + other.literals)
-
     def __eq__(self, other):
         return isinstance(other, Summary) and \
             self.callees == other.callees and \

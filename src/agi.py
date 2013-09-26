@@ -91,15 +91,15 @@ def list_methods_from_calltrees(call_tree_file, output_file):
     entry_points = cs.extract_entry_points(call_trees)
     del call_trees
 
-    tot_sumry = summary.Summary()
+    sb = summary.SummaryBuilder()
     for ep in entry_points:
         ep_with_possible_recursive_cxts = [(ep, None), (ep, ep)]
         for ep_w_rc in ep_with_possible_recursive_cxts:
             sumry = summary_table.get(ep_w_rc)
             if sumry:
                 sumry.literals = ()
-                tot_sumry = tot_sumry + sumry
-    callees = tot_sumry.callees
+                sb.append_summary(sumry)
+    callees = sb.to_summary().callees
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
         for callee in callees:
@@ -117,15 +117,15 @@ def list_literals_from_calltrees(call_tree_file, output_file):
     entry_points = cs.extract_entry_points(call_trees)
     del call_trees
 
-    tot_sumry = summary.Summary()
+    sb = summary.SummaryBuilder()
     for ep in entry_points:
         ep_with_possible_recursive_cxts = [(ep, None), (ep, ep)]
         for ep_w_rc in ep_with_possible_recursive_cxts:
             sumry = summary_table.get(ep_w_rc)
             if sumry:
                 sumry.callees = ()
-                tot_sumry = tot_sumry + sumry
-    literals = tot_sumry.literals
+                sb.append_summary(sumry)
+    literals = sb.to_summary().literals
 
     with open_w_default(output_file, "wb", sys.stdout) as out:
         for lit in literals:
