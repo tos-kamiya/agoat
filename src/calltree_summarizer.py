@@ -60,30 +60,38 @@ def get_node_summary(node, summary_table, progress=None):
         return intern(node.callee)
 
     def intern_literals(lits, lits_pool):
-        for ls in lits_pool:
-            if lits == ls:
-                return ls
+        len_lits = len(lits)
+        type_lits = type(lits)
+        for plits in lits_pool:
+            if type(plits) is type_lits:
+                if plits == lits:
+                    return plits
+            elif len(plits) == len_lits:
+                for pi, li in zip(plits, lits):
+                    if pi != li:
+                        return False
+                else:
+                    return plits
         else:
             return lits
 
     stack = []
-    def dig_node(node):
+    def dig_node(node, parent_summary_builder, child_literals_holder):
         if node is None:
-            return summary.Summary()
+            return
         elif isinstance(node, list):
             n0 = node[0]
             assert n0 in (ct.ORDERED_AND, ct.ORDERED_OR)
             len_node = len(node)
             if len_node == 1:
-                return summary.Summary()
+                return
             elif len_node == 2:
-                return dig_node(node[1])
+                dig_node(node[1], parent_summary_builder, child_literals_holder)
+                return
             else:
-                sb = summary.SummaryBuilder()
                 for subn in node[1:]:
-                    sb.append_summary(dig_node(subn))
-                sumry = sb.to_summary()
-                return sumry
+                    dig_node(subn, parent_summary_builder, child_literals_holder)
+                return
         elif isinstance(node, ct.CallNode):
             invoked = node.invoked
             k = cb.callnode_label(node)
@@ -93,36 +101,44 @@ def get_node_summary(node, summary_table, progress=None):
             else:
                 progress and progress(k)
                 sb = summary.SummaryBuilder()
-                subnode_literals = []
+                clh = []
                 subnode = node.body
                 if subnode is None:
                     pass
                 elif isinstance(subnode, (list, ct.CallNode)):
-                    subnsum = dig_node(subnode)
-                    sb.append_summary(subnsum)
-                    subnode_literals.append(subnsum.literals)
-                else:
+                    dig_node(subnode, sb, clh)
+                elif isinstance(subnode, ct.Invoked):
                     sb.append_callee(scan_invocation(subnode))
                     lits = subnode.literals
                     if lits:
-                        assert isinstance(lits, tuple)
                         sb.extend_literal(lits)
-                        subnode_literals.append(lits)
+                        clh.append(lits)
+                else:
+                    assert False
                 nodesum = sb.to_summary()
-                nodesum.literals = intern_literals(nodesum.literals, subnode_literals)
+                nodesum.literals = intern_literals(nodesum.literals, clh)
                 if summary_table is not None:
                     summary_table[k] = nodesum
+            parent_summary_builder.append_summary(nodesum)
+            parent_summary_builder.append_callee(invoked.callee)
             lits = invoked.literals
-            parnetsum = nodesum + summary.Summary([invoked.callee], lits if lits else [])
-            if len(parnetsum.literals) == len(nodesum.literals):
-                parnetsum.literals = nodesum.literals
+            if lits:
+                parent_summary_builder.extend_literal(lits)
+            child_literals_holder.append(nodesum.literals)
             stack.pop()
-            return parnetsum
+            return
+        elif isinstance(node, ct.Invoked):
+            parent_summary_builder.append_callee(scan_invocation(node))
+            if node.literals:
+                parent_summary_builder.extend_literal(node.literals)
+                child_literals_holder.append(node.literals)
         else:
-            return summary.Summary([scan_invocation(node)], node.literals)
+            assert False
 
     try:
-        sumry = dig_node(node)
+        sb = summary.SummaryBuilder()
+        dig_node(node, sb, [])
+        sumry = sb.to_summary()
     except:
         sys.stderr.write("> warning: exception raised in get_node_summary:\n")
         pp = pprint.PrettyPrinter(indent=4, stream=sys.stderr)

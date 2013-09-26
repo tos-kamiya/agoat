@@ -7,12 +7,12 @@ class Summary(object):
     __slots__ = ('callees', 'literals')
 
     def __getstate__(self):
-        return tuple(self.callees), tuple(self.literals)
+        return self.callees, self.literals
 
     def __setstate__(self, tpl):
         self.callees, self.literals = tpl
 
-    def __init__(self, callees=[], literals=[]):
+    def __init__(self, callees=(), literals=()):
         self.callees = sort_uniq(callees)
         self.literals = sort_uniq(literals)
 
