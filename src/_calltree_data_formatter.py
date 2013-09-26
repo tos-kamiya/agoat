@@ -79,7 +79,7 @@ def replace_callnode_body_with_label(node, label_to_body_tbl={}):
     return replace_i(node), label_to_body_tbl
 
 
-def pretty_print_pickle_data(data, out):
+def pretty_print_raw_data(data, out):
     pp = pprint.PrettyPrinter(indent=4, stream=out)
 
     call_trees = data.get(DATATAG_CALL_TREES)

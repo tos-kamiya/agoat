@@ -17,14 +17,14 @@ import calltree_summarizer as cs
 import src_linenumber_converter as slc
 from _calltree_data_formatter import format_clzmsig
 from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
-from _calltree_data_formatter import pretty_print_pickle_data
+from _calltree_data_formatter import pretty_print_raw_data
 import summary
 
 
-def pretty_print_pickle_data_file(data_file, out=sys.stdout):
+def pretty_print_raw_data_file(data_file, out=sys.stdout):
     with open_w_default(data_file, "rb", sys.stdin) as inp:
         data = pickle.load(inp)
-    pretty_print_pickle_data(data, out)
+    pretty_print_raw_data(data, out)
 
 
 def list_entry_points(soot_dir, output_file, option_method_sig=False):
@@ -270,7 +270,7 @@ def main(argv):
             show_progress=args.progress)
     elif args.command == 'debug':
         if args.pretty_print:
-            pretty_print_pickle_data_file(args.pretty_print)
+            pretty_print_raw_data_file(args.pretty_print)
     else:
         assert False
 
