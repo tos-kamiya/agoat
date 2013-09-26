@@ -60,18 +60,9 @@ def get_node_summary(node, summary_table, progress=None):
         return intern(node.callee)
 
     def intern_literals(lits, lits_pool):
-        len_lits = len(lits)
-        type_lits = type(lits)
         for plits in lits_pool:
-            if type(plits) is type_lits:
-                if plits == lits:
-                    return plits
-            elif len(plits) == len_lits:
-                for pi, li in zip(plits, lits):
-                    if pi != li:
-                        return False
-                else:
-                    return plits
+            if plits == lits:
+                return plits
         else:
             return lits
 
