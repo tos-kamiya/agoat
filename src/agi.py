@@ -132,16 +132,26 @@ def list_literals_from_calltrees(call_tree_file, output_file):
             out.write("%s\n" % lit)
 
 
-def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_file, show_progress=False):
-    log = sys.stderr.write if show_progress else None
-
-    log and log("> building and-or call tree\n")
+def generate_call_tree(entry_point_classes, soot_dir, output_file):
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
     entry_points = cb.find_entry_points(class_table, target_class_names=entry_point_classes)
 
     class_table = cb.inss_to_tree_in_class_table(class_table)
     call_trees = cb.extract_call_andor_trees(class_table, entry_points)
+
+    with open(output_file, "wb") as out:
+        pickle.dump({DATATAG_CALL_TREES: call_trees}, out,
+                protocol=1)
+
+def generate_node_summary(call_tree_file, output_file, show_progress=False):
+    log = sys.stderr.write if show_progress else None
+
+    log and log("> reading call trees\n")
+    with open(call_tree_file, "rb") as inp:
+        # data = pickle.load(inp)  # very very slow in pypy
+        data = pickle.loads(inp.read())
+    call_trees = data[DATATAG_CALL_TREES]
 
     if show_progress:
         log and log("> extracting summary from each node\n")
@@ -155,9 +165,9 @@ def generate_call_tree_and_node_summary(entry_point_classes, soot_dir, output_fi
     else:
         node_summary_table = cs.extract_node_summary_table(call_trees)
 
-    log and log("> saving call tree and summary table\n")
+    log and log("> saving summary table\n")
     with open(output_file, "wb") as out:
-        pickle.dump({DATATAG_CALL_TREES: call_trees, DATATAG_NODE_SUMMARY: node_summary_table}, out,
+        pickle.dump({DATATAG_NODE_SUMMARY: node_summary_table}, out,
                 protocol=1)
 
 
@@ -182,7 +192,7 @@ def main(argv):
     psr.add_argument('--version', action='version', version='%(prog)s ' + _c.VERSION)
     subpsrs = psr.add_subparsers(dest='command', help='commands')
 
-    psr_index = subpsrs.add_parser('index', help='generate all index data (= gc + gl)')
+    psr_index = subpsrs.add_parser('index', help='generate all index data (= gl + gc + gs)')
     psr_index.add_argument('-s', '--soot-dir', action='store', help='soot directory', default=_c.default_soot_dir_path)
     psr_index.add_argument('-j', '--javap-dir', action='store', default=_c.default_javap_dir_path)
     psr_index.add_argument("--progress", action='store_true',
@@ -215,13 +225,19 @@ def main(argv):
             help="output file. (default '%s')" % _c.default_linenumbertable_path,
             default=_c.default_linenumbertable_path)
 
-    psr_ct = subpsrs.add_parser('gc', help='generate call tree and node summary table')
+    psr_ct = subpsrs.add_parser('gc', help='generate call tree')
     psr_ct.add_argument('-e', '--entry-point', action='store', nargs='*', dest='entrypointclasses',
             help='entry-point class. If not given, all possible classes will be regarded as entry points')
     psr_ct.add_argument('-s', '--soot-dir', action='store', help='soot directory', default=_c.default_soot_dir_path)
     psr_ct.add_argument('-o', '--output', action='store',
             help="output file. (default '%s')" % _c.default_calltree_path,
             default=_c.default_calltree_path)
+
+    psr_ct = subpsrs.add_parser('gs', help='generate summary of call tree')
+    psr_ct.add_argument('-c', '--call-tree', action='store', help='call-tree file', default=_c.default_calltree_path)
+    psr_ct.add_argument('-o', '--output', action='store',
+            help="output file. (default '%s')" % _c.default_summary_path,
+            default=_c.default_summary_path)
     psr_ct.add_argument("--progress", action='store_true',
             help="show progress to stderr",
             default=False)
@@ -260,14 +276,15 @@ def main(argv):
     elif args.command == 'gl':
         generate_linenumber_table(args.soot_dir, args.javap_dir, args.output)
     elif args.command == 'gc':
-        generate_call_tree_and_node_summary(args.entrypointclasses, args.soot_dir, args.output,
-            show_progress=args.progress)
+        generate_call_tree(args.entrypointclasses, args.soot_dir, args.output)
+    elif args.command == 'gs':
+        generate_node_summary(args.call_tree, args.output, show_progress=args.progress)
     elif args.command == "index":
         if args.progress:
             sys.stderr.write("> generating/saving line number table\n")
         generate_linenumber_table(args.soot_dir, args.javap_dir, _c.default_linenumbertable_path)
-        generate_call_tree_and_node_summary(None, args.soot_dir, _c.default_calltree_path,
-            show_progress=args.progress)
+        generate_call_tree(None, args.soot_dir, _c.default_calltree_path)
+        generate_node_summary(_c.default_calltree_path, _c.default_summary_path, show_progress=args.progress)
     elif args.command == 'debug':
         if args.pretty_print:
             pretty_print_raw_data_file(args.pretty_print)

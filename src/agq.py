@@ -125,7 +125,7 @@ def search_in_call_trees(query, call_trees, node_summary_table, max_depth,
     return call_node_wo_rcs
 
 
-def do_search(call_tree_file, query_words, ignore_case_query_words, output_file, line_number_table=None, 
+def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_words, output_file, line_number_table=None, 
         max_depth=-1, output_form='path', fully_qualified_package_name=False, ansi_color=False,
         show_progress=False):
     log = sys.stderr.write if show_progress else None
@@ -138,11 +138,17 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
         query_patterns.append(cq.compile_query(w, ignore_case=True))
     query = cq.Query(query_patterns)
 
-    log and log("> loading index data\n")
+    log and log("> loading call trees\n")
     with open(call_tree_file, "rb") as inp:
         # data = pickle.load(inp)  # very very slow in pypy
         data = pickle.loads(inp.read())
     call_trees = data[DATATAG_CALL_TREES]
+    del data
+
+    log and log("> loading summary table\n")
+    with open(node_summary_file, "rb") as inp:
+        # data = pickle.load(inp)  # very very slow in pypy
+        data = pickle.loads(inp.read())
     node_summary_table = data[DATATAG_NODE_SUMMARY]
     del data
 
@@ -226,6 +232,9 @@ def main(argv):
     psr_q.add_argument('-c', '--call-tree', action='store', 
             help="call-tree file. (default '%s')" % _c.default_calltree_path,
             default=_c.default_calltree_path)
+    psr_q.add_argument('-s', '--summary', action='store', 
+            help="summary file. (default '%s')" % _c.default_summary_path,
+            default=_c.default_summary_path)
     psr_q.add_argument('-o', '--output', action='store', default=STDOUT)
     psr_q.add_argument('-l', '--line-number-table', action='store', 
             help="line-number table file. (default '%s')" % _c.default_linenumbertable_path,
@@ -260,7 +269,7 @@ def main(argv):
         ignore_case_query_words = args.ignore_case_query_word
     if not args.queryword and not ignore_case_query_words:
         sys.exit("no query word given")
-    do_search(args.call_tree, args.queryword, ignore_case_query_words, args.output,  line_number_table,
+    do_search(args.call_tree, args.summary, args.queryword, ignore_case_query_words, args.output,  line_number_table,
             max_depth=args.max_depth, output_form=args.output_form,
             fully_qualified_package_name=args.fully_qualified_package_name, ansi_color=ansi_color,
             show_progress=args.progress)
