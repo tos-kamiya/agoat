@@ -5,6 +5,7 @@ try:
 except:
     pass
 
+import re
 import sys
 import pprint
 from collections import Counter
@@ -19,6 +20,9 @@ import _jimp_code_box_generator
 
 def clzmethodsig_intern(msig):
     return intern(msig)
+
+
+_pat_class = re.compile(r"(\w|[.])+")
 
 
 def gen_type_resolver(method_data, class_data):
@@ -51,7 +55,11 @@ def gen_type_resolver(method_data, class_data):
         t = class_data.fields.get(name)
         if t:
             return intern(t), None
-        return None, None
+        if _pat_class.match(name):
+            return intern(name), None
+        if name == "#NaN":
+            return 'float', None  # or double? i don't know
+        raise ValueError("fail to resolve type: %s" % name)
     return resolve_type
 
 

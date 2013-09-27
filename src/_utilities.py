@@ -1,15 +1,14 @@
 # coding: utf-8
 
-import contextlib
 import sys
 import re
 
+_pat_unicode_escape = re.compile(r"\\|[\\](u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})")
 
 def quote(unicode_str):
-    pat_unicode_escape = re.compile(r"[\\](u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})")
     buf = []
     last_pos = 0
-    for m in pat_unicode_escape.finditer(unicode_str):
+    for m in _pat_unicode_escape.finditer(unicode_str):
         s, e = m.span()
         buf.append(unicode_str[last_pos:s].encode("unicode-escape"))
         buf.append(unicode_str[s:e].encode('utf-8'))

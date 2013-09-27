@@ -1,0 +1,29 @@
+public class Escaped extends java.lang.Object
+{
+
+    public void <init>()
+    {
+        Escaped r0;
+
+        r0 := @this;
+        specialinvoke r0.<init>();
+        return;
+    }
+
+    public java.lang.String addSome(java.lang.String)
+    {
+        Escaped r0;
+        java.lang.String r1, $r6;
+        java.lang.StringBuilder $r2, $r3, $r4, $r5;
+
+        r0 := @this;
+        r1 := @parameter0;
+        $r2 = new java.lang.StringBuilder;
+        specialinvoke $r2.<init>();
+        $r3 = $r2.append("hoge(\"");
+        $r4 = $r3.append(r1);
+        $r5 = $r4.append("\");");
+        $r6 = $r5.toString();
+        return $r6;
+    }
+}

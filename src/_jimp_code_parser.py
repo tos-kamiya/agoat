@@ -31,7 +31,7 @@ _PAT_DEFAULT = re.compile(
     r"^\s*default:\s+goto\s+(?P<label>%s)\s*;$" % _IDENTIFIER)
 _PAT_CATCH = re.compile(r"^\s*catch\s+.*;$")
 
-_PAT_STRING_LITERAL = re.compile(r'^"([^\"]|\.)*?"' + '|' + r"^'([^\"]|\.)*?'")
+_PAT_STRING_LITERAL = re.compile(r'^"([^"\\]|[\\].)*?"' + '|' + r"^'([^'\\]|[\\].)*?'")
 
 
 def togd(m):

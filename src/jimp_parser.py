@@ -74,7 +74,8 @@ def _void_to_none(t):
 
 def ClzMethodSig(clz, retv, name, params):
     items = [clz, _none_to_void(retv), name]
-    items.extend(map(_none_to_void, params))
+    assert None not in params
+    items.extend(params)
     return '\t'.join(items)
 
 def clzmsig_clz(clzmsig):
