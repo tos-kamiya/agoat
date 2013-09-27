@@ -45,7 +45,7 @@ def extract_callnode_labels_in_calltrees(call_trees):
     return sort_uniq(label_set)
 
 
-def get_node_summary(node, summary_table, progress=None):
+def get_node_summary(node, summary_table):
     """
     Get summary of a node.
     In case of summary_table parameter given, calculate summary with memorization.
@@ -85,38 +85,36 @@ def get_node_summary(node, summary_table, progress=None):
                 return
         elif isinstance(node, ct.CallNode):
             invoked = node.invoked
-            k = cb.callnode_label(node)
-            stack.append(k)
-            if summary_table is not None and k in summary_table:
-                nodesum = summary_table[k]
-            else:
-                progress and progress(k)
-                sb = summary.SummaryBuilder()
-                clh = []
-                subnode = node.body
-                if subnode is None:
-                    pass
-                elif isinstance(subnode, (list, ct.CallNode)):
-                    dig_node(subnode, sb, clh)
-                elif isinstance(subnode, ct.Invoked):
-                    sb.append_callee(scan_invocation(subnode))
-                    lits = subnode.literals
-                    if lits:
-                        sb.extend_literal(lits)
-                        clh.append(lits)
-                else:
-                    assert False
-                nodesum = sb.to_summary()
-                nodesum.literals = intern_literals(nodesum.literals, clh)
-                if summary_table is not None:
-                    summary_table[k] = nodesum
-            parent_summary_builder.append_summary(nodesum)
-            parent_summary_builder.append_callee(invoked.callee)
             lits = invoked.literals
             if lits:
                 parent_summary_builder.extend_literal(lits)
-            child_literals_holder.append(nodesum.literals)
-            stack.pop()
+            lbl = cb.callnode_label(node)
+            if lbl not in parent_summary_builder.already_appended_callnodes:
+                stack.append(lbl)
+                nodesum = summary_table.get(lbl)
+                if nodesum is None:
+                    sb = summary.SummaryBuilder()
+                    clh = []
+                    subnode = node.body
+                    if subnode is None:
+                        pass
+                    elif isinstance(subnode, (list, ct.CallNode)):
+                        dig_node(subnode, sb, clh)
+                    elif isinstance(subnode, ct.Invoked):
+                        sb.append_callee(scan_invocation(subnode))
+                        lits = subnode.literals
+                        if lits:
+                            sb.extend_literal(lits)
+                            clh.append(lits)
+                    else:
+                        assert False
+                    nodesum = sb.to_summary()
+                    nodesum.literals = intern_literals(nodesum.literals, clh)
+                    summary_table[lbl] = nodesum
+                parent_summary_builder.append_summary(nodesum, lbl)
+                parent_summary_builder.append_callee(invoked.callee)
+                child_literals_holder.append(nodesum.literals)
+                stack.pop()
             return
         elif isinstance(node, ct.Invoked):
             parent_summary_builder.append_callee(scan_invocation(node))
@@ -141,16 +139,17 @@ def get_node_summary(node, summary_table, progress=None):
     return sumry
 
 
+
 def get_node_summary_wo_memoization(node):
     # summary_table = {}  # (ClzMethodSig, recursive_context) -> Summary
     summary_table = get_node_summary(node, summary_table=None)
     return summary_table
 
 
-def extract_node_summary_table(nodes, progress=None):
+def extract_node_summary_table(nodes):
     summary_table = {}  # (ClzMethodSig, recursive_context) -> Summary
     for node in nodes:
-        get_node_summary(node, summary_table, progress=progress)
+        get_node_summary(node, summary_table)
     return summary_table
 
 

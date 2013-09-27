@@ -33,6 +33,7 @@ class SummaryBuilder(object):
     def __init__(self):
         self.callees = []
         self.literals = []
+        self.already_appended_callnodes = set()
 
     def append_callee(self, callee):
         self.callees.append(callee)
@@ -46,14 +47,11 @@ class SummaryBuilder(object):
     def extend_literal(self, literals):
         self.literals.extend(literals)
 
-    def append_summary(self, sumry):
+    def append_summary(self, sumry, callnode_label=None):
         self.callees.extend(sumry.callees)
         self.literals.extend(sumry.literals)
-
-    def extend_summary(self, summaries):
-        for sumry in summaries:
-            self.callees.extend(sumry.callees)
-            self.literals.extend(sumry.literals)
+        if callnode_label is not None:
+            self.already_appended_callnodes.add(callnode_label)
 
     def to_summary(self):
         return Summary(self.callees, self.literals)
