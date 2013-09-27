@@ -35,6 +35,8 @@ def _extract_callnode_labels_in_calltree(call_tree, label_set):
                 subnode = node.body
                 if isinstance(subnode, (list, ct.CallNode)):
                     dig_node(subnode)
+        else:
+            assert False
     dig_node(call_tree)
 
 
@@ -55,10 +57,6 @@ def get_node_summary(node, summary_table):
 
     # summary_table = {}  # (ClzMethodSig, recursive_context) -> Summary
 
-    def scan_invocation(node):
-        assert isinstance(node, ct.Invoked)
-        return intern(node.callee)
-
     def intern_literals(lits, lits_pool):
         for plits in lits_pool:
             if plits == lits:
@@ -73,21 +71,13 @@ def get_node_summary(node, summary_table):
         elif isinstance(node, list):
             n0 = node[0]
             assert n0 in (ct.ORDERED_AND, ct.ORDERED_OR)
-            len_node = len(node)
-            if len_node == 1:
-                return
-            elif len_node == 2:
-                dig_node(node[1], parent_summary_builder, child_literals_holder)
-                return
-            else:
-                for subn in node[1:]:
-                    dig_node(subn, parent_summary_builder, child_literals_holder)
-                return
+            for subn in node[1:]:
+                dig_node(subn, parent_summary_builder, child_literals_holder)
+            return
         elif isinstance(node, ct.CallNode):
             invoked = node.invoked
             lits = invoked.literals
-            if lits:
-                parent_summary_builder.extend_literal(lits)
+            lits and parent_summary_builder.extend_literal(lits)
             lbl = cb.callnode_label(node)
             if lbl not in parent_summary_builder.already_appended_callnodes:
                 stack.append(lbl)
@@ -101,7 +91,7 @@ def get_node_summary(node, summary_table):
                     elif isinstance(subnode, (list, ct.CallNode)):
                         dig_node(subnode, sb, clh)
                     elif isinstance(subnode, ct.Invoked):
-                        sb.append_callee(scan_invocation(subnode))
+                        sb.append_callee(intern(subnode.callee))
                         lits = subnode.literals
                         if lits:
                             sb.extend_literal(lits)
@@ -117,7 +107,7 @@ def get_node_summary(node, summary_table):
                 stack.pop()
             return
         elif isinstance(node, ct.Invoked):
-            parent_summary_builder.append_callee(scan_invocation(node))
+            parent_summary_builder.append_callee(intern(node.callee))
             if node.literals:
                 parent_summary_builder.extend_literal(node.literals)
                 child_literals_holder.append(node.literals)
