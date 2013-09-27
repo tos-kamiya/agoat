@@ -12,12 +12,11 @@ import _config as _c
 import jimp_parser as jp
 import jimp_code_term_extractor as jcte
 import calltree_builder as cb
-import calltree_summarizer as cs
+import calltree_summary as cs
 import src_linenumber_converter as slc
 from _calltree_data_formatter import format_clzmsig
-from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
+from _calltree_data_formatter import DATATAG_ENTRY_POINTS, DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
 from _calltree_data_formatter import pretty_print_raw_data
-import summary
 
 
 def pretty_print_raw_data_file(data_file, out=sys.stdout):
@@ -51,7 +50,7 @@ def list_methods(soot_dir, output_file):
 def list_literals(soot_dir, output_file):
     class_table = dict((clz, cd) \
             for clz, cd in jp.read_class_table_from_dir_iter(soot_dir))
-    sb = summary.SummaryBuilder()
+    sb = cs.SummaryBuilder()
     for clz, cd in class_table.iteritems():
         for md in cd.methods.itervalues():
             sb.append_summary(jcte.extract_referred_literals(md.code, md, cd))
@@ -62,14 +61,11 @@ def list_literals(soot_dir, output_file):
             out.write("%s\n" % lit)
 
 
-def list_entry_points_from_calltrees(call_tree_file, output_file, option_method_sig=False):
-    with open(call_tree_file, "rb") as inp:
+def list_entry_points_from_node_summary(node_summary_file, output_file, option_method_sig=False):
+    with open(node_summary_file, "rb") as inp:
         # data = pickle.load(inp)  # very very slow in pypy
         data = pickle.loads(inp.read())
-    call_trees = data[DATATAG_CALL_TREES]
-    del data
-    entry_points = cs.extract_entry_points(call_trees)
-    del call_trees
+    entry_points = data[DATATAG_ENTRY_POINTS]
 
     with open(output_file, "wb") as out:
         for ep in sorted(entry_points):
@@ -79,18 +75,15 @@ def list_entry_points_from_calltrees(call_tree_file, output_file, option_method_
                 out.write("%s\n" % format_clzmsig(ep))
 
 
-def list_methods_from_calltrees(call_tree_file, output_file):
-    with open(call_tree_file, "rb") as inp:
+def list_methods_from_node_summary(node_summary_file, output_file):
+    with open(node_summary_file, "rb") as inp:
         # data = pickle.load(inp)  # very very slow in pypy
         data = pickle.loads(inp.read())
-    call_trees = data[DATATAG_CALL_TREES]
+    entry_points = data[DATATAG_ENTRY_POINTS]
     summary_table = data[DATATAG_NODE_SUMMARY]
     del data
 
-    entry_points = cs.extract_entry_points(call_trees)
-    del call_trees
-
-    sb = summary.SummaryBuilder()
+    sb = cs.SummaryBuilder()
     for ep in entry_points:
         ep_with_possible_recursive_cxts = [(ep, None), (ep, ep)]
         for ep_w_rc in ep_with_possible_recursive_cxts:
@@ -105,18 +98,15 @@ def list_methods_from_calltrees(call_tree_file, output_file):
             out.write("%s\n" % format_clzmsig(callee))
 
 
-def list_literals_from_calltrees(call_tree_file, output_file):
-    with open(call_tree_file, "rb") as inp:
+def list_literals_from_node_summary(node_summary_file, output_file):
+    with open(node_summary_file, "rb") as inp:
         # data = pickle.load(inp)  # very very slow in pypy
         data = pickle.loads(inp.read())
-    call_trees = data[DATATAG_CALL_TREES]
+    entry_points = data[DATATAG_ENTRY_POINTS]
     summary_table = data[DATATAG_NODE_SUMMARY]
     del data
 
-    entry_points = cs.extract_entry_points(call_trees)
-    del call_trees
-
-    sb = summary.SummaryBuilder()
+    sb = cs.SummaryBuilder()
     for ep in entry_points:
         ep_with_possible_recursive_cxts = [(ep, None), (ep, ep)]
         for ep_w_rc in ep_with_possible_recursive_cxts:
@@ -140,24 +130,25 @@ def generate_call_trees(entry_point_classes, soot_dir, output_file):
     call_trees = cb.extract_call_andor_trees(class_table, entry_points)
 
     with open(output_file, "wb") as out:
-        pickle.dump({DATATAG_CALL_TREES: call_trees}, out,
+        pickle.dump({DATATAG_CALL_TREES: call_trees, DATATAG_ENTRY_POINTS: entry_points}, out,
                 protocol=1)
-    return call_trees
+    return entry_points, call_trees
 
 
 def generate_node_summary(call_tree_file, output_file, call_trees_data=None):
     if call_trees_data is not None:
-        call_trees = call_trees_data
+        entry_points, call_trees = call_trees_data
     else:
         with open(call_tree_file, "rb") as inp:
             # data = pickle.load(inp)  # very very slow in pypy
             data = pickle.loads(inp.read())
+        entry_points = data[DATATAG_ENTRY_POINTS]
         call_trees = data[DATATAG_CALL_TREES]
 
     node_summary_table = cs.extract_node_summary_table(call_trees)
 
     with open(output_file, "wb") as out:
-        pickle.dump({DATATAG_NODE_SUMMARY: node_summary_table}, out,
+        pickle.dump({DATATAG_NODE_SUMMARY: node_summary_table, DATATAG_ENTRY_POINTS: entry_points}, out,
                 protocol=1)
 
 
@@ -192,20 +183,20 @@ def main(argv):
     psr_ep = subpsrs.add_parser('le', help='listing entry points')
     g = psr_ep.add_mutually_exclusive_group()
     g.add_argument('-s', '--soot-dir', action='store', nargs='?', help='soot directory', default=NotGiven)
-    g.add_argument('-c', '--call-tree', action='store', nargs='?', help='call-tree file', default=NotGiven)
+    g.add_argument('-n', '--node-summary', action='store', nargs='?', help='call-tree file', default=NotGiven)
     psr_ep.add_argument('-o', '--output', action='store', default=STDOUT)
     psr_ep.add_argument('-m', '--method-sig', action='store_true', help="output method signatures")
 
-    psr_mt = subpsrs.add_parser('lm', help='listing methods defined within the target code')
+    psr_mt = subpsrs.add_parser('lm', help='listing methods')
     g = psr_mt.add_mutually_exclusive_group()
     g.add_argument('-s', '--soot-dir', action='store', nargs='?', help='soot directory', default=NotGiven)
-    g.add_argument('-c', '--call-tree', action='store', nargs='?', help='call-tree file', default=NotGiven)
+    g.add_argument('-n', '--node-summary', action='store', nargs='?', help='call-tree file', default=NotGiven)
     psr_mt.add_argument('-o', '--output', action='store', default=STDOUT)
 
     psr_lt = subpsrs.add_parser('ll', help='listing literals')
     g = psr_lt.add_mutually_exclusive_group()
     g.add_argument('-s', '--soot-dir', action='store', nargs='?', help='soot directory', default=NotGiven)
-    g.add_argument('-c', '--call-tree', action='store', nargs='?', help='call-tree file', default=NotGiven)
+    g.add_argument('-n', '--node-summary', action='store', nargs='?', help='call-tree file', default=NotGiven)
     psr_lt.add_argument('-o', '--output', action='store', default=STDOUT)
 
     psr_sl = subpsrs.add_parser('gl', help='generate line number table')
@@ -223,7 +214,7 @@ def main(argv):
             help="output file. (default '%s')" % _c.default_calltree_path,
             default=_c.default_calltree_path)
 
-    psr_gs = subpsrs.add_parser('gs', help='generate summary of call tree')
+    psr_gs = subpsrs.add_parser('gs', help='generate node summary table')
     psr_gs.add_argument('-c', '--call-tree', action='store', help='call-tree file', default=_c.default_calltree_path)
     psr_gs.add_argument('-o', '--output', action='store',
             help="output file. (default '%s')" % _c.default_summary_path,
@@ -237,29 +228,29 @@ def main(argv):
         if args.soot_dir is not NotGiven:
             soot_dir = _c.default_soot_dir_path if args.soot_dir is None else args.soot_dir
             list_entry_points(soot_dir, args.output, args.method_sig)
-        elif args.call_tree is not NotGiven:
-            call_tree_file= _c.default_calltree_path if args.call_tree is None else args.call_tree
-            list_entry_points_from_calltrees(call_tree_file, args.output, args.method_sig)
+        elif args.node_summary is not NotGiven:
+            node_summary_file = _c.default_summary_path if args.node_summary is None else args.node_summary
+            list_entry_points_from_node_summary(node_summary_file, args.output, args.method_sig)
         else:
-            sys.exit("need either -s or -c")
+            sys.exit("need either -s or -n")
     elif args.command == 'lm':
         if args.soot_dir is not NotGiven:
             soot_dir = _c.default_soot_dir_path if args.soot_dir is None else args.soot_dir
             list_methods(soot_dir, args.output)
-        elif args.call_tree is not NotGiven:
-            call_tree_file= _c.default_calltree_path if args.call_tree is None else args.call_tree
-            list_methods_from_calltrees(call_tree_file, args.output)
+        elif args.node_summary is not NotGiven:
+            node_summary_file = _c.default_summary_path if args.node_summary is None else args.node_summary
+            list_methods_from_node_summary(node_summary_file, args.output)
         else:
-            sys.exit("need either -s or -c")
+            sys.exit("need either -s or -n")
     elif args.command == 'll':
         if args.soot_dir is not NotGiven:
             soot_dir = _c.default_soot_dir_path if args.soot_dir is None else args.soot_dir
             list_literals(soot_dir, args.output)
-        elif args.call_tree is not NotGiven:
-            call_tree_file= _c.default_calltree_path if args.call_tree is None else args.call_tree
-            list_literals_from_calltrees(call_tree_file, args.output)
+        elif args.node_summary is not NotGiven:
+            node_summary_file = _c.default_summary_path if args.node_summary is None else args.node_summary
+            list_literals_from_node_summary(node_summary_file, args.output)
         else:
-            sys.exit("need either -s or -c")
+            sys.exit("need either -s or -n")
     elif args.command == 'gl':
         generate_linenumber_table(args.soot_dir, args.javap_dir, args.output)
     elif args.command == 'gc':
@@ -272,11 +263,11 @@ def main(argv):
         generate_linenumber_table(args.soot_dir, args.javap_dir, _c.default_linenumbertable_path)
         if args.progress:
             sys.stderr.write("> generating/saving call trees\n")
-        call_trees = generate_call_trees(None, args.soot_dir, _c.default_calltree_path)
+        call_trees_data = generate_call_trees(None, args.soot_dir, _c.default_calltree_path)
         if args.progress:
             sys.stderr.write("> generating/saving summary table\n")
         generate_node_summary(_c.default_calltree_path, _c.default_summary_path,
-                call_trees_data=call_trees)
+                call_trees_data=call_trees_data)
     elif args.command == 'debug':
         if args.pretty_print:
             pretty_print_raw_data_file(args.pretty_print)

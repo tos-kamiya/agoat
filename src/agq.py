@@ -13,7 +13,7 @@ import andor_tree as at
 import calltree as ct
 import calltree_builder as cb
 import calltree_query as cq
-from _calltree_data_formatter import DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
+from _calltree_data_formatter import DATATAG_ENTRY_POINTS, DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
 from _calltree_data_formatter import format_call_tree_node_compact, init_ansi_color, format_clzmsig
 
 
@@ -143,6 +143,7 @@ def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_
         # data = pickle.load(inp)  # very very slow in pypy
         data = pickle.loads(inp.read())
     call_trees = data[DATATAG_CALL_TREES]
+    ce = data[DATATAG_ENTRY_POINTS]
     del data
 
     log and log("> loading summary table\n")
@@ -150,7 +151,10 @@ def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_
         # data = pickle.load(inp)  # very very slow in pypy
         data = pickle.loads(inp.read())
     node_summary_table = data[DATATAG_NODE_SUMMARY]
+    ne = data[DATATAG_ENTRY_POINTS]
     del data
+    if ce != ne:
+        raise ValueError("inconsistency between call-trees data and node-summary table")
 
     clz_msig2conversion = None
     if line_number_table is not None:
@@ -232,7 +236,7 @@ def main(argv):
     psr_q.add_argument('-c', '--call-tree', action='store', 
             help="call-tree file. (default '%s')" % _c.default_calltree_path,
             default=_c.default_calltree_path)
-    psr_q.add_argument('-s', '--summary', action='store', 
+    psr_q.add_argument('-n', '--node-summary', action='store', 
             help="summary file. (default '%s')" % _c.default_summary_path,
             default=_c.default_summary_path)
     psr_q.add_argument('-o', '--output', action='store', default=STDOUT)
@@ -269,7 +273,7 @@ def main(argv):
         ignore_case_query_words = args.ignore_case_query_word
     if not args.queryword and not ignore_case_query_words:
         sys.exit("no query word given")
-    do_search(args.call_tree, args.summary, args.queryword, ignore_case_query_words, args.output,  line_number_table,
+    do_search(args.call_tree, args.node_summary, args.queryword, ignore_case_query_words, args.output,  line_number_table,
             max_depth=args.max_depth, output_form=args.output_form,
             fully_qualified_package_name=args.fully_qualified_package_name, ansi_color=ansi_color,
             show_progress=args.progress)

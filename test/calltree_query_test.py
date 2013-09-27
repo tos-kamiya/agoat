@@ -14,7 +14,6 @@ from _utilities import quote
 import jimp_parser as jp
 import calltree as ct
 import calltree_query as cq
-import summary
 
 def new_invoked(clz, msig):
     return ct.Invoked(jp.SPECIALINVOKE, clz + '\t' + msig, (), None)
@@ -77,40 +76,40 @@ class QueryTest(unittest.TestCase):
     def test_unmatched_patterns_to_methods(self):
         qp = [cq.MethodQueryPattern("w"), cq.MethodQueryPattern("x")]
         query = cq.Query(qp)
-        sumry = summary.Summary()
+        sumry = cq.Summary()
         missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 2)
         self.assertEqual(missings[0].word, "w")
         self.assertEqual(missings[1].word, "x")
 
-        sumry = summary.Summary(["AClass\tvoid\tsomeMehtod"])
+        sumry = cq.Summary(["AClass\tvoid\tsomeMehtod"])
         missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 2)
         self.assertEqual(missings[0].word, "w")
         self.assertEqual(missings[1].word, "x")
 
-        sumry = summary.Summary(["A\tvoid\tw"])
+        sumry = cq.Summary(["A\tvoid\tw"])
         missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "x")
 
-        sumry = summary.Summary(["B\tint\tx"])
+        sumry = cq.Summary(["B\tint\tx"])
         missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "w")
 
-        sumry = summary.Summary(["A\tvoid\tw", "B\tint\tx"])
+        sumry = cq.Summary(["A\tvoid\tw", "B\tint\tx"])
         missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 0)
 
-        sumry = summary.Summary(literals=['"w x someliteral string"'])
+        sumry = cq.Summary(literals=['"w x someliteral string"'])
         missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 2)
 
     def test_unmatched_patterns_to_literals(self):
         qp = [cq.LiteralQueryPattern("w"), cq.LiteralQueryPattern("x")]
         query = cq.Query(qp)
-        sumry = summary.Summary()
+        sumry = cq.Summary()
         missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 2)
         self.assertEqual(missings[0].word, "w")
@@ -118,7 +117,7 @@ class QueryTest(unittest.TestCase):
         self.assertFalse(query.is_partially_filled_by(sumry))
         self.assertFalse(query.is_fulfilled_by(sumry))
 
-        sumry = summary.Summary(["AClass\tvoid\tsomeMehtod"])
+        sumry = cq.Summary(["AClass\tvoid\tsomeMehtod"])
         missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 2)
         self.assertEqual(missings[0].word, "w")
@@ -126,21 +125,21 @@ class QueryTest(unittest.TestCase):
         self.assertFalse(query.is_partially_filled_by(sumry))
         self.assertFalse(query.is_fulfilled_by(sumry))
 
-        sumry = summary.Summary(literals=['"x"'])
+        sumry = cq.Summary(literals=['"x"'])
         missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "w")
         self.assertTrue(query.is_partially_filled_by(sumry))
         self.assertFalse(query.is_fulfilled_by(sumry))
 
-        sumry = summary.Summary(literals=['"w"'])
+        sumry = cq.Summary(literals=['"w"'])
         missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 1)
         self.assertEqual(missings[0].word, "x")
         self.assertTrue(query.is_partially_filled_by(sumry))
         self.assertFalse(query.is_fulfilled_by(sumry))
 
-        sumry = summary.Summary(literals=['"x"', '"w"'])
+        sumry = cq.Summary(literals=['"x"', '"w"'])
         missings = query.unmatched_patterns(sumry)
         self.assertEqual(len(missings), 0)
         self.assertTrue(query.is_partially_filled_by(sumry))

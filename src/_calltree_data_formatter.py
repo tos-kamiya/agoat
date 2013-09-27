@@ -13,6 +13,7 @@ import calltree as ct
 import calltree_builder as cb
 
 
+DATATAG_ENTRY_POINTS = "entry_points"
 DATATAG_CALL_TREES = "call_trees"
 DATATAG_NODE_SUMMARY = "node_summary_table"
 DATATAG_LINENUMBER_TABLE = "linenumber_table"
@@ -81,6 +82,13 @@ def replace_callnode_body_with_label(node, label_to_body_tbl={}):
 
 def pretty_print_raw_data(data, out):
     pp = pprint.PrettyPrinter(indent=4, stream=out)
+
+    entry_points = data.get(DATATAG_ENTRY_POINTS)
+    if entry_points:
+        for entry_point in entry_points:
+            out.write("entry point:\n")
+            pp.pprint(entry_point)
+            out.write("\n")
 
     call_trees = data.get(DATATAG_CALL_TREES)
     if call_trees:

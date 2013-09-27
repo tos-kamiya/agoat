@@ -8,8 +8,8 @@ from _utilities import quote, sort_uniq
 import jimp_parser as jp
 import calltree as ct
 import calltree_builder as cb
-import calltree_summarizer as cs
-
+import calltree_summary as cs
+from calltree_summary import Summary  # re-export
 
 class QueryPattern(object):
     def __init__(self, word, ignore_case=False):

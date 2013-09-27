@@ -262,7 +262,7 @@ def find_entry_points(class_table, target_class_names=None):
             rmp = (jp.clzmsig_retv(clzmsig), jp.clzmsig_method(clzmsig), jp.clzmsig_params(clzmsig))
             if rmp in entrypoint_retv_method_params:
                 entry_points.append(clzmsig)
-    return entry_points
+    return sorted(entry_points)
 
 
 def build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node_memo={}):

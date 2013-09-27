@@ -2,18 +2,42 @@
 
 import sys
 
-import summary
+from _utilities import sort_uniq
+from collections import namedtuple
+
 import jimp_parser as jp
 import _jimp_code_body_to_tree_elem as jcbte
 
 
+Summary = namedtuple("Summary", "callees, literals")
+
+
+class SummaryBuilder(object):
+    def __init__(self):
+        self.callees = []
+        self.literals = []
+
+    def extend_callee(self, callees):
+        self.callees.extend(callees)
+
+    def extend_literal(self, literals):
+        self.literals.extend(literals)
+
+    def append_summary(self, sumry):
+        self.callees.extend(sumry.callees)
+        self.literals.extend(sumry.literals)
+
+    def to_summary(self):
+        return Summary(self.callees, self.literals)
+
+
 def extract_referred_literals(inss, method_data, class_data):
     if inss is None:
-        return summary.Summary()
+        return Summary()
 
     resolve_type = jcbte.gen_type_resolver(method_data, class_data)
 
-    sb = summary.SummaryBuilder()
+    sb = SummaryBuilder()
     for ins in inss:
         cmd = ins[0]
         if cmd in (jp.SPECIALINVOKE, jp.INVOKE):
@@ -28,13 +52,13 @@ def extract_referred_literals(inss, method_data, class_data):
 
 
 def extract_defined_methods(class_data):
-    sb = summary.SummaryBuilder()
+    sb = SummaryBuilder()
     sb.extend_callee(class_data.methods.iterkeys())
     return sb.to_summary()
 
 
 def extract_defined_methods_table(class_table):
-    sb = summary.SummaryBuilder()
+    sb = SummaryBuilder()
     for clz, cd in class_table.iteritems():
         sb.append_summary(extract_defined_methods(cd))
     return sb.to_summary()
