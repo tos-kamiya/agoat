@@ -6,7 +6,7 @@ import os
 import sys
 import pickle
 
-from _utilities import open_w_default, sort_uniq
+from _utilities import sort_uniq, STDOUT, STDIN
 
 import _config as _c
 import andor_tree as at
@@ -139,7 +139,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
     query = cq.Query(query_patterns)
 
     log and log("> loading index data\n")
-    with open_w_default(call_tree_file, "rb", sys.stdin) as inp:
+    with open(call_tree_file, "rb") as inp:
         # data = pickle.load(inp)  # very very slow in pypy
         data = pickle.loads(inp.read())
     call_trees = data[DATATAG_CALL_TREES]
@@ -148,7 +148,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
 
     clz_msig2conversion = None
     if line_number_table is not None:
-        with open_w_default(line_number_table, "rb", sys.stdin) as inp:
+        with open(line_number_table, "rb") as inp:
             # data = pickle.load(inp)  # very very slow in pypy
             data = pickle.loads(inp.read())
             clz_msig2conversion = data[DATATAG_LINENUMBER_TABLE]
@@ -159,7 +159,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
         nodes = search_in_call_trees(query, call_trees, node_summary_table, max_depth)
         clzmsigs = [n.callee for n in nodes]
         clzmsigs.sort()
-        with open_w_default(output_file, "wb", sys.stdout) as out:
+        with open(output_file, "wb") as out:
             for cm in clzmsigs:
                 out.write('%s\n' % format_clzmsig(cm))
         return
@@ -174,7 +174,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
         return
 
     if output_form == 'treecut':
-        with open_w_default(output_file, "wb", sys.stdout) as out:
+        with open(output_file, "wb") as out:
             for node in nodes:
                 contribution_data = cq.extract_node_contribution(node, query)
                 assert contribution_data[0][id(node)]
@@ -205,7 +205,7 @@ def do_search(call_tree_file, query_words, ignore_case_query_words, output_file,
                     " use '-f treecut' to show them as treecut, not as path.\n")
         return
 
-    with open_w_default(output_file, "wb", sys.stdout) as out:
+    with open(output_file, "wb") as out:
         for pn in path_nodes:
             contribution_data = cq.extract_node_contribution(pn, query)
             out.write("---\n")
@@ -224,11 +224,11 @@ def main(argv):
             help="""query words. put double quote(") before a word to search the word in string literals.""")
     psr_q.add_argument('-i', '--ignore-case-query-word', action='append')
     psr_q.add_argument('-c', '--call-tree', action='store', 
-            help="call-tree file. '-' for standard input. (default '%s')" % _c.default_calltree_path,
+            help="call-tree file. (default '%s')" % _c.default_calltree_path,
             default=_c.default_calltree_path)
-    psr_q.add_argument('-o', '--output', action='store', default='-')
+    psr_q.add_argument('-o', '--output', action='store', default=STDOUT)
     psr_q.add_argument('-l', '--line-number-table', action='store', 
-            help="line-number table file. '-' for standard input. (default '%s')" % _c.default_linenumbertable_path,
+            help="line-number table file. (default '%s')" % _c.default_linenumbertable_path,
             default=None)
     psr_q.add_argument('-d', '--max-depth', action='store', type=int, 
             help="max depth of subtree. -1 for unlimited depth. (default '%d')" % _c.default_max_depth_of_subtree,
@@ -241,7 +241,7 @@ def main(argv):
             default='auto')
     psr_q.add_argument('-F', '--fully-qualified-package-name', action='store_true', default=False)
     psr_q.add_argument("--progress", action='store_true',
-            help="show progress to standard output",
+            help="show progress to stderr",
             default=False)
 
     args = psr_q.parse_args(argv[1:])

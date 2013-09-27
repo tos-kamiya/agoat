@@ -20,12 +20,8 @@ def quote(unicode_str):
 
 
 def readline_iter(filename):
-    if filename != '-':
-        with open(filename, "rb") as f:
-            for L in f:
-                yield quote(L.decode("utf-8").rstrip())
-    else:
-        for L in sys.stdin:
+    with open(filename, "rb") as f:
+        for L in f:
             yield quote(L.decode("utf-8").rstrip())
 
 
@@ -44,22 +40,6 @@ def sort_uniq(lst, key=None):
     return t
 
 
-# @contextlib.contextmanager
-# def auto_pop(lst):
-#     original_length = len(lst)
-#     yield
-#     lst[:] = lst[:original_length]
-
-
-@contextlib.contextmanager
-def open_w_default(filename, mode, default):
-    if filename == '-':
-        yield default
-    else:
-        with open(filename, mode) as outp:
-            yield outp
-
-
 def list_flatten_iter(L):
     if isinstance(L, list):
         for li in L:
@@ -67,3 +47,10 @@ def list_flatten_iter(L):
                 yield e
     else:
         yield L
+
+
+if sys.platform == "win32":
+    STDOUT = STDIN = "CON"
+else:
+    STDOUT = "/dev/stdout"
+    STDIN = "/dev/stdin"
