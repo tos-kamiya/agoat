@@ -33,7 +33,7 @@ class SummaryBuilder(object):
 
 def extract_referred_literals(inss, method_data, class_data):
     if inss is None:
-        return Summary()
+        return Summary((), ())
 
     resolve_type = jcbte.gen_type_resolver(method_data, class_data)
 
