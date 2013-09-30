@@ -1,7 +1,8 @@
 # coding: utf-8
 
-import sys
+import gzip
 import re
+import sys
 
 _pat_unicode_escape = re.compile(r"\\|[\\](u[0-9a-fA-F]{4}|U[0-9a-fA-F]{8})")
 
@@ -48,8 +49,17 @@ def list_flatten_iter(L):
         yield L
 
 
+def open_gziped_file_when_available(filename, mode):
+    try:
+        f = gzip.open(filename + ".gz", mode)
+        return f
+    except:
+        f = open(filename, mode)
+        return f
+
 if sys.platform == "win32":
     STDOUT = STDIN = "CON"
 else:
     STDOUT = "/dev/stdout"
     STDIN = "/dev/stdin"
+

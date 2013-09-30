@@ -6,7 +6,7 @@ import os
 import sys
 import pickle
 
-from _utilities import sort_uniq, STDOUT, STDIN
+from _utilities import sort_uniq, STDOUT, STDIN, open_gziped_file_when_available
 
 import _config as _c
 import andor_tree as at
@@ -139,7 +139,7 @@ def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_
     query = cq.Query(query_patterns)
 
     log and log("> loading call trees\n")
-    with open(call_tree_file, "rb") as inp:
+    with open_gziped_file_when_available(call_tree_file, "rb") as inp:
         # data = pickle.load(inp)  # very very slow in pypy
         data = pickle.loads(inp.read())
     call_trees = data[DATATAG_CALL_TREES]
@@ -147,7 +147,7 @@ def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_
     del data
 
     log and log("> loading summary table\n")
-    with open(node_summary_file, "rb") as inp:
+    with open_gziped_file_when_available(node_summary_file, "rb") as inp:
         # data = pickle.load(inp)  # very very slow in pypy
         data = pickle.loads(inp.read())
     node_summary_table = data[DATATAG_NODE_SUMMARY]
@@ -158,7 +158,7 @@ def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_
 
     clz_msig2conversion = None
     if line_number_table is not None:
-        with open(line_number_table, "rb") as inp:
+        with open_gziped_file_when_available(line_number_table, "rb") as inp:
             # data = pickle.load(inp)  # very very slow in pypy
             data = pickle.loads(inp.read())
             clz_msig2conversion = data[DATATAG_LINENUMBER_TABLE]

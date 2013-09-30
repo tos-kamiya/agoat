@@ -2,11 +2,12 @@
 #coding: utf-8
 
 import argparse
+import gzip
 import os
 import sys
 import pickle
 
-from _utilities import STDIN, STDOUT
+from _utilities import STDIN, STDOUT, open_gziped_file_when_available
 
 import _config as _c
 import jimp_parser as jp
@@ -20,8 +21,9 @@ from _calltree_data_formatter import pretty_print_raw_data
 
 
 def pretty_print_raw_data_file(data_file, out=sys.stdout):
-    with open(data_file, "rb") as inp:
-        data = pickle.load(inp)
+    with open_gziped_file_when_available(data_file, "rb") as inp:
+        # data = pickle.load(inp)  # very very slow in pypy
+        data = pickle.loads(inp.read())
     pretty_print_raw_data(data, out)
 
 
@@ -62,7 +64,7 @@ def list_literals(soot_dir, output_file):
 
 
 def list_entry_points_from_node_summary(node_summary_file, output_file, option_method_sig=False):
-    with open(node_summary_file, "rb") as inp:
+    with open_gziped_file_when_available(node_summary_file, "rb") as inp:
         # data = pickle.load(inp)  # very very slow in pypy
         data = pickle.loads(inp.read())
     entry_points = data[DATATAG_ENTRY_POINTS]
@@ -76,7 +78,7 @@ def list_entry_points_from_node_summary(node_summary_file, output_file, option_m
 
 
 def list_methods_from_node_summary(node_summary_file, output_file):
-    with open(node_summary_file, "rb") as inp:
+    with open_gziped_file_when_available(node_summary_file, "rb") as inp:
         # data = pickle.load(inp)  # very very slow in pypy
         data = pickle.loads(inp.read())
     entry_points = data[DATATAG_ENTRY_POINTS]
@@ -99,7 +101,7 @@ def list_methods_from_node_summary(node_summary_file, output_file):
 
 
 def list_literals_from_node_summary(node_summary_file, output_file):
-    with open(node_summary_file, "rb") as inp:
+    with open_gziped_file_when_available(node_summary_file, "rb") as inp:
         # data = pickle.load(inp)  # very very slow in pypy
         data = pickle.loads(inp.read())
     entry_points = data[DATATAG_ENTRY_POINTS]
@@ -129,7 +131,7 @@ def generate_call_trees(entry_point_classes, soot_dir, output_file):
     class_table = cb.inss_to_tree_in_class_table(class_table)
     call_trees = cb.extract_call_andor_trees(class_table, entry_points)
 
-    with open(output_file, "wb") as out:
+    with gzip.open(output_file + ".gz", "wb") as out:
         pickle.dump({DATATAG_CALL_TREES: call_trees, DATATAG_ENTRY_POINTS: entry_points}, out,
                 protocol=1)
     return entry_points, call_trees
@@ -139,7 +141,7 @@ def generate_node_summary(call_tree_file, output_file, call_trees_data=None):
     if call_trees_data is not None:
         entry_points, call_trees = call_trees_data
     else:
-        with open(call_tree_file, "rb") as inp:
+        with open_gziped_file_when_available(call_tree_file, "rb") as inp:
             # data = pickle.load(inp)  # very very slow in pypy
             data = pickle.loads(inp.read())
         entry_points = data[DATATAG_ENTRY_POINTS]
@@ -147,7 +149,7 @@ def generate_node_summary(call_tree_file, output_file, call_trees_data=None):
 
     node_summary_table = cs.extract_node_summary_table(call_trees)
 
-    with open(output_file, "wb") as out:
+    with gzip.open(output_file + ".gz", "wb") as out:
         pickle.dump({DATATAG_NODE_SUMMARY: node_summary_table, DATATAG_ENTRY_POINTS: entry_points}, out,
                 protocol=1)
 
@@ -161,7 +163,7 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
     claz_msig2invocationindex2linenum = slc.make_invocationindex_to_src_linenum_table(javap_dir)
     clz_msig2conversion = slc.jimp_linnum_to_src_linenum_table(class_table, claz_msig2invocationindex2linenum)
 
-    with open(output_file, "wb") as out:
+    with gzip.open(output_file + ".gz", "wb") as out:
         pickle.dump({DATATAG_LINENUMBER_TABLE: clz_msig2conversion}, out,
                 protocol=1)
 
