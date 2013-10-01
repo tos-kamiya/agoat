@@ -7,8 +7,8 @@ import os.path
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
-import jimp_parser as jp
-import _jimp_code_body_to_tree_elem as jcbte
+import agoat.jimp_parser as jp
+import agoat._jimp_code_body_to_tree_elem as jcbte
 
 
 def str_to_char_list(s):

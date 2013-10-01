@@ -9,11 +9,11 @@ import os.path
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
-from _utilities import quote
+from agoat._utilities import quote
 
-import jimp_parser as jp
-import calltree as ct
-import calltree_query as cq
+import agoat.jimp_parser as jp
+import agoat.calltree as ct
+import agoat.calltree_query as cq
 
 def new_invoked(clz, msig):
     return ct.Invoked(jp.SPECIALINVOKE, clz + '\t' + msig, (), None)

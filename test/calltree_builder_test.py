@@ -7,9 +7,9 @@ import os.path
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
-import andor_tree as at
-import jimp_parser as jp
-import calltree_builder as cb
+import agoat.andor_tree as at
+import agoat.jimp_parser as jp
+import agoat.calltree_builder as cb
 
 
 class ClassDataStubOnlyBase(object):

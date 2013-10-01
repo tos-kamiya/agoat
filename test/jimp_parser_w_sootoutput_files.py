@@ -9,7 +9,7 @@ from cStringIO import StringIO
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
-import jimp_parser as jp
+import agoat.jimp_parser as jp
 
 
 class JimpParserWSootOutputFilesTest(unittest.TestCase):

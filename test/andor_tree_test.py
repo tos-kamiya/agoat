@@ -7,7 +7,7 @@ import os.path
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
-import andor_tree as at
+import agoat.andor_tree as at
 
 SameAsInput = object()
 

@@ -7,7 +7,7 @@ import os.path
 sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
-import _jimp_code_parser as jcp
+import agoat._jimp_code_parser as jcp
 
 
 class JimpCodeParserTest(unittest.TestCase):
