@@ -12,5 +12,16 @@ setup(
     scripts=['ag-run-disasms', 'ag-i', 'ag-q'],
     requires=['colorama'],
     package_data={'': ['soot-2.5.0.jar']},
-    license = 'MIT'
+    license = 'MIT',
+    classifiers= [
+        'Development Status :: 3 - Alpha',
+        'Environment :: Console',
+        'Intended Audience :: Developers',
+        'License :: OSI Approved :: MIT License',
+        'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
+        'Operating System :: POSIX :: Linux',
+        'Programming Language :: Python',
+        'Programming Language :: Java',
+        'Topic :: Software Development',
+    ],
 )
