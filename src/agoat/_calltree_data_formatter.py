@@ -36,9 +36,7 @@ def omit_trivial_package(s):
 
 
 def format_clzmsig(clzmsig):
-    retv = jp.clzmsig_retv(clzmsig)
-    if retv is None:
-        retv = "void"
+    retv = jp.clzmsig_retv_str(clzmsig)
     return "%s %s %s(%s)" % (
         omit_trivial_package(jp.clzmsig_clz(clzmsig)),
         omit_trivial_package(retv),
@@ -118,7 +116,7 @@ def pretty_print_raw_data(data, out):
 
 
 def gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi_color):
-    cont_types, cont_method_names, cont_literals = contribution_items
+    cont_types, cont_method_names, cont_literals, cont_callees = contribution_items
 
     if ansi_color:
         a_enhanced = colorama.Fore.RED + colorama.Style.BRIGHT
@@ -127,30 +125,22 @@ def gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi
     if not fully_qualified_package_name:
         if ansi_color:
             def fmt_type(typ):
-                if typ is None:  # Java's void type
-                    typ = 'void'
                 if typ in cont_types:
                     return a_enhanced + omit_trivial_package(typ) + a_reset
                 else:
                     return omit_trivial_package(typ)
         else:
             def fmt_type(typ):
-                if typ is None:  # Java's void type
-                    typ = 'void'
                 return omit_trivial_package(typ)
     else:
         if ansi_color:
             def fmt_type(typ):
-                if typ is None:  # Java's void type
-                    typ = 'void'
                 if type in cont_types:
                     return a_enhanced + typ + a_reset
                 else:
                     return typ
         else:
             def fmt_type(typ):
-                if typ is None:  # Java's void type
-                    typ = 'void'
                 return typ
 
     if ansi_color:
@@ -175,13 +165,30 @@ def gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi
                 return None
             return ', '.join(lits)
 
-    def fmt_clzmsig(clzmsig):
-        return "%s %s %s(%s)" % (
-            fmt_type(jp.clzmsig_clz(clzmsig)),
-            fmt_type(jp.clzmsig_retv(clzmsig)),
-            fmt_method_name(jp.clzmsig_method(clzmsig)),
-            ','.join(fmt_type(typ) for typ in jp.clzmsig_params(clzmsig))
-        )
+    if ansi_color:
+        def fmt_clzmsig(clzmsig):
+            if clzmsig in cont_callees:
+                return a_enhanced + ("%s %s %s(%s)" % (
+                    jp.clzmsig_clz(clzmsig), 
+                    jp.clzmsig_retv_str(clzmsig), 
+                    jp.clzmsig_method(clzmsig), 
+                    ','.join(jp.clzmsig_params(clzmsig))
+                )) + a_reset
+            else:
+                return "%s %s %s(%s)" % (
+                    fmt_type(jp.clzmsig_clz(clzmsig)),
+                    fmt_type(jp.clzmsig_retv_str(clzmsig)),
+                    fmt_method_name(jp.clzmsig_method(clzmsig)),
+                    ','.join(fmt_type(typ) for typ in jp.clzmsig_params(clzmsig))
+                )
+    else:
+        def fmt_clzmsig(clzmsig):
+            return "%s %s %s(%s)" % (
+                fmt_type(jp.clzmsig_clz(clzmsig)),
+                fmt_type(jp.clzmsig_retv_str(clzmsig)),
+                fmt_method_name(jp.clzmsig_method(clzmsig)),
+                ','.join(fmt_type(typ) for typ in jp.clzmsig_params(clzmsig))
+            )
     return fmt_type, fmt_clzmsig, fmt_lits
 
 

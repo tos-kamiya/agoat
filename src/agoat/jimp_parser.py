@@ -84,11 +84,14 @@ def clzmsig_clz(clzmsig):
 def clzmsig_retv(clzmsig):
     return _void_to_none(clzmsig.split('\t')[1])
 
+def clzmsig_retv_str(clzmsig):
+    return clzmsig.split('\t')[1]
+
 def clzmsig_method(clzmsig):
-    return _void_to_none(clzmsig.split('\t')[2])
+    return clzmsig.split('\t')[2]
 
 def clzmsig_params(clzmsig):
-    return tuple(_void_to_none(t) for t in clzmsig.split('\t')[3:])
+    return tuple(t for t in clzmsig.split('\t')[3:])
 
 def clzmsig_to_str(clzmsig):
     return clzmsig

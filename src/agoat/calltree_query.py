@@ -23,7 +23,7 @@ class QueryPattern(object):
     def matches_type(self, typ):
         return False
 
-    def matches_method(self, method):
+    def matches_method(self, method, callee=None):
         return False
 
     def matches_literal(self, w):
@@ -35,7 +35,7 @@ class QueryPattern(object):
 
 class TypeQueryPattern(QueryPattern):
     def matches_type(self, typ):
-        return not not self.regex.search(typ)
+        return bool(self.regex.search(typ))
 
     def matches_callee(self, callee):
         for i, t in enumerate(callee.split('\t')):  # clz, retv, method, param, ...
@@ -48,28 +48,52 @@ class TypeQueryPattern(QueryPattern):
 
 
 class MethodQueryPattern(QueryPattern):
-    def matches_method(self, method):
-        return not not self.regex.search(method)
+    def __init__(self, word, ignore_case=False):
+        if ignore_case:
+            def comp(s): return re.compile(s, re.IGNORECASE)
+        else:
+            comp = re.compile
+        uw = word.decode('utf-8')
+        quoted_word = quote(uw.encode('unicode-escape'))
+        backslash_doubled = quoted_word.replace(r"\u", r"\\u").replace(r"\U", r"\\U")
+        fields = backslash_doubled.split("/")
+        if len(fields) == 1:
+            self.regex_method = comp(backslash_doubled)
+            self.regex_clz = self.regex_retv = self.regex_param = None
+        else:
+            self.regex_clz = comp(fields[0]) if fields[0] else None
+            self.regex_retv = comp(fields[1]) if fields[1] else None
+            self.regex_method = comp(fields[2]) if len(fields) >= 3 and fields[2] else None
+            self.regex_param = comp(fields[3]) if len(fields) >= 4 and fields[3] else None
+        self.word = word
+
+    def matches_method(self, method, callee=None):
+        if callee is not None:
+            return self.matches_callee(callee)
+        return bool(self.regex_method is not None and self.regex_method.search(method))
 
     def matches_callee(self, callee):
-        m = callee.split('\t')[2] # clz, retv, method, param, ...
-        return self.regex.search(m)
+        fields = callee.split('\t') # clz, retv, method, param, ...
+        return bool((self.regex_clz is None or self.regex_clz.search(fields[0])) and \
+                (self.regex_retv is None or self.regex_retv.search(fields[1])) and \
+                (self.regex_method is None or self.regex_method.search(fields[2])) and \
+                (self.regex_param is None or any(self.regex_param.search(p) for p in fields[3:])))
 
 
 class LiteralQueryPattern(QueryPattern):
     def matches_literal(self, w):
-        return not not self.regex.search(w)
+        return bool(self.regex.search(w))
 
 
 class AnyQueryPattern(QueryPattern):
     def matches_type(self, typ):
-        return not not self.regex.search(typ)
+        return bool(self.regex.search(typ))
 
-    def matches_method(self, method):
-        return not not self.regex.search(method)
+    def matches_method(self, method, callee=None):
+        return bool(self.regex.search(method))
 
     def matches_literal(self, w):
-        return not not self.regex.search(w)
+        return bool(self.regex.search(w))
 
     def matches_callee(self, callee):
         for t in callee.split('\t'):  # clz, retv, method, param, ...
@@ -164,8 +188,8 @@ class Query(object):
                 matcheds.append(p)
         return matcheds
 
-    def matches_method(self, method):
-        return any(p.matches_method(method) for p in self._patterns)
+    def matches_method(self, method, callee=None):
+        return any(p.matches_method(method, callee=callee) for p in self._patterns)
 
     def matches_type(self, typ):
         return any(p.matches_type(typ) for p in self._patterns)
@@ -295,7 +319,7 @@ def extract_shallowest_treecut(call_node, predicate, max_depth=-1):
 
 
 def update_cont_items_by_invoked(cont_items, invoked, query):
-    cont_types, cont_method_names, cont_literals = cont_items
+    cont_types, cont_method_names, cont_literals, cont_callees = cont_items
     appeared_types = types_in_clzmsig(invoked.callee)
     invoked_cont = False
     for typ in appeared_types:
@@ -309,9 +333,12 @@ def update_cont_items_by_invoked(cont_items, invoked, query):
     if m in cont_method_names:
         invoked_cont = True
     else:
-        if query.matches_method(m):
+        if query.matches_method(m, callee=invoked.callee):
             invoked_cont = True
-            cont_method_names.add(m)
+            if query.matches_method(m):
+                cont_method_names.add(m)
+            else:
+                cont_callees.add(invoked.callee)
     if invoked.literals:
         for lit in invoked.literals:
             if query.matches_literal(lit):
@@ -325,7 +352,8 @@ def extract_node_contribution(call_node, query):
     cont_types = set()
     cont_method_names = set()
     cont_literals = set()
-    cont_items = cont_types, cont_method_names, cont_literals
+    cont_callees = set()
+    cont_items = cont_types, cont_method_names, cont_literals, cont_callees
 
     def mark_i(node):
         if node is None:
@@ -354,4 +382,4 @@ def extract_node_contribution(call_node, query):
         return node_cont
 
     mark_i(call_node)
-    return node_id_to_cont, cont_types, cont_method_names, cont_literals
+    return node_id_to_cont, cont_types, cont_method_names, cont_literals, cont_callees
