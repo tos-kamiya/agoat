@@ -272,7 +272,10 @@ def main(argv):
                 call_trees_data=call_trees_data)
     elif args.command == 'debug':
         if args.pretty_print:
-            pretty_print_raw_data_file(args.pretty_print)
+            data_file = args.pretty_print 
+            if data_file.endswith(".gz"):
+                data_file = data_file[:-len(".gz")]
+            pretty_print_raw_data_file(data_file)
     else:
         assert False
 
