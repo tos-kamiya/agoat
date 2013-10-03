@@ -61,6 +61,8 @@ class MethodQueryPattern(QueryPattern):
             self.regex_method = comp(backslash_doubled)
             self.regex_clz = self.regex_retv = self.regex_param = None
         else:
+            if len(fields) >= 5 or not any(fields):
+                raise ValueError("invalid method query pattern")
             self.regex_clz = comp(fields[0]) if fields[0] else None
             self.regex_retv = comp(fields[1]) if fields[1] else None
             self.regex_method = comp(fields[2]) if len(fields) >= 3 and fields[2] else None
