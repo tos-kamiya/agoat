@@ -2,6 +2,6 @@
 
 import sys
 
-from agoat.indexer import main
+from agoat.run_disasms import main
 
 main(sys.argv)

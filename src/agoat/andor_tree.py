@@ -1,6 +1,6 @@
 # coding: utf-8
 
-from _utilities import sort_uniq
+from ._utilities import sort_uniq
 
 
 ORDERED_AND = "&&"

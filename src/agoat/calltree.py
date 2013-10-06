@@ -2,7 +2,7 @@
 
 # import collections
 
-from andor_tree import ORDERED_AND, ORDERED_OR  # re-export
+from .andor_tree import ORDERED_AND, ORDERED_OR  # re-export
 
 
 # Invoked = collections.namedtuple('Invoked', 'cmd callee literals locinfo')

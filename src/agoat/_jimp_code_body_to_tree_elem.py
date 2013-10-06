@@ -11,12 +11,12 @@ import pprint
 from collections import Counter
 import itertools
 
-from _utilities import sort_uniq
-import jimp_parser as jp
-import _jimp_code_optimizer as jco
-from andor_tree import ORDERED_AND, ORDERED_OR, normalize_tree
-from _jimp_code_box_generator import BOX, BLOCK
-import _jimp_code_box_generator
+from ._utilities import sort_uniq
+from . import jimp_parser as jp
+from . import _jimp_code_optimizer as jco
+from .andor_tree import ORDERED_AND, ORDERED_OR, normalize_tree
+from ._jimp_code_box_generator import BOX, BLOCK
+from . import _jimp_code_box_generator
 
 def clzmethodsig_intern(msig):
     return intern(msig)

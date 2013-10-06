@@ -5,9 +5,9 @@ import os
 import re
 import sys
 
-from _utilities import readline_iter
+from ._utilities import readline_iter
 
-import jimp_parser as jp
+from . import jimp_parser as jp
 
 
 def indent_width(L):

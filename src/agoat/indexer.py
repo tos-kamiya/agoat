@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #coding: utf-8
 
 import argparse
@@ -9,15 +8,15 @@ import pickle
 
 from _utilities import STDIN, STDOUT, open_gziped_file_when_available
 
-import _config as _c
-import jimp_parser as jp
-import jimp_code_term_extractor as jcte
-import calltree_builder as cb
-import calltree_summary as cs
-import src_linenumber_converter as slc
-from _calltree_data_formatter import format_clzmsig
-from _calltree_data_formatter import DATATAG_ENTRY_POINTS, DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
-from _calltree_data_formatter import pretty_print_raw_data
+from . import _config as _c
+from . import jimp_parser as jp
+from . import jimp_code_term_extractor as jcte
+from . import calltree_builder as cb
+from . import calltree_summary as cs
+from . import src_linenumber_converter as slc
+from ._calltree_data_formatter import format_clzmsig
+from ._calltree_data_formatter import DATATAG_ENTRY_POINTS, DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
+from ._calltree_data_formatter import pretty_print_raw_data
 
 
 def pretty_print_raw_data_file(data_file, out=sys.stdout):
@@ -276,6 +275,8 @@ def main(argv):
             if data_file.endswith(".gz"):
                 data_file = data_file[:-len(".gz")]
             pretty_print_raw_data_file(data_file)
+        else:
+            sys.exit("nothing to do")
     else:
         assert False
 

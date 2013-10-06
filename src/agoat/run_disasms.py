@@ -1,11 +1,10 @@
-#!/usr/bin/env python
 #coding: utf-8
 
 import os
 import sys
 
-import _run_javap
-import _run_soot
+from . import _run_javap
+from . import _run_soot
 
 
 def class_filename_to_class_name(L):

@@ -8,12 +8,12 @@ try:
 except:
     pass
 
-from _utilities import sort_uniq
+from ._utilities import sort_uniq
 
-import calltree as ct
-import calltree_builder as cb
-import jimp_parser as jp
-from _calltree_data_formatter import format_clzmsig
+from . import calltree as ct
+from . import calltree_builder as cb
+from . import jimp_parser as jp
+from ._calltree_data_formatter import format_clzmsig
 
 
 class Summary(object):

@@ -2,9 +2,9 @@
 
 from collections import defaultdict, Counter
 
-from _utilities import sort_uniq
+from ._utilities import sort_uniq
 
-import jimp_parser as jp
+from . import jimp_parser as jp
 
 # BLOCK is a sequence of instructions, which does not any kind of branches
 # (goto, etc)

@@ -8,9 +8,9 @@ try:
 except:
     colorama = None  # O.K., goes w/o colorama
 
-import jimp_parser as jp
-import calltree as ct
-import calltree_builder as cb
+from . import jimp_parser as jp
+from . import calltree as ct
+from . import calltree_builder as cb
 
 
 DATATAG_ENTRY_POINTS = "entry_points"

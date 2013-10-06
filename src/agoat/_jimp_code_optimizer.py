@@ -1,6 +1,6 @@
 # coding: utf-8
 
-import jimp_parser as jp
+from . import jimp_parser as jp
 
 
 def merge_labels(inss):

@@ -3,11 +3,11 @@
 import sys
 import collections
 
-import _utilities
-import jimp_parser as jp
-import _jimp_code_body_to_tree_elem as jcbte
-import calltree as ct
-from _jimp_code_body_to_tree_elem import inss_to_tree, inss_to_tree_in_class_table  # re-export
+from . import _utilities
+from . import jimp_parser as jp
+from . import _jimp_code_body_to_tree_elem as jcbte
+from . import calltree as ct
+from ._jimp_code_body_to_tree_elem import inss_to_tree, inss_to_tree_in_class_table  # re-export
 
 
 def callnode_label(call_node):

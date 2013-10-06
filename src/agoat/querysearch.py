@@ -1,4 +1,3 @@
-#!/usr/bin/env python
 #coding: utf-8
 
 import argparse
@@ -8,13 +7,13 @@ import pickle
 
 from _utilities import sort_uniq, STDOUT, STDIN, open_gziped_file_when_available
 
-import _config as _c
-import andor_tree as at
-import calltree as ct
-import calltree_builder as cb
-import calltree_query as cq
-from _calltree_data_formatter import DATATAG_ENTRY_POINTS, DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
-from _calltree_data_formatter import format_call_tree_node_compact, init_ansi_color, format_clzmsig
+from . import _config as _c
+from . import andor_tree as at
+from . import calltree as ct
+from . import calltree_builder as cb
+from . import calltree_query as cq
+from ._calltree_data_formatter import DATATAG_ENTRY_POINTS, DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
+from ._calltree_data_formatter import format_call_tree_node_compact, init_ansi_color, format_clzmsig
 
 
 def gen_expander_of_call_tree_to_paths(query):

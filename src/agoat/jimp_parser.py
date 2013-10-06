@@ -5,10 +5,10 @@ import re
 import sys
 from collections import namedtuple
 
-from _utilities import readline_iter
-from _jimp_code_parser import parse_jimp_code
+from ._utilities import readline_iter
+from ._jimp_code_parser import parse_jimp_code
 
-from _jimp_code_parser import SPECIALINVOKE, INVOKE, RETURN, THROW, IFGOTO, GOTO, SWITCH, LABEL  # re-export
+from ._jimp_code_parser import SPECIALINVOKE, INVOKE, RETURN, THROW, IFGOTO, GOTO, SWITCH, LABEL  # re-export
 
 _IDENTIFIER = r"([\w.$]+|'\w+')"
 _CLASS = r'class\s+"[\w/$]+"'

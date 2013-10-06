@@ -3,13 +3,13 @@
 import re
 import sys
 
-from _utilities import quote, sort_uniq
+from ._utilities import quote, sort_uniq
 
-import jimp_parser as jp
-import calltree as ct
-import calltree_builder as cb
-import calltree_summary as cs
-from calltree_summary import Summary  # re-export
+from . import jimp_parser as jp
+from . import calltree as ct
+from . import calltree_builder as cb
+from . import calltree_summary as cs
+from .calltree_summary import Summary  # re-export
 
 class QueryPattern(object):
     def __init__(self, word, ignore_case=False):

@@ -2,11 +2,12 @@
 
 import sys
 
-from _utilities import sort_uniq
 from collections import namedtuple
 
-import jimp_parser as jp
-import _jimp_code_body_to_tree_elem as jcbte
+from ._utilities import sort_uniq
+
+from . import jimp_parser as jp
+from . import _jimp_code_body_to_tree_elem as jcbte
 
 
 Summary = namedtuple("Summary", "callees, literals")
