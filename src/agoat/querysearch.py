@@ -261,7 +261,7 @@ def main(argv):
     if args.line_number_table is not None:
         line_number_table = args.line_number_table
     else:
-        if os.path.exists(_c.default_linenumbertable_path):
+        if os.path.exists(_c.default_linenumbertable_path) or os.path.exists(_c.default_linenumbertable_path + ".gz"):
             line_number_table = _c.default_linenumbertable_path
     ansi_color = sys.stdout.isatty() if args.color == 'auto' else args.color == 'always'
     if ansi_color:
