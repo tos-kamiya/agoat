@@ -1,7 +1,6 @@
 #coding: utf-8
 
 import argparse
-import json
 import os
 import sys
 import pickle
