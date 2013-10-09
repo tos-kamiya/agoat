@@ -132,6 +132,8 @@ def gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_
         static_method = invoke_cmd == jp.SPECIALINVOKE
         resolved = []
         recv = jp.clzmsig_clz(clzmsig)
+        if recv.endswith("[]"):
+            return resolved
         mnamc = clzmsig_mnamc(clzmsig)
         cands = recv_method_to_defs.get((recv, mnamc))
         if cands is None:
@@ -314,6 +316,10 @@ def build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node
     def dig_dispatch(cmd, recv_clzmsig, recursive_context, literals, loc_info):
         cand_methods = resolve_dispatch(cmd, recv_clzmsig)
         if not cand_methods:
+            recv = jp.clzmsig_clz(recv_clzmsig)
+            if recv.endswith("[]"):
+                recv_clzmsig = jp.ClzMethodSig("[]", jp.clzmsig_retv_str(recv_clzmsig), jp.clzmsig_method(recv_clzmsig), jp.clzmsig_params(recv_clzmsig))
+                return ct.Invoked(cmd, recv_clzmsig, literals, loc_info)
             return ct.Invoked(cmd, recv_clzmsig, literals, loc_info)
         dispatch_node = [ct.ORDERED_OR]
         for md in cand_methods:
