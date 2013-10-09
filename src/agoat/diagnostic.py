@@ -1,7 +1,7 @@
 #coding: utf-8
 
 import argparse
-import gzip
+import json
 import os
 import sys
 import pickle
@@ -12,9 +12,10 @@ from . import _config as _c
 from . import jimp_parser as jp
 from . import jimp_code_term_extractor as jcte
 from . import calltree_builder as cb
+from . import calltree as ct
 from . import calltree_summary as cs
 from ._calltree_data_formatter import format_clzmsig
-from ._calltree_data_formatter import DATATAG_ENTRY_POINTS, DATATAG_NODE_SUMMARY
+from ._calltree_data_formatter import DATATAG_ENTRY_POINTS, DATATAG_NODE_SUMMARY, DATATAG_CALL_TREES
 from ._calltree_data_formatter import pretty_print_raw_data
 
 
@@ -121,6 +122,79 @@ def list_literals_from_node_summary(node_summary_file, output_file):
             out.write("%s\n" % lit)
 
 
+def measure_tree(node):
+    cn2data = {}
+
+    def measure_tree_i(node):
+        # count_nodes, max_depth, max_length, max_width
+        if isinstance(node, list):
+            assert node
+            n0 = node[0]
+            if n0 == ct.ORDERED_AND:
+                cn = md = ml = 0
+                mw = 1
+                for subn in node[1:]:
+                    scn, smd, sml, smw = measure_tree_i(subn)
+                    cn += scn
+                    md = max(md, smd)
+                    ml += sml
+                    mw = max(mw, smw)
+                return cn, md, ml, mw
+            elif n0 == ct.ORDERED_OR:
+                cn = md = ml = mw = 0
+                for subn in node[1:]:
+                    scn, smd, sml, smw = measure_tree_i(subn)
+                    cn += scn
+                    md = max(md, smd)
+                    ml = max(ml, sml)
+                    mw += smw
+                return cn, md, ml, mw
+            else:
+                assert False
+        elif isinstance(node, ct.CallNode):
+            node_label = cb.callnode_label(node)
+            d = cn2data.get(node_label)
+            if not d:
+                cn = md = ml = mw = 1
+                if node.body:
+                    scn, smd, sml, smw = measure_tree_i(node.body)
+                    cn += scn
+                    md += smd
+                    ml = max(ml, sml)
+                    mw = max(mw, smw)
+                cn2data[node_label] = d = cn, md, ml, mw
+            return d
+        elif node is not None:  # invoked
+            return 1, 1, 1, 1
+        else:
+            assert False
+
+    return measure_tree_i(node)
+
+def get_calltree_staistics(call_tree_file, output_file):
+    with open_gziped_file_when_available(call_tree_file, "rb") as inp:
+        # data = pickle.load(inp)  # very very slow in pypy
+        data = pickle.loads(inp.read())
+    call_trees = data[DATATAG_CALL_TREES]
+    #ce = data[DATATAG_ENTRY_POINTS]
+    del data
+
+    with open(output_file, "wb") as out:
+        count_entry_points = len(call_trees)
+        out.write("entry_points\t%d\n" % count_entry_points)
+        out.write("\n")
+        out.write("%s\n" % "\t".join(["entry_point", "nodes", "depth", "length", "width"]))
+        for n in call_trees:
+            count_nodes, max_depth, max_length, max_width = measure_tree(n)
+            out.write("%s\n" % "\t".join([
+                    format_clzmsig(n.invoked.callee),
+                    "%d" % count_nodes,
+                    "%d" % max_depth,
+                    "%d" % max_length,
+                    "%d" % max_width
+            ]))
+
+
 def main(argv):
     NotGiven = object()
 
@@ -145,6 +219,12 @@ def main(argv):
     g.add_argument('-s', '--soot-dir', action='store', nargs='?', help='soot directory', default=NotGiven)
     g.add_argument('-n', '--node-summary', action='store', nargs='?', help='call-tree file', default=NotGiven)
     psr_lt.add_argument('-o', '--output', action='store', default=STDOUT)
+
+    psr_cs = subpsrs.add_parser("size", help='call-tree statistics')
+    psr_cs.add_argument('-c', '--call-tree', action='store', 
+            help="call-tree file. (default '%s')" % _c.default_calltree_path,
+            default=_c.default_calltree_path)
+    psr_cs.add_argument('-o', '--output', action='store', default=STDOUT)
 
     psr_db = subpsrs.add_parser('debug', help='debug function')
     psr_db.add_argument('-p', '--pretty-print', action='store', help='pretty print internal data')
@@ -177,6 +257,8 @@ def main(argv):
             list_literals_from_node_summary(node_summary_file, args.output)
         else:
             sys.exit("need either -s or -n")
+    elif args.command == 'size':
+        get_calltree_staistics(args.call_tree, args.output)
     elif args.command == 'debug':
         if args.pretty_print:
             data_file = args.pretty_print 
