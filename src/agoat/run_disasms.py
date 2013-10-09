@@ -33,9 +33,9 @@ def find_classes(target_dir):
 
 
 def main(argv):
-    args = argv[1:]
+    args = argv[2:]
     if not args or args[0] in ('-h', '--help'):
-        sys.stdout.write("usage: run_disasms target_dir\n")
+        sys.stdout.write("usage: %s target_dir\n" % argv[0] + "\n" + "agoat disassembler\n")
         return
     if len(args) > 1:
         sys.exit("too many command-line arguments")

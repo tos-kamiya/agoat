@@ -9,7 +9,7 @@ setup(
     author='Toshihito Kamiya',
     url='https://github.com/tos-kamiya/agoat',
     packages=['agoat'],
-    scripts=['ag-run-disasem', 'ag-i', 'ag-q'],
+    scripts=['ags', 'ags.py'],
     requires=['colorama'],
     package_data={'': ['soot-2.5.0.jar']},
     license = 'MIT',

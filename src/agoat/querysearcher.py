@@ -226,8 +226,7 @@ def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_
 
 
 def main(argv):
-    psr_q = argparse.ArgumentParser(description='agoat CLI query search')
-    psr_q.add_argument('--version', action='version', version='%(prog)s ' + _c.VERSION)
+    psr_q = argparse.ArgumentParser(prog=argv[0], description='agoat query search')
 
     psr_q.add_argument('queryword', action='store', nargs='*', 
             help="""query words. put double quote(") before a word to search the word in string literals.""")
@@ -276,7 +275,3 @@ def main(argv):
             max_depth=args.max_depth, output_form=args.output_form,
             fully_qualified_package_name=args.fully_qualified_package_name, ansi_color=ansi_color,
             show_progress=args.progress)
-
-
-if __name__ == '__main__':
-    main(sys.argv)
