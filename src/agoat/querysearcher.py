@@ -114,8 +114,7 @@ def search_in_call_trees(query, call_trees, node_summary_table, max_depth,
     pred = cq.gen_callnode_fulfills_query_predicate_w_memo(query, node_summary_table)
     call_nodes = cq.get_lower_bound_call_nodes(call_trees, pred)
 
-    pred = cq.gen_treecut_fulfills_query_predicate(query)
-    shallowers = list(filter(None, (cq.extract_shallowest_treecut(call_node, pred, max_depth) for call_node in call_nodes)))
+    shallowers = list(filter(None, (cq.extract_shallowest_treecut(call_node, query, max_depth) for call_node in call_nodes)))
     removed_nodes_becauseof_limitation_of_depth[0] = len(call_nodes) - len(shallowers)
 
     contextlesses = [remove_outermost_loc_info(remove_recursive_contexts(cn)) for cn in shallowers]

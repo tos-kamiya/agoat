@@ -296,22 +296,16 @@ def treecut_with_callnode_depth(node, depth, has_deeper_nodes=None):
     return treecut_i(node, depth)
 
 
-def gen_treecut_fulfills_query_predicate(query):
-    def predicate(treecut_with_callnode_depth):
-        sumry = cs.get_node_summary(treecut_with_callnode_depth, {})
-        return query.is_fulfilled_by(sumry)
 
-    return predicate
-
-
-def extract_shallowest_treecut(call_node, predicate, max_depth=-1):
+def extract_shallowest_treecut(call_node, query, max_depth=-1):
     assert isinstance(call_node, ct.CallNode)
 
     depth = 1
     while max_depth < 0 or depth < max_depth:
         has_further_deep_nodes = [False]
         tc = treecut_with_callnode_depth(call_node, depth, has_further_deep_nodes)
-        if predicate(tc):
+        sumry = cs.get_node_summary(tc, {})
+        if query.is_fulfilled_by(sumry):
             return tc
         assert has_further_deep_nodes[0]
         depth += 1
