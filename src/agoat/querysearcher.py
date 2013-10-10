@@ -10,6 +10,7 @@ from _utilities import sort_uniq, STDOUT, STDIN, open_gziped_file_when_available
 from . import _config as _c
 from . import andor_tree as at
 from . import calltree as ct
+from . import calltree_summary as cs
 from . import calltree_builder as cb
 from . import calltree_query as cq
 from ._calltree_data_formatter import DATATAG_ENTRY_POINTS, DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
@@ -17,7 +18,9 @@ from ._calltree_data_formatter import format_call_tree_node_compact, init_ansi_c
 
 
 def gen_expander_of_call_tree_to_paths(query):
-    treecut_fulfills_query = cq.gen_treecut_fulfills_query_predicate(query)
+    def treecut_fulfills_query(tc):
+        sumry = cs.get_node_summary(tc, {})
+        return query.is_fulfilled_by(sumry)
 
     def expand_call_tree_to_paths(node):
         def expand_i(node):
