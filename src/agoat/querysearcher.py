@@ -23,14 +23,14 @@ def gen_expander_of_call_tree_to_paths(query):
         return query.is_fulfilled_by(sumry)
 
     def expand_call_tree_to_paths(node):
-        def expand_i(node):
+        def expand_i(node, memo):
             if isinstance(node, list):
                 assert node
                 n0 = node[0]
                 if n0 == ct.ORDERED_OR:
                     paths = []
                     for subn in node[1:]:
-                        ps = expand_i(subn)
+                        ps = expand_i(subn, memo)
                         if ps is not None:
                             paths.extend(ps)
                     if not paths:
@@ -42,7 +42,7 @@ def gen_expander_of_call_tree_to_paths(query):
                         return None
                     pathssubs = []
                     for subn in node[1:]:
-                        paths = expand_i(subn)
+                        paths = expand_i(subn, memo)
                         if paths is not None:
                             pathssubs.append(paths)
                     if not pathssubs:
@@ -58,18 +58,22 @@ def gen_expander_of_call_tree_to_paths(query):
                         #paths = [(path[:] + p) for path in paths for p in pathssub]
                     return paths
             elif isinstance(node, ct.CallNode):
-                if node.body:
-                    body_paths = expand_i(node.body)
-                    if body_paths:
-                        paths = []
-                        for bp in body_paths:
-                            nbp = at.normalize_tree([ct.ORDERED_AND] + bp)
-                            paths.append([ct.CallNode(node.invoked, node.recursive_cxt, nbp)])
-                        return paths
+                node_label = cb.callnode_label(node)
+                paths = memo.get(node_label)
+                if paths is None:
+                    if node.body:
+                        body_paths = expand_i(node.body, {})
+                        if body_paths:
+                            paths = []
+                            for bp in body_paths:
+                                nbp = at.normalize_tree([ct.ORDERED_AND] + bp)
+                                paths.append([ct.CallNode(node.invoked, node.recursive_cxt, nbp)])
+                        else:
+                            paths = [[ct.CallNode(node.invoked, node.recursive_cxt, None)]]
                     else:
-                        return [[ct.CallNode(node.invoked, node.recursive_cxt, None)]]
-                else:
-                    return [[node]]
+                        paths = [[node]]
+                    memo[node_label] = paths[:]
+                    return paths
             elif isinstance(node, ct.Invoked):
                 if query.has_matching_pattern_in(node.callee, node.literals):
                     return [[node]]
@@ -77,7 +81,7 @@ def gen_expander_of_call_tree_to_paths(query):
             else:
                 assert False
 
-        paths = expand_i(node)
+        paths = expand_i(node, {})
         paths = sort_uniq(paths)
         paths = [at.normalize_tree([ct.ORDERED_AND] + path) for path in paths]
         paths = [path for path in paths if treecut_fulfills_query(path)]
@@ -124,6 +128,35 @@ def search_in_call_trees(query, call_trees, node_summary_table, max_depth,
     call_node_wo_rcs = sort_uniq(contextlesses, key=cb.callnode_label)
 
     return call_node_wo_rcs
+
+
+def remove_uncontributing_nodes(node, node_id_to_cont):
+    def remove_i(node):
+        if not node_id_to_cont.get(id(node)):
+            return None
+        if isinstance(node, list):
+            assert node
+            n0 = node[0]
+            if n0 in (ct.ORDERED_AND, ct.ORDERED_OR):
+                buf = [n0]
+                for subn in node[1:]:
+                    b = remove_i(subn)
+                    if b:
+                        buf.append(b)
+                return buf
+            else:
+                assert False
+        elif isinstance(node, ct.CallNode):
+            buf = remove_i(node.body)
+            if buf:
+                return ct.CallNode(node.invoked, node.recursive_cxt, buf)
+            else:
+                return node.invoked
+        elif isinstance(node, ct.Invoked):
+            return node
+        else:
+            assert None
+    return remove_i(node)
 
 
 def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_words, output_file, line_number_table=None, 
@@ -206,6 +239,8 @@ def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_
     path_nodes = []
     count_removed_path_becauseof_not_fulfilling_query = 0
     for node in nodes:
+        node_id_to_cont = cq.extract_node_contribution(node, query)[0]
+        node = remove_uncontributing_nodes(node, node_id_to_cont)
         pns = expand_call_tree_to_paths(node)
         if not pns:
             count_removed_path_becauseof_not_fulfilling_query += 1
