@@ -150,23 +150,24 @@ class QueryTest(unittest.TestCase):
         l = quote(word_japanese_a)
         m = quote(word_japanese_a)
         t = quote(word_japanese_a)
+        utf8_word_japanese_a = word_japanese_a.encode("utf-8")
 
-        qpl = cq.LiteralQueryPattern(word_japanese_a)
+        qpl = cq.LiteralQueryPattern(utf8_word_japanese_a)
         self.assertTrue(qpl.matches_literal(l))
         self.assertFalse(qpl.matches_method(m))
         self.assertFalse(qpl.matches_type(t))
 
-        qpm = cq.MethodQueryPattern(word_japanese_a)
+        qpm = cq.MethodQueryPattern(utf8_word_japanese_a)
         self.assertFalse(qpm.matches_literal(l))
         self.assertTrue(qpm.matches_method(m))
         self.assertFalse(qpm.matches_type(t))
 
-        qpt = cq.TypeQueryPattern(word_japanese_a)
+        qpt = cq.TypeQueryPattern(utf8_word_japanese_a)
         self.assertFalse(qpt.matches_literal(l))
         self.assertFalse(qpt.matches_method(m))
         self.assertTrue(qpt.matches_type(t))
 
-        qpa = cq.AnyQueryPattern(word_japanese_a)
+        qpa = cq.AnyQueryPattern(utf8_word_japanese_a)
         self.assertTrue(qpa.matches_literal(l))
         self.assertTrue(qpa.matches_method(m))
         self.assertTrue(qpa.matches_type(t))
