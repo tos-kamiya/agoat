@@ -163,7 +163,7 @@ def measure_tree(node):
                     mw = max(mw, smw)
                 cn2data[node_label] = d = cn, md, ml, mw
             return d
-        elif node is not None:  # invoked
+        elif isinstance(node, ct.Invoked):
             return 1, 1, 1, 1
         else:
             assert False

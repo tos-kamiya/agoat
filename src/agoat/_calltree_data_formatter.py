@@ -293,4 +293,3 @@ def format_call_tree_node_compact(node, out, contribution_data, print_node_once_
     indent_step_str = '  '
     for d, b, locinfo in buf:
         out.write('%s%s\t%s\n' % (indent_step_str * d, b, locinfo))
-
