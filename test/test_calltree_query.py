@@ -177,7 +177,7 @@ class QueryTest(unittest.TestCase):
         self.assertEqual(len(subns), 2)
         self.assertEqual(subns[0].invoked, new_invoked("C", "c"))
         self.assertEqual(subns[1].invoked, new_invoked("F", "f"))
-        
+
         csubns = cq.get_direct_sub_callnodes_of_body_node(subns[0].body)
         self.assertEqual(csubns, [])
 
@@ -251,3 +251,8 @@ class QueryPatternTest(unittest.TestCase):
 
         pat = cq.compile_query('"w')
         self.assertTrue(isinstance(pat, cq.LiteralQueryPattern))
+
+
+if __name__ == "__main__":
+    #import sys;sys.argv = ['', 'Test.testName']
+    unittest.main()
