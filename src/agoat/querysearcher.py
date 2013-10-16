@@ -18,10 +18,6 @@ from ._calltree_data_formatter import format_call_tree_node_compact, init_ansi_c
 
 
 def gen_expander_of_call_tree_to_paths(query):
-    def treecut_fulfills_query(tc):
-        sumry = cs.node_summary_treecut(tc)
-        return query.is_fulfilled_by(sumry)
-
     def expand_call_tree_to_paths(node):
         def expand_i(node, memo):
             if isinstance(node, list):
@@ -84,7 +80,7 @@ def gen_expander_of_call_tree_to_paths(query):
         paths = expand_i(node, {})
         paths = sort_uniq(paths)
         paths = [at.normalize_tree([ct.ORDERED_AND] + path) for path in paths]
-        paths = [path for path in paths if treecut_fulfills_query(path)]
+        paths = [path for path in paths if query.is_fulfilled_by(cs.node_summary_treecut(path))]
         return paths
 
     return expand_call_tree_to_paths
@@ -121,15 +117,8 @@ def search_in_call_trees(query, call_trees, node_summary_table, max_depth,
     pred = cq.gen_callnode_fulfills_query_predicate_w_memo(query, node_summary_table)
     call_nodes = cq.get_lower_bound_call_nodes(call_trees, pred)
 
-    missed = 0
-    shallowers = []
-    for cn in call_nodes:
-        tc = cq.extract_shallowest_treecut(cn, query, max_depth)
-        if tc:
-            shallowers.append(tc)
-        else:
-            missed += 1
-    removed_nodes_becauseof_limitation_of_depth[0] = missed
+    shallowers = list(filter(None, (cq.extract_shallowest_treecut(call_node, query, max_depth) for call_node in call_nodes)))
+    removed_nodes_becauseof_limitation_of_depth[0] = len(call_nodes) - len(shallowers)
 
     contextlesses = [remove_outermost_loc_info(remove_recursive_contexts(cn)) for cn in shallowers]
     call_node_wo_rcs = sort_uniq(contextlesses, key=cb.callnode_label)
