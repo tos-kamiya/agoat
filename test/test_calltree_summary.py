@@ -77,7 +77,7 @@ SHARING_CALL_TREE = new_callnode(cm('A', 'a'), ('"a"',), None,
 
 class CalltreeSummarlizerTest(unittest.TestCase):
     def test_get_node_summary_empty(self):
-        self.assertEqual(cs.get_node_summary_wo_memoization(None), cs.Summary())
+        self.assertEqual(cs.get_node_summary(None, {}), cs.Summary())
 
     def test_get_node_summary_table(self):
         summary_table = cs.extract_node_summary_table([A_CALL_TREE])
