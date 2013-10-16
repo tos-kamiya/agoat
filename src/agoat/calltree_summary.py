@@ -71,34 +71,34 @@ class SummaryBuilder(object):
         return Summary(self.callees, self.literals)
 
 
-def _extract_callnode_labels_in_calltree(call_tree, label_set):
-    def dig_node(node):
-        if node is None:
-            return
-        elif isinstance(node, list):
-            n0 = node[0]
-            assert n0 in (ct.ORDERED_AND, ct.ORDERED_OR)
-            for subn in node[1:]:
-                dig_node(subn)
-        elif isinstance(node, ct.CallNode):
-            node_label = cb.callnode_label(node)
-            if node_label in label_set:
-                return
-            label_set.add(node_label)
-            if node.body:
-                subnode = node.body
-                if isinstance(subnode, (list, ct.CallNode)):
-                    dig_node(subnode)
-        else:
-            assert False
-    dig_node(call_tree)
-
-
-def extract_callnode_labels_in_calltrees(call_trees):
-    label_set = set()
-    for ct in call_trees:
-        _extract_callnode_labels_in_calltree(ct, label_set)
-    return sort_uniq(label_set)
+# def _extract_callnode_labels_in_calltree(call_tree, label_set):
+#     def dig_node(node):
+#         if node is None:
+#             return
+#         elif isinstance(node, list):
+#             n0 = node[0]
+#             assert n0 in (ct.ORDERED_AND, ct.ORDERED_OR)
+#             for subn in node[1:]:
+#                 dig_node(subn)
+#         elif isinstance(node, ct.CallNode):
+#             node_label = cb.callnode_label(node)
+#             if node_label in label_set:
+#                 return
+#             label_set.add(node_label)
+#             if node.body:
+#                 subnode = node.body
+#                 if isinstance(subnode, (list, ct.CallNode)):
+#                     dig_node(subnode)
+#         else:
+#             assert False
+#     dig_node(call_tree)
+# 
+# 
+# def extract_callnode_labels_in_calltrees(call_trees):
+#     label_set = set()
+#     for ct in call_trees:
+#         _extract_callnode_labels_in_calltree(ct, label_set)
+#     return sort_uniq(label_set)
 
 
 def get_node_summary(node, summary_table, use_callnode_label_with_depth=False):
