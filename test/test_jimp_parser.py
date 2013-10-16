@@ -51,6 +51,11 @@ class JimpParserTest(unittest.TestCase):
         self.assertEqual(jp.clzmsig_method(msig), "hoge")
         self.assertEqual(jp.clzmsig_params(msig), ())
 
+    def test_clzmethodsig_w_void(self):
+        msig = jp.ClzMethodSig("A", "void", "hoge", ())
+        self.assertEqual(jp.clzmsig_retv(msig), None)
+        self.assertEqual(jp.clzmsig_retv_str(msig), "void")
+
     def test_hello_string(self):
         class_name, class_data = jp.parse_jimp_lines(
             helloJimpText.splitlines(),

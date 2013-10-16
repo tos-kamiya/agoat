@@ -185,6 +185,39 @@ class CalltreeBuilderTest(unittest.TestCase):
             include_direct_recursive_calls=False)
         self.assertEqual(methods_ircc, [crv('B', 'b'), crv('C', 'c')])
 
+
+stub_class_to_descendants = { 
+    "A": { "B": 1, "C": 2}, 
+    "B": { "C": 1 } 
+}
+
+
+class CalltreeBuilderFuncTest(unittest.TestCase):
+    def test_java_is_a_void(self):
+        self.assertEqual(cb.java_is_a(None, None, stub_class_to_descendants), 0)
+        self.assertEqual(cb.java_is_a(None, "null", stub_class_to_descendants), -1)
+        self.assertEqual(cb.java_is_a("null", None, stub_class_to_descendants), -1)
+        self.assertEqual(cb.java_is_a(None, "int", stub_class_to_descendants), -1)
+        self.assertEqual(cb.java_is_a(None, "java.lang.Object", stub_class_to_descendants), -1)
+
+    def test_java_is_a_null(self):
+        self.assertEqual(cb.java_is_a("null", "null", stub_class_to_descendants), 0)
+        self.assertEqual(cb.java_is_a("null", "java.lang.Object", stub_class_to_descendants), 0)
+        self.assertEqual(cb.java_is_a("null", "char", stub_class_to_descendants), -1)
+
+    def test_java_is_a_class(self):
+        self.assertEqual(cb.java_is_a("A", "A", stub_class_to_descendants), 0)
+        self.assertEqual(cb.java_is_a("A", "B", stub_class_to_descendants), -1)
+        self.assertEqual(cb.java_is_a("B", "A", stub_class_to_descendants), 1)
+        self.assertEqual(cb.java_is_a("C", "A", stub_class_to_descendants), 2)
+
+    def test_java_is_a_array(self):
+        self.assertEqual(cb.java_is_a("A[]", "A", stub_class_to_descendants), -1)
+        self.assertEqual(cb.java_is_a("A[]", "B[]", stub_class_to_descendants), -1)
+        self.assertEqual(cb.java_is_a("B[]", "A[]", stub_class_to_descendants), 1)
+        self.assertEqual(cb.java_is_a("C[]", "A[]", stub_class_to_descendants), 2)
+
+
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
