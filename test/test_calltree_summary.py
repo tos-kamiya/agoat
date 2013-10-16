@@ -18,7 +18,7 @@ def new_invoked(clzmsig, literals):
     return ct.Invoked(jp.SPECIALINVOKE, clzmsig, literals, None)
 
 def new_callnode(clzmsig, literals, recursive_cxt, body):
-    return ct.CallNode(ct.Invoked(jp.SPECIALINVOKE, clzmsig, literals, None), recursive_cxt, body)
+    return ct.CallNode(new_invoked(clzmsig, literals), recursive_cxt, body)
 
 A_CALL_TREE = new_callnode(cm('A', 'a'), ('"a"',), None,
     [ct.ORDERED_AND,

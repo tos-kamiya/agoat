@@ -5,7 +5,7 @@ import re
 import sys
 from collections import namedtuple
 
-from ._utilities import readline_iter
+from ._utilities import readline_iter, sort_uniq
 from ._jimp_code_parser import parse_jimp_code
 
 from ._jimp_code_parser import SPECIALINVOKE, INVOKE, RETURN, THROW, IFGOTO, GOTO, SWITCH, LABEL  # re-export
@@ -101,6 +101,14 @@ def clzmsig_from_str(s):
 
 def clzmsig_methodsig(clzmsig):
     return '\t'.join(clzmsig.split('\t')[1:])
+
+
+def types_in_clzmsig(clzmsig):
+    types = [clzmsig_clz(clzmsig), clzmsig_retv(clzmsig)]
+    types.extend(clzmsig_params(clzmsig))
+    types = ['void' if typ is None else typ for typ in types]
+    types = sort_uniq(types)
+    return types
 
 
 class InvalidText(ValueError):

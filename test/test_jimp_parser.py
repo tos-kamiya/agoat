@@ -68,6 +68,11 @@ class JimpParserTest(unittest.TestCase):
                 jp.ClzMethodSig("Hello", None, "main", ("java.lang.String[]", ))
             ])
 
+    def test_types_in_clzmsig(self):
+        msig = jp.ClzMethodSig("A", "void", "hoge", ("int", "double", "int"))
+        types = jp.types_in_clzmsig(msig)
+        self.assertSequenceEqual(types, ["A", "double", "int", "void"])
+
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()

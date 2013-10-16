@@ -3,7 +3,7 @@
 import re
 import sys
 
-from ._utilities import quote, sort_uniq
+from ._utilities import quote
 
 from . import jimp_parser as jp
 from . import calltree as ct
@@ -123,14 +123,6 @@ def compile_query(query_word, ignore_case=False):
         return MethodQueryPattern(query_word, ignore_case)
     else:
         return AnyQueryPattern(query_word, ignore_case)
-
-
-def types_in_clzmsig(clzmsig):
-    types = [jp.clzmsig_clz(clzmsig), jp.clzmsig_retv(clzmsig)]
-    types.extend(jp.clzmsig_params(clzmsig))
-    types = ['void' if typ is None else typ for typ in types]
-    types = sort_uniq(types)
-    return types
 
 
 class Query(object):
@@ -317,7 +309,7 @@ def extract_shallowest_treecut(call_node, query, max_depth=-1):
 
 def update_cont_items_by_invoked(cont_items, invoked, query):
     cont_types, cont_method_names, cont_literals, cont_callees = cont_items
-    appeared_types = types_in_clzmsig(invoked.callee)
+    appeared_types = jp.types_in_clzmsig(invoked.callee)
     invoked_cont = False
     for typ in appeared_types:
         if typ in cont_types:
