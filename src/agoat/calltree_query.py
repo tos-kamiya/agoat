@@ -268,7 +268,7 @@ def get_lower_bound_call_nodes(call_trees, predicate):
 def treecut_with_callnode_depth(node, depth, has_deeper_nodes=None):
     if has_deeper_nodes is None:
         has_deeper_nodes = [None]
-    callnode_memo = {}
+    callnode_body_memo = {}
     def treecut_i(node, remaining_depth):
         if isinstance(node, list):
             assert node
@@ -283,10 +283,11 @@ def treecut_with_callnode_depth(node, depth, has_deeper_nodes=None):
         elif isinstance(node, ct.CallNode):
             if remaining_depth > 0:
                 node_label = (node.invoked.callee, remaining_depth)
-                cn = callnode_memo.get(node_label)
-                if cn is None:
-                    cn = ct.CallNode(node.invoked, remaining_depth, treecut_i(node.body, remaining_depth - 1))
-                    callnode_memo[node_label] = cn
+                cb = callnode_body_memo.get(node_label)
+                if cb is None:
+                    callnode_body_memo[node_label] = \
+                    cb = treecut_i(node.body, remaining_depth - 1)
+                cn = ct.CallNode(node.invoked, remaining_depth, cb)
                 return cn
             else:
                 has_deeper_nodes[0] = True
@@ -304,7 +305,7 @@ def extract_shallowest_treecut(call_node, query, max_depth=-1):
     while max_depth < 0 or depth < max_depth:
         has_further_deep_nodes = [False]
         tc = treecut_with_callnode_depth(call_node, depth, has_further_deep_nodes)
-        sumry = cs.get_node_summary(tc, {})
+        sumry = cs.node_summary_treecut(tc)
         if query.is_fulfilled_by(sumry):
             return tc
         assert has_further_deep_nodes[0]

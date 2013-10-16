@@ -19,7 +19,7 @@ from ._calltree_data_formatter import format_call_tree_node_compact, init_ansi_c
 
 def gen_expander_of_call_tree_to_paths(query):
     def treecut_fulfills_query(tc):
-        sumry = cs.get_node_summary(tc, {})
+        sumry = cs.node_summary_treecut(tc)
         return query.is_fulfilled_by(sumry)
 
     def expand_call_tree_to_paths(node):
@@ -121,8 +121,15 @@ def search_in_call_trees(query, call_trees, node_summary_table, max_depth,
     pred = cq.gen_callnode_fulfills_query_predicate_w_memo(query, node_summary_table)
     call_nodes = cq.get_lower_bound_call_nodes(call_trees, pred)
 
-    shallowers = list(filter(None, (cq.extract_shallowest_treecut(call_node, query, max_depth) for call_node in call_nodes)))
-    removed_nodes_becauseof_limitation_of_depth[0] = len(call_nodes) - len(shallowers)
+    missed = 0
+    shallowers = []
+    for cn in call_nodes:
+        tc = cq.extract_shallowest_treecut(cn, query, max_depth)
+        if tc:
+            shallowers.append(tc)
+        else:
+            missed += 1
+    removed_nodes_becauseof_limitation_of_depth[0] = missed
 
     contextlesses = [remove_outermost_loc_info(remove_recursive_contexts(cn)) for cn in shallowers]
     call_node_wo_rcs = sort_uniq(contextlesses, key=cb.callnode_label)
@@ -217,6 +224,11 @@ def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_
                     " give option -d explicitly to show these code.\n")
         return
 
+    for ni in range(len(nodes)):
+        node = nodes[ni]
+        node_id_to_cont = cq.extract_node_contribution(node, query)[0]
+        nodes[ni] = remove_uncontributing_nodes(node, node_id_to_cont)
+
     if output_form == 'treecut':
         with open(output_file, "wb") as out:
             for node in nodes:
@@ -239,8 +251,6 @@ def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_
     path_nodes = []
     count_removed_path_becauseof_not_fulfilling_query = 0
     for node in nodes:
-        node_id_to_cont = cq.extract_node_contribution(node, query)[0]
-        node = remove_uncontributing_nodes(node, node_id_to_cont)
         pns = expand_call_tree_to_paths(node)
         if not pns:
             count_removed_path_becauseof_not_fulfilling_query += 1

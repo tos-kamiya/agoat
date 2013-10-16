@@ -101,7 +101,7 @@ def extract_callnode_labels_in_calltrees(call_trees):
     return sort_uniq(label_set)
 
 
-def get_node_summary(node, summary_table):
+def get_node_summary(node, summary_table, use_callnode_label_with_depth=False):
     """
     Get summary of a node.
     In case of summary_table parameter given, calculate summary with memorization.
@@ -119,6 +119,14 @@ def get_node_summary(node, summary_table):
             return lits
 
     stack = []
+
+    if use_callnode_label_with_depth:
+        def cl(call_node):
+            return (call_node.invoked.callee, len(stack))
+        callnode_label = cl
+    else:
+        callnode_label = cb.callnode_label
+
     def dig_node(node, parent_summary_builder, child_literals_holder):
         if node is None:
             return
@@ -132,7 +140,7 @@ def get_node_summary(node, summary_table):
             invoked = node.invoked
             lits = invoked.literals
             lits and parent_summary_builder.extend_literal(lits)
-            lbl = cb.callnode_label(node)
+            lbl = callnode_label(node)
             if lbl not in parent_summary_builder.already_appended_callnodes:
                 stack.append(lbl)
                 nodesum = summary_table.get(lbl)
@@ -183,11 +191,8 @@ def get_node_summary(node, summary_table):
     return sumry
 
 
-
-def get_node_summary_wo_memoization(node):
-    # summary_table = {}  # (ClzMethodSig, recursive_context) -> Summary
-    summary_table = get_node_summary(node, summary_table=None)
-    return summary_table
+def node_summary_treecut(node):
+    return get_node_summary(node, {}, use_callnode_label_with_depth=True)
 
 
 def extract_node_summary_table(nodes):
