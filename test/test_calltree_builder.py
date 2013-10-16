@@ -217,6 +217,7 @@ class CalltreeBuilderFuncTest(unittest.TestCase):
         self.assertEqual(cb.java_is_a("B[]", "A[]", stub_class_to_descendants), 1)
         self.assertEqual(cb.java_is_a("C[]", "A[]", stub_class_to_descendants), 2)
 
+
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']
     unittest.main()
