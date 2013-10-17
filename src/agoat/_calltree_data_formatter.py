@@ -11,7 +11,7 @@ except:
 from . import jimp_parser as jp
 from . import calltree as ct
 from . import calltree_builder as cb
-
+from . import calltree_query as cq
 
 DATATAG_ENTRY_POINTS = "entry_points"
 DATATAG_CALL_TREES = "call_trees"
@@ -22,27 +22,6 @@ DATATAG_LINENUMBER_TABLE = "linenumber_table"
 def init_ansi_color():
     import colorama  # ensure colorama is loaded. otherwise, runtime error
     colorama.init()
-
-
-OMITTED_PACKAGES = ["java.lang."]
-_OMITTING_TABLE = [(p, len(p)) for p in OMITTED_PACKAGES]
-
-
-def omit_trivial_package(s):
-    for p, lp in _OMITTING_TABLE:
-        if s.startswith(p):
-            return s[lp:]
-    return s
-
-
-def format_clzmsig(clzmsig):
-    retv = jp.clzmsig_retv_str(clzmsig)
-    return "%s %s %s(%s)" % (
-        omit_trivial_package(jp.clzmsig_clz(clzmsig)),
-        omit_trivial_package(retv),
-        jp.clzmsig_method(clzmsig), 
-        ','.join(map(omit_trivial_package, jp.clzmsig_params(clzmsig)))
-    )
 
 
 Node = collections.namedtuple('Node', 'label')
@@ -115,9 +94,7 @@ def pretty_print_raw_data(data, out):
         out.write("\n")
 
 
-def gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi_color):
-    cont_types, cont_method_names, cont_literals, cont_callees = contribution_items
-
+def gen_custom_formatters(query, fully_qualified_package_name, ansi_color):
     if ansi_color:
         a_enhanced = colorama.Fore.RED + colorama.Style.BRIGHT
         a_reset = colorama.Fore.RESET + colorama.Style.RESET_ALL
@@ -125,17 +102,17 @@ def gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi
     if not fully_qualified_package_name:
         if ansi_color:
             def fmt_type(typ):
-                if typ in cont_types:
-                    return a_enhanced + omit_trivial_package(typ) + a_reset
+                if query.matches_type(typ):
+                    return a_enhanced + jp.omit_trivial_package(typ) + a_reset
                 else:
-                    return omit_trivial_package(typ)
+                    return jp.omit_trivial_package(typ)
         else:
             def fmt_type(typ):
-                return omit_trivial_package(typ)
+                return jp.omit_trivial_package(typ)
     else:
         if ansi_color:
             def fmt_type(typ):
-                if type in cont_types:
+                if query.matches_type(typ):
                     return a_enhanced + typ + a_reset
                 else:
                     return typ
@@ -145,7 +122,7 @@ def gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi
 
     if ansi_color:
         def fmt_method_name(m):
-            if m in cont_method_names:
+            if query.matches_method(m):
                 return a_enhanced + m + a_reset
             else:
                 return m
@@ -155,32 +132,34 @@ def gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi
 
     if ansi_color:
         def fmt_lits(lits):
-            if not lits or not cont_literals.intersection(lits):
+            buf = []
+            matched_found = False
+            for lit in lits:
+                if query.matches_literal(lit):
+                    buf.append(a_enhanced + lit + a_reset)
+                    matched_found = True
+                else:
+                    buf.append(lit)
+            if matched_found:
+                return ', '.join(buf)
+            else:
                 return None
-            buf = [((a_enhanced + lit + a_reset) if lit in cont_literals else lit) for lit in lits]
-            return ', '.join(buf)
     else:
         def fmt_lits(lits):
-            if not lits or not cont_literals.intersection(lits):
+            for lit in lits:
+                if query.matches_literal(lit):
+                    return ', '.join(lits)
+            else:
                 return None
-            return ', '.join(lits)
 
     if ansi_color:
         def fmt_clzmsig(clzmsig):
-            if clzmsig in cont_callees:
-                return a_enhanced + ("%s %s %s(%s)" % (
-                    jp.clzmsig_clz(clzmsig), 
-                    jp.clzmsig_retv_str(clzmsig), 
-                    jp.clzmsig_method(clzmsig), 
-                    ','.join(jp.clzmsig_params(clzmsig))
-                )) + a_reset
-            else:
-                return "%s %s %s(%s)" % (
-                    fmt_type(jp.clzmsig_clz(clzmsig)),
-                    fmt_type(jp.clzmsig_retv_str(clzmsig)),
-                    fmt_method_name(jp.clzmsig_method(clzmsig)),
-                    ','.join(fmt_type(typ) for typ in jp.clzmsig_params(clzmsig))
-                )
+            return "%s %s %s(%s)" % (
+                fmt_type(jp.clzmsig_clz(clzmsig)),
+                fmt_type(jp.clzmsig_retv_str(clzmsig)),
+                fmt_method_name(jp.clzmsig_method(clzmsig)),
+                ','.join(fmt_type(typ) for typ in jp.clzmsig_params(clzmsig))
+            )
     else:
         def fmt_clzmsig(clzmsig):
             return "%s %s %s(%s)" % (
@@ -192,11 +171,11 @@ def gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi
     return fmt_type, fmt_clzmsig, fmt_lits
 
 
-def format_call_tree_node_compact(node, out, contribution_data, print_node_once_appeared=True,
+def format_call_tree_node_compact(node, out, query, print_node_once_appeared=True,
         indent_width=2, clz_msig2conversion=None, fully_qualified_package_name=False, ansi_color=False):
-    node_id_to_cont, contribution_items = contribution_data[0], contribution_data[1:]
 
-    fmt_typ, fmt_clzmsig, fmt_lits = gen_custom_formatters(contribution_items, fully_qualified_package_name, ansi_color)
+    node_id_to_cont = cq.extract_node_contribution(node, query)
+    fmt_typ, fmt_clzmsig, fmt_lits = gen_custom_formatters(query, fully_qualified_package_name, ansi_color)
 
     def label_w_lit(clzmsig, recursive_cxt):
         return (recursive_cxt, clzmsig)

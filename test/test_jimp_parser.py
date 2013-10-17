@@ -71,7 +71,23 @@ class JimpParserTest(unittest.TestCase):
     def test_types_in_clzmsig(self):
         msig = jp.ClzMethodSig("A", "void", "hoge", ("int", "double", "int"))
         types = jp.types_in_clzmsig(msig)
-        self.assertSequenceEqual(types, ["A", "double", "int", "void"])
+        self.assertSequenceEqual(types, ["A", "void", "int", "double", "int"])
+
+    def test_omit_trivial_package(self):
+        try:
+            old_op = jp.OMITTED_PACKAGES
+            jp.OMITTED_PACKAGES = ["java.lang."]
+            self.assertEqual(jp.omit_trivial_package("java.util.HashMap"), "java.util.HashMap")
+            self.assertEqual(jp.omit_trivial_package("java.lang.String"), "String")
+        finally:
+            jp.OMITTED_PACKAGES = old_op
+
+    def test_format_clzmsig(self):
+        clzmsig = jp.ClzMethodSig("C", None, "m", ("int", "double"))
+        self.assertEqual(jp.format_clzmsig(clzmsig), "C void m(int,double)")
+        clzmsig = jp.ClzMethodSig("C", "void", "m", ())
+        self.assertEqual(jp.format_clzmsig(clzmsig), "C void m()")
+
 
 if __name__ == "__main__":
     #import sys;sys.argv = ['', 'Test.testName']

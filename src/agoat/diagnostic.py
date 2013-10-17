@@ -13,7 +13,6 @@ from . import jimp_code_term_extractor as jcte
 from . import calltree_builder as cb
 from . import calltree as ct
 from . import calltree_summary as cs
-from ._calltree_data_formatter import format_clzmsig
 from ._calltree_data_formatter import DATATAG_ENTRY_POINTS, DATATAG_NODE_SUMMARY, DATATAG_CALL_TREES
 from ._calltree_data_formatter import pretty_print_raw_data
 
@@ -35,7 +34,7 @@ def list_entry_points(soot_dir, output_file, option_method_sig=False):
             if not option_method_sig:
                 out.write("%s\n" % jp.clzmsig_clz(ep))
             else:
-                out.write("%s\n" % format_clzmsig(ep))
+                out.write("%s\n" % jp.format_clzmsig(ep))
 
 
 def list_methods(soot_dir, output_file):
@@ -44,7 +43,7 @@ def list_methods(soot_dir, output_file):
     sumry = jcte.extract_defined_methods_table(class_table)
     with open(output_file, "wb") as out:
         for callee in sumry.callees:
-            out.write("%s\n" % format_clzmsig(callee))
+            out.write("%s\n" % jp.format_clzmsig(callee))
 
 
 def list_literals(soot_dir, output_file):
@@ -72,7 +71,7 @@ def list_entry_points_from_node_summary(node_summary_file, output_file, option_m
             if not option_method_sig:
                 out.write("%s\n" % jp.clzmsig_clz(ep))
             else:
-                out.write("%s\n" % format_clzmsig(ep))
+                out.write("%s\n" % jp.format_clzmsig(ep))
 
 
 def list_methods_from_node_summary(node_summary_file, output_file):
@@ -95,7 +94,7 @@ def list_methods_from_node_summary(node_summary_file, output_file):
 
     with open(output_file, "wb") as out:
         for callee in callees:
-            out.write("%s\n" % format_clzmsig(callee))
+            out.write("%s\n" % jp.format_clzmsig(callee))
 
 
 def list_literals_from_node_summary(node_summary_file, output_file):
@@ -186,7 +185,7 @@ def get_calltree_staistics(call_tree_file, output_file):
         for n in call_trees:
             count_nodes, max_depth, max_length, max_width = measure_tree(n)
             out.write("%s\n" % "\t".join([
-                    format_clzmsig(n.invoked.callee),
+                    jp.format_clzmsig(n.invoked.callee),
                     "%d" % count_nodes,
                     "%d" % max_depth,
                     "%d" % max_length,

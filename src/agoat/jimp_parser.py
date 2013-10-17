@@ -3,9 +3,8 @@
 import os
 import re
 import sys
-from collections import namedtuple
 
-from ._utilities import readline_iter, sort_uniq
+from ._utilities import readline_iter
 from ._jimp_code_parser import parse_jimp_code
 
 from ._jimp_code_parser import SPECIALINVOKE, INVOKE, RETURN, THROW, IFGOTO, GOTO, SWITCH, LABEL  # re-export
@@ -104,11 +103,30 @@ def clzmsig_methodsig(clzmsig):
 
 
 def types_in_clzmsig(clzmsig):
-    types = [clzmsig_clz(clzmsig), clzmsig_retv(clzmsig)]
-    types.extend(clzmsig_params(clzmsig))
-    types = ['void' if typ is None else typ for typ in types]
-    types = sort_uniq(types)
+    types = clzmsig.split('\t')
+    del types[2]  # remove method name
     return types
+
+
+OMITTED_PACKAGES = ["java.lang."]
+_OMITTING_TABLE = [(p, len(p)) for p in OMITTED_PACKAGES]
+
+
+def omit_trivial_package(s):
+    for p, lp in _OMITTING_TABLE:
+        if s.startswith(p):
+            return s[lp:]
+    return s
+
+
+def format_clzmsig(clzmsig):
+    retv = clzmsig_retv_str(clzmsig)
+    return "%s %s %s(%s)" % (
+        omit_trivial_package(clzmsig_clz(clzmsig)),
+        omit_trivial_package(retv),
+        clzmsig_method(clzmsig), 
+        ','.join(map(omit_trivial_package, clzmsig_params(clzmsig)))
+    )
 
 
 class InvalidText(ValueError):

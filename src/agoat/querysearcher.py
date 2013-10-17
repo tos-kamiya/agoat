@@ -14,7 +14,8 @@ from . import calltree_summary as cs
 from . import calltree_builder as cb
 from . import calltree_query as cq
 from ._calltree_data_formatter import DATATAG_ENTRY_POINTS, DATATAG_CALL_TREES, DATATAG_NODE_SUMMARY, DATATAG_LINENUMBER_TABLE
-from ._calltree_data_formatter import format_call_tree_node_compact, init_ansi_color, format_clzmsig
+from .jimp_parser import format_clzmsig
+from ._calltree_data_formatter import format_call_tree_node_compact, init_ansi_color
 
 
 def gen_expander_of_call_tree_to_paths(query):
@@ -215,16 +216,14 @@ def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_
 
     for ni in range(len(nodes)):
         node = nodes[ni]
-        node_id_to_cont = cq.extract_node_contribution(node, query)[0]
+        node_id_to_cont = cq.extract_node_contribution(node, query)
         nodes[ni] = remove_uncontributing_nodes(node, node_id_to_cont)
 
     if output_form == 'treecut':
         with open(output_file, "wb") as out:
             for node in nodes:
-                contribution_data = cq.extract_node_contribution(node, query)
-                assert contribution_data[0][id(node)]
                 out.write("---\n")
-                format_call_tree_node_compact(node, out, contribution_data, 
+                format_call_tree_node_compact(node, out, query,
                         print_node_once_appeared=False,
                         # because duplicated nodes (nodes which equals to each other
                         # after removing non-contributing nodes) exist
@@ -252,9 +251,8 @@ def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_
 
     with open(output_file, "wb") as out:
         for pn in path_nodes:
-            contribution_data = cq.extract_node_contribution(pn, query)
             out.write("---\n")
-            format_call_tree_node_compact(pn, out, contribution_data, 
+            format_call_tree_node_compact(pn, out, query,
                     print_node_once_appeared=True,
                     clz_msig2conversion=clz_msig2conversion,
                     fully_qualified_package_name=fully_qualified_package_name, 

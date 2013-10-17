@@ -3,7 +3,7 @@
 import re
 import sys
 
-from ._utilities import quote
+from ._utilities import quote, sort_uniq
 
 from . import jimp_parser as jp
 from . import calltree as ct
@@ -38,9 +38,7 @@ class TypeQueryPattern(QueryPattern):
         return bool(self.regex.search(typ))
 
     def matches_callee(self, callee):
-        for i, t in enumerate(callee.split('\t')):  # clz, retv, method, param, ...
-            if i == 2:
-                continue
+        for t in jp.types_in_clzmsig(callee):
             if self.regex.search(t):
                 return True
         else:
@@ -289,7 +287,6 @@ def treecut_with_callnode_depth(node, depth, has_deeper_nodes=None):
     return treecut_i(node, depth)
 
 
-
 def extract_shallowest_treecut(call_node, query, max_depth=-1):
     assert isinstance(call_node, ct.CallNode)
 
@@ -309,7 +306,7 @@ def extract_shallowest_treecut(call_node, query, max_depth=-1):
 
 def update_cont_items_by_invoked(cont_items, invoked, query):
     cont_types, cont_method_names, cont_literals, cont_callees = cont_items
-    appeared_types = jp.types_in_clzmsig(invoked.callee)
+    appeared_types = sort_uniq(jp.types_in_clzmsig(invoked.callee))
     invoked_cont = False
     for typ in appeared_types:
         if typ in cont_types:
@@ -371,4 +368,4 @@ def extract_node_contribution(call_node, query):
         return node_cont
 
     mark_i(call_node)
-    return node_id_to_cont, cont_types, cont_method_names, cont_literals, cont_callees
+    return node_id_to_cont

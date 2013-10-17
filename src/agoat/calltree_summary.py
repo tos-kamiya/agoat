@@ -13,7 +13,6 @@ from ._utilities import sort_uniq
 from . import calltree as ct
 from . import calltree_builder as cb
 from . import jimp_parser as jp
-from ._calltree_data_formatter import format_clzmsig
 
 
 class Summary(object):
@@ -183,7 +182,7 @@ def get_node_summary(node, summary_table, use_callnode_label_with_depth=False):
     except:
         sys.stderr.write("> warning: exception raised in get_node_summary:\n")
         pp = pprint.PrettyPrinter(indent=4, stream=sys.stderr)
-        pp.pprint([format_clzmsig(clzmsig) for clzmsig, recursive_cxt in stack])
+        pp.pprint([jp.format_clzmsig(clzmsig) for clzmsig, recursive_cxt in stack])
         sys.stderr.write('\n')
         raise
 

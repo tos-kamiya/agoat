@@ -43,21 +43,6 @@ A_CALL_TREE = new_callnode(cm('A', 'a'), ('"a"',), None,
 
 
 class CalleeDataFormatterTest(unittest.TestCase):
-    def test_omit_trivial_package(self):
-        try:
-            old_op = cdf.OMITTED_PACKAGES
-            cdf.OMITTED_PACKAGES = ["java.lang."]
-            self.assertEqual(cdf.omit_trivial_package("java.util.HashMap"), "java.util.HashMap")
-            self.assertEqual(cdf.omit_trivial_package("java.lang.String"), "String")
-        finally:
-            cdf.OMITTED_PACKAGES = old_op
-
-    def test_format_clzmsig(self):
-        clzmsig = jp.ClzMethodSig("C", None, "m", ("int", "double"))
-        self.assertEqual(cdf.format_clzmsig(clzmsig), "C void m(int,double)")
-        clzmsig = jp.ClzMethodSig("C", "void", "m", ())
-        self.assertEqual(cdf.format_clzmsig(clzmsig), "C void m()")
-
     def test_replace_callnode_body_with_label(self):
         act_n, act_tbl = cdf.replace_callnode_body_with_label(A_CALL_TREE)
         ia = new_invoked(cm('A', 'a'), ('"a"',))
