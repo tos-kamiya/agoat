@@ -154,12 +154,21 @@ def gen_custom_formatters(query, fully_qualified_package_name, ansi_color):
 
     if ansi_color:
         def fmt_clzmsig(clzmsig):
-            return "%s %s %s(%s)" % (
-                fmt_type(jp.clzmsig_clz(clzmsig)),
-                fmt_type(jp.clzmsig_retv_str(clzmsig)),
-                fmt_method_name(jp.clzmsig_method(clzmsig)),
-                ','.join(fmt_type(typ) for typ in jp.clzmsig_params(clzmsig))
-            )
+            m = jp.clzmsig_method(clzmsig)
+            if not query.matches_method(m) and query.matches_method(m, callee=clzmsig):
+                return (a_enhanced + "%s %s %s(%s)" + a_reset) % (
+                    jp.clzmsig_clz(clzmsig),
+                    jp.clzmsig_retv_str(clzmsig),
+                    jp.clzmsig_method(clzmsig),
+                    ','.join(jp.clzmsig_params(clzmsig))
+                )
+            else:
+                return "%s %s %s(%s)" % (
+                    fmt_type(jp.clzmsig_clz(clzmsig)),
+                    fmt_type(jp.clzmsig_retv_str(clzmsig)),
+                    fmt_method_name(jp.clzmsig_method(clzmsig)),
+                    ','.join(fmt_type(typ) for typ in jp.clzmsig_params(clzmsig))
+                )
     else:
         def fmt_clzmsig(clzmsig):
             return "%s %s %s(%s)" % (
