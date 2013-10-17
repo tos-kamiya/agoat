@@ -61,9 +61,8 @@ def generate_linenumber_table(soot_dir, javap_dir, output_file):
                 protocol=1)
 
 
-def main(argv):
-    psr = argparse.ArgumentParser(prog=argv[0], description='agoat indexer')
-    subpsrs = psr.add_subparsers(dest='command', help='commands')
+def build_argument_parser(psr):
+    subpsrs = psr.add_subparsers(dest='subcommand', help='sub-commands')
 
     psr_index = subpsrs.add_parser('all', help='generate all index data (= linenumber + calltree + nodesummary)')
     psr_index.add_argument('-s', '--soot-dir', action='store', help='soot directory', default=_c.default_soot_dir_path)
@@ -92,6 +91,11 @@ def main(argv):
     psr_gs.add_argument('-o', '--output', action='store',
             help="output file. (default '%s')" % _c.default_summary_path,
             default=_c.default_summary_path)
+
+
+def main(argv):
+    psr = argparse.ArgumentParser(prog=argv[0], description='agoat indexer')
+    build_argument_parser(psr)
 
     args = psr.parse_args(argv[1:])
     if args.command == 'linenumber':

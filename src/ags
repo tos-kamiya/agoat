@@ -1,4 +1,5 @@
 #!/usr/bin/env python2
+# PYTHON_ARGCOMPLETE_OK
 
 import sys
 
@@ -7,6 +8,22 @@ import agoat.run_disasms
 import agoat.indexer
 import agoat.diagnostic
 import agoat.querysearcher
+
+
+# set up command-line completion, if argcomplete module is installed
+try:
+    import argcomplete
+    import argparse
+    parser = argparse.ArgumentParser(prog=sys.argv[0], description='agoat search')
+    _subpsrs = parser.add_subparsers(dest='command', help='commands')
+    agoat.run_disasms.build_argument_parser(_subpsrs.add_parser('disasm'))
+    agoat.indexer.build_argument_parser(_subpsrs.add_parser('index'))
+    agoat.diagnostic.build_argument_parser(_subpsrs.add_parser('list'))
+    agoat.querysearcher.build_argument_parser(_subpsrs.add_parser('query'))
+    argcomplete.autocomplete(parser)
+except:
+    pass
+
 
 USAGE = "usage: %s {disasm,index,list,query} [-h|--version]\n"
 

@@ -2,6 +2,7 @@
 
 import os
 import sys
+import argparse
 
 from . import _run_javap
 from . import _run_soot
@@ -32,14 +33,16 @@ def find_classes(target_dir):
     return clzs
 
 
+def build_argument_parser(psr):
+    psr.add_argument("targetdir", action='store')
+
+
 def main(argv):
-    args = argv[2:]
-    if not args or args[0] in ('-h', '--help'):
-        sys.stdout.write("usage: %s target_dir\n" % argv[0] + "\n" + "agoat disassembler\n")
-        return
-    if len(args) > 1:
-        sys.exit("too many command-line arguments")
-    target_dir = args[0]
+    psr = argparse.ArgumentParser(prog=argv[0], description='agoat disassembler runner')
+    build_argument_parser(psr)
+
+    args = psr.parse_args(argv[1:])
+    target_dir = args.targetdir
 
     clzs = find_classes(target_dir)
     _run_javap.disassemble(_run_javap.output_dir, target_dir, clzs)

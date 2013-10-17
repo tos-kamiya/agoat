@@ -259,37 +259,40 @@ def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_
                     ansi_color=ansi_color)
 
 
-def main(argv):
-    psr_q = argparse.ArgumentParser(prog=argv[0], description='agoat query search')
-
-    psr_q.add_argument('queryword', action='store', nargs='*', 
+def build_argument_parser(psr):
+    psr.add_argument('queryword', action='store', nargs='*', 
             help="""query words. put double quote(") before a word to search the word in string literals.""")
-    psr_q.add_argument('-i', '--ignore-case-query-word', action='append')
-    psr_q.add_argument('-c', '--call-tree', action='store', 
+    psr.add_argument('-i', '--ignore-case-query-word', action='append')
+    psr.add_argument('-c', '--call-tree', action='store', 
             help="call-tree file. (default '%s')" % _c.default_calltree_path,
             default=_c.default_calltree_path)
-    psr_q.add_argument('-n', '--node-summary', action='store', 
+    psr.add_argument('-n', '--node-summary', action='store', 
             help="summary file. (default '%s')" % _c.default_summary_path,
             default=_c.default_summary_path)
-    psr_q.add_argument('-o', '--output', action='store', default=STDOUT)
-    psr_q.add_argument('-l', '--line-number-table', action='store', 
+    psr.add_argument('-o', '--output', action='store', default=STDOUT)
+    psr.add_argument('-l', '--line-number-table', action='store', 
             help="line-number table file. (default '%s')" % _c.default_linenumbertable_path,
             default=None)
-    psr_q.add_argument('-d', '--max-depth', action='store', type=int, 
+    psr.add_argument('-d', '--max-depth', action='store', type=int, 
             help="max depth of subtree. -1 for unlimited depth. (default '%d')" % _c.default_max_depth_of_subtree,
             default=_c.default_max_depth_of_subtree)
-    psr_q.add_argument('-f', '--output-form', choices=('callnode', 'treecut', 'path'), 
+    psr.add_argument('-f', '--output-form', choices=('callnode', 'treecut', 'path'), 
             default='treecut')
     color_choices=('always', 'never', 'auto')
-    psr_q.add_argument('--color', '--colour', action='store', choices=color_choices, dest='color', 
+    psr.add_argument('--color', '--colour', action='store', choices=color_choices, dest='color', 
             help="hilighting with ANSI color.",
             default='auto')
-    psr_q.add_argument('-F', '--fully-qualified-package-name', action='store_true', default=False)
-    psr_q.add_argument("--progress", action='store_true',
+    psr.add_argument('-F', '--fully-qualified-package-name', action='store_true', default=False)
+    psr.add_argument("--progress", action='store_true',
             help="show progress to stderr",
             default=False)
 
-    args = psr_q.parse_args(argv[1:])
+
+def main(argv):
+    psr = argparse.ArgumentParser(prog=argv[0], description='agoat query search')
+    build_argument_parser(psr)
+
+    args = psr.parse_args(argv[1:])
     line_number_table = None
     if args.line_number_table is not None:
         line_number_table = args.line_number_table

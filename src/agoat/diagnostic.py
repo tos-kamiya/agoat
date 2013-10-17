@@ -193,11 +193,11 @@ def get_calltree_staistics(call_tree_file, output_file):
             ]))
 
 
-def main(argv):
-    NotGiven = object()
+NotGiven = object()
 
-    psr = argparse.ArgumentParser(prog=argv[0], description='agoat diagnostic')
-    subpsrs = psr.add_subparsers(dest='command', help='commands')
+
+def build_argument_parser(psr):
+    subpsrs = psr.add_subparsers(dest='subcommand', help='sub-commands')
 
     psr_ep = subpsrs.add_parser('entrypoint', help='listing entry points')
     g = psr_ep.add_mutually_exclusive_group()
@@ -226,6 +226,11 @@ def main(argv):
 
     psr_db = subpsrs.add_parser('debug', help='debug function')
     psr_db.add_argument('-p', '--pretty-print', action='store', help='pretty print internal data')
+
+
+def main(argv):
+    psr = argparse.ArgumentParser(prog=argv[0], description='agoat diagnostic')
+    build_argument_parser(psr)
 
     args = psr.parse_args(argv[1:])
     if args.command == 'entrypoint':
