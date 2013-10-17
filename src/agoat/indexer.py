@@ -98,13 +98,13 @@ def main(argv):
     build_argument_parser(psr)
 
     args = psr.parse_args(argv[1:])
-    if args.command == 'linenumber':
+    if args.subcommand == 'linenumber':
         generate_linenumber_table(args.soot_dir, args.javap_dir, args.output)
-    elif args.command == 'calltree':
+    elif args.subcommand == 'calltree':
         generate_call_trees(args.entrypointclasses, args.soot_dir, args.output)
-    elif args.command == 'nodesummary':
+    elif args.subcommand == 'nodesummary':
         generate_node_summary(args.call_tree, args.output)
-    elif args.command == "all":
+    elif args.subcommand == "all":
         if args.progress:
             sys.stderr.write("> generating/saving line number table\n")
         generate_linenumber_table(args.soot_dir, args.javap_dir, _c.default_linenumbertable_path)

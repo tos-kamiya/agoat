@@ -233,7 +233,7 @@ def main(argv):
     build_argument_parser(psr)
 
     args = psr.parse_args(argv[1:])
-    if args.command == 'entrypoint':
+    if args.subcommand == 'entrypoint':
         if args.soot_dir is not NotGiven:
             soot_dir = _c.default_soot_dir_path if args.soot_dir is None else args.soot_dir
             list_entry_points(soot_dir, args.output, args.method_sig)
@@ -242,7 +242,7 @@ def main(argv):
             list_entry_points_from_node_summary(node_summary_file, args.output, args.method_sig)
         else:
             sys.exit("need either -s or -n")
-    elif args.command == 'method':
+    elif args.subcommand == 'method':
         if args.soot_dir is not NotGiven:
             soot_dir = _c.default_soot_dir_path if args.soot_dir is None else args.soot_dir
             list_methods(soot_dir, args.output)
@@ -251,7 +251,7 @@ def main(argv):
             list_methods_from_node_summary(node_summary_file, args.output)
         else:
             sys.exit("need either -s or -n")
-    elif args.command == 'literal':
+    elif args.subcommand == 'literal':
         if args.soot_dir is not NotGiven:
             soot_dir = _c.default_soot_dir_path if args.soot_dir is None else args.soot_dir
             list_literals(soot_dir, args.output)
@@ -260,9 +260,9 @@ def main(argv):
             list_literals_from_node_summary(node_summary_file, args.output)
         else:
             sys.exit("need either -s or -n")
-    elif args.command == 'size':
+    elif args.subcommand == 'size':
         get_calltree_staistics(args.call_tree, args.output)
-    elif args.command == 'debug':
+    elif args.subcommand == 'debug':
         if args.pretty_print:
             data_file = args.pretty_print 
             if data_file.endswith(".gz"):
