@@ -180,7 +180,7 @@ def gen_custom_formatters(query, fully_qualified_package_name, ansi_color):
     return fmt_type, fmt_clzmsig, fmt_lits
 
 
-def format_call_tree_node_compact(node, out, query, print_node_once_appeared=True,
+def format_call_tree_node_compact(node, out, query,
         indent_width=2, clz_msig2conversion=None, fully_qualified_package_name=False, ansi_color=False):
 
     node_id_to_cont = cq.extract_node_contribution(node, query)
@@ -202,44 +202,34 @@ def format_call_tree_node_compact(node, out, query, print_node_once_appeared=Tru
         def format_loc_info(loc_info):
             return ""
 
-    printed_node_label_w_lits = set()
-
     def put_callnode(node, loc_info_str):
         invoked = node.invoked
         if loc_info_str is None:
             loc_info_str = format_loc_info(invoked.locinfo)
-        node_label = label_w_lit(invoked.callee, node.recursive_cxt)
-        if print_node_once_appeared or node_label not in printed_node_label_w_lits:
-            buf = [(0, '%s {' % fmt_clzmsig(invoked.callee), loc_info_str)]
-            s = fmt_lits(invoked.literals)
-            if s:
-                buf.append((0, '    ' + s, ''))
-            b = format_i(node.body)
-            if b:
-                buf.extend((p[0] + 1, p[1], p[2]) for p in b)
-                buf.append((0, '}', ''))
-            elif node_id_to_cont.get(id(node)):
-                p = buf[-1]
-                buf[-1] = (p[0], p[1] + '}', p[2])
-            else:
-                return None
-            printed_node_label_w_lits.add(node_label)
-            return buf
-        return None
+        buf = [(0, '%s {' % fmt_clzmsig(invoked.callee), loc_info_str)]
+        s = fmt_lits(invoked.literals)
+        if s:
+            buf.append((0, '    ' + s, ''))
+        b = format_i(node.body)
+        if b:
+            buf.extend((p[0] + 1, p[1], p[2]) for p in b)
+            buf.append((0, '}', ''))
+        elif node_id_to_cont.get(id(node)):
+            p = buf[-1]
+            buf[-1] = (p[0], p[1] + '}', p[2])
+        else:
+            return None
+        return buf
 
     def put_invoked(node, loc_info_str):
         assert node
         if loc_info_str is None:
             loc_info_str = format_loc_info(node.locinfo)
-        node_label = label_w_lit(node.callee, None)  # context unknown, use non-context as default
-        if print_node_once_appeared or node_label not in printed_node_label_w_lits:
-            printed_node_label_w_lits.add(node_label)
-            buf = [(0, fmt_clzmsig(node.callee), loc_info_str)]
-            s = fmt_lits(node.literals)
-            if s:
-                buf.append((0, '    ' + s, ''))
-            return buf
-        return None
+        buf = [(0, fmt_clzmsig(node.callee), loc_info_str)]
+        s = fmt_lits(node.literals)
+        if s:
+            buf.append((0, '    ' + s, ''))
+        return buf
 
     def format_i(node):
         if not node or node is None or not node_id_to_cont[id(node)]:

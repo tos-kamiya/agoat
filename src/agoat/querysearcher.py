@@ -224,10 +224,6 @@ def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_
             for node in nodes:
                 out.write("---\n")
                 format_call_tree_node_compact(node, out, query,
-                        print_node_once_appeared=False,
-                        # because duplicated nodes (nodes which equals to each other
-                        # after removing non-contributing nodes) exist
-                        # in result, so need to suppress such duplication
                         clz_msig2conversion=clz_msig2conversion, 
                         fully_qualified_package_name=fully_qualified_package_name, 
                         ansi_color=ansi_color)
@@ -253,7 +249,6 @@ def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_
         for pn in path_nodes:
             out.write("---\n")
             format_call_tree_node_compact(pn, out, query,
-                    print_node_once_appeared=True,
                     clz_msig2conversion=clz_msig2conversion,
                     fully_qualified_package_name=fully_qualified_package_name, 
                     ansi_color=ansi_color)
