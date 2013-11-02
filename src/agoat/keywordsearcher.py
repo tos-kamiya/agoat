@@ -196,18 +196,18 @@ def do_search(call_tree_file, node_summary_file, query_words, ignore_case_query_
         del data
 
     log and log("> searching query in index\n")
+    removed_nodes_becauseof_limitation_of_depth = [None]
+    nodes = search_in_call_trees(query, call_trees, node_summary_table, max_depth, 
+            removed_nodes_becauseof_limitation_of_depth=removed_nodes_becauseof_limitation_of_depth)
+
     if output_form == 'callnode':
-        nodes = search_in_call_trees(query, call_trees, node_summary_table, max_depth)
-        clzmsigs = [n.callee for n in nodes]
+        clzmsigs = [n.invoked.callee for n in nodes]
         clzmsigs.sort()
         with open(output_file, "wb") as out:
             for cm in clzmsigs:
                 out.write('%s\n' % format_clzmsig(cm))
         return
 
-    removed_nodes_becauseof_limitation_of_depth = [None]
-    nodes = search_in_call_trees(query, call_trees, node_summary_table, max_depth, 
-            removed_nodes_becauseof_limitation_of_depth=removed_nodes_becauseof_limitation_of_depth)
     if not nodes:
         if removed_nodes_becauseof_limitation_of_depth[0] > 0:
             sys.stderr.write("> warning: all found code exceeds max call-tree depth." +
