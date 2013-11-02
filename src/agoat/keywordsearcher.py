@@ -284,7 +284,7 @@ def build_argument_parser(psr):
 
 
 def main(argv):
-    psr = argparse.ArgumentParser(prog=argv[0], description='agoat query search')
+    psr = argparse.ArgumentParser(prog=argv[0], description='agoat keyword search')
     build_argument_parser(psr)
 
     args = psr.parse_args(argv[1:])
@@ -302,7 +302,7 @@ def main(argv):
     else:
         ignore_case_query_words = args.ignore_case_query_word
     if not args.queryword and not ignore_case_query_words:
-        sys.exit("no query word given")
+        sys.exit("no query keyword given")
     do_search(args.call_tree, args.node_summary, args.queryword, ignore_case_query_words, args.output,  line_number_table,
             max_depth=args.max_depth, output_form=args.output_form,
             fully_qualified_package_name=args.fully_qualified_package_name, ansi_color=ansi_color,

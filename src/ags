@@ -7,7 +7,7 @@ import agoat._config
 import agoat.run_disasms
 import agoat.indexer
 import agoat.diagnostic
-import agoat.querysearcher
+import agoat.keywordsearcher
 
 
 # set up command-line completion, if argcomplete module is installed
@@ -19,7 +19,7 @@ try:
     agoat.run_disasms.build_argument_parser(_subpsrs.add_parser('disasm'))
     agoat.indexer.build_argument_parser(_subpsrs.add_parser('index'))
     agoat.diagnostic.build_argument_parser(_subpsrs.add_parser('list'))
-    agoat.querysearcher.build_argument_parser(_subpsrs.add_parser('query'))
+    agoat.keywordsearcher.build_argument_parser(_subpsrs.add_parser('query'))
     argcomplete.autocomplete(parser)
 except:
     pass
@@ -48,7 +48,7 @@ def main(argv):
     elif cmd == 'list':
         agoat.diagnostic.main(argv)
     elif cmd == 'query':
-        agoat.querysearcher.main(argv)
+        agoat.keywordsearcher.main(argv)
     else:
         sys.exit("unknown command: %s" % cmd)
 
