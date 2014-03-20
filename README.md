@@ -5,6 +5,13 @@ Agoat is a code-search tool.
 
 Its finds the execution paths that include the given keywords.
 
+Now I submitted a research proposal to a foundation, in order to buy my time (!) for this project.
+
+## TODO
+
+* Documents!
+* Scalability issues
+
 ## License
 
 MIT License.
