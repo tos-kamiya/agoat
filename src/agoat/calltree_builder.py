@@ -288,11 +288,7 @@ def build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node
                 if aot0 == ct.ORDERED_OR and has_empty_subs:
                     n.insert(1, [ct.ORDERED_AND])
                 len_n = len(n)
-                if len_n == 2:
-                    return n[1]
-                elif len_n == 1:
-                    return None
-                return n
+                return None if len_n == 1 else n[1] if len_n == 2 else n
             else:
                 assert False
         elif isinstance(aot, tuple):
@@ -343,12 +339,7 @@ def build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node
                 cn = ct.CallNode(invoked, rc, v)
                 dispatch_node.append(cn)
         len_dispatch_node = len(dispatch_node)
-        if len_dispatch_node == 1:
-            return None
-        elif len_dispatch_node == 2:
-            return dispatch_node[1]
-        else:
-            return dispatch_node
+        return None if len_dispatch_node == 1 else dispatch_node[1] if len_dispatch_node == 2 else dispatch_node
 
     return dig_dispatch(jp.SPECIALINVOKE, entry_point, None, (), None)
 
