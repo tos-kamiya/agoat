@@ -48,12 +48,12 @@ Here, a target binary is `MonthlyCalendar.class`.
 MonthlyCalendar.java
 ~/sample$ javac MonthlyCalendar.java
 ~/sample$ java MonthlyCalendar 2014 7
- Sun Mon Tue Wed Thu Fri Sat
-               1   2   3   4
-   5   6   7   8   9  10  11
-  12  13  14  15  16  17  18
-  19  20  21  22  23  24  25
-  26  27  28  29  30  31  
+Sun Mon Tue Wed Thu Fri Sat
+         1   2   3   4   5  
+ 6   7   8   9  10  11  12  
+13  14  15  16  17  18  19  
+20  21  22  23  24  25  26  
+27  28  29  30  31
 ~/sample$ ls
 MonthlyCalendar.class  MonthlyCalendar.java
 ```
@@ -78,26 +78,22 @@ Specify keywords as parameters `query` command.
 Here, keywords are: `add` and `toArray`.
 
 ```bash
-~/sample$ python ags.py query set format
+~/sample$ python ags.py query add toArray
 ---
-MonthlyCalendar void printCalendarMonthYear(int,int) {
-  java.util.GregorianCalendar void set(int,int,int)	(line: 19)
-  MonthlyCalendar void printFields(String[]) {	(line: 25)
-    java.io.PrintStream void format(String,Object[])	(line: 12)
-  }
-  MonthlyCalendar void printFields(String[]) {	(line: 33)
-    java.io.PrintStream void format(String,Object[])	(line: 12)
-  }
-  MonthlyCalendar void printFields(String[]) {	(line: 38)
-    java.io.PrintStream void format(String,Object[])	(line: 12)
-  }
+MonthlyCalendar void <init>(int,int) {
+  java.util.Calendar void add(int,int)	(line: 18)
+  java.util.Calendar void add(int,int)	(line: 19)
+  java.util.ArrayList void add(String[])	(line: 22)
+  java.util.ArrayList void add(String[])	(line: 29)
+  java.util.ArrayList void add(String[])	(line: 35)
+  java.util.ArrayList Object[] toArray(String[][])	(line: 37)
 }
 ```
 
 ## TODOs
 
-- [ ] Documents!
-- [ ] Scalability issues
+* Documents!
+* Scalability issues
 
 ## License
 
@@ -105,4 +101,4 @@ MIT License.
 
 ## Reference
 
-Toshihiro Kamiya, "An Algorithm for Keyword Search on an Execution Path", In Proc. CSMR-WCRE 2014, pp. 328-332, 2014-02-06.
+* Toshihiro Kamiya, "An Algorithm for Keyword Search on an Execution Path", In Proc. CSMR-WCRE 2014, pp. 328-332, 2014-02-06.
