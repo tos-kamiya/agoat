@@ -11,7 +11,7 @@ output_dir = "javapOutput"
 
 def javap_disassemble(a):
     output_dir, clz, class_path = a
-    disassembled = subprocess.check_output(["/usr/bin/javap", "-cp", class_path, "-c", "-l", clz])
+    disassembled = subprocess.check_output(["/usr/bin/javap", "-cp", class_path, "-p", "-c", "-l", clz])
     fp = os.path.join(output_dir, clz + ".javap")
     with open(fp, "wb") as f:
         f.write(disassembled)
