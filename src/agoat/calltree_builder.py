@@ -158,7 +158,7 @@ def gen_method_dispatch_resolver(class_table, class_to_descendants, recv_method_
                 continue  # cclz, cmsig 
             total_distance += d
 
-            # TODO: Narrow down with inheritance hierachy
+            # TODO: Narrow down with inheritance hierarchy
             # e.g. if two methods "void someMethod(Object)" and "void someMethod(String)" exist,
             # a method call someMethod("abc") is resolved the latter, not the former.
             # The current implementation returns both ones as possible dispatches.
@@ -354,9 +354,10 @@ def build_call_andor_tree(entry_point, resolve_dispatch, methods_ircc, call_node
 
 
 def extract_call_andor_trees(class_table, entry_points):
-    class_to_descendants = extract_class_hierarchy(class_table)
     class_to_methods = dict((claz, cd.methods.keys()) for claz, cd in class_table.iteritems())
     # class_to_methods  # str -> [ClzMethodSig]
+
+    class_to_descendants = extract_class_hierarchy(class_table)
 
     recv_method_to_defs = make_dispatch_table(class_to_methods, class_to_descendants)
 
