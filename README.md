@@ -75,18 +75,22 @@ agoat.calltree.gz      agoat.summarytable.gz
 ### step 3. Do searching
 
 Specify keywords as parameters `query` command.
-Here, keywords are: `add` and `toArray`.
+Here, keywords are: `set` and `println`.
 
 ```bash
-~/sample$ python ags.py query add toArray
+~/sample$ python ags.py query set println
 ---
-MonthlyCalendar void <init>(int,int) {
-  java.util.Calendar void add(int,int)	(line: 18)
-  java.util.Calendar void add(int,int)	(line: 19)
-  java.util.ArrayList void add(String[])	(line: 22)
-  java.util.ArrayList void add(String[])	(line: 29)
-  java.util.ArrayList void add(String[])	(line: 35)
-  java.util.ArrayList Object[] toArray(String[][])	(line: 37)
+MonthlyCalendar void printCalendarMonthYear(int,int) {
+  java.util.GregorianCalendar void set(int,int,int)	(line: 19)
+  MonthlyCalendar void printFields(String[]) {	(line: 25)
+    java.io.PrintStream void println(String)	(line: 13)
+  }
+  MonthlyCalendar void printFields(String[]) {	(line: 33)
+    java.io.PrintStream void println(String)	(line: 13)
+  }
+  MonthlyCalendar void printFields(String[]) {	(line: 38)
+    java.io.PrintStream void println(String)	(line: 13)
+  }
 }
 ```
 
