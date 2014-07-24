@@ -1,12 +1,10 @@
 #coding: utf-8
 
 import argparse
-import os
 import sys
 import pickle
 
-from _utilities import STDIN, STDOUT, open_gziped_file_when_available
-
+from _utilities import STDOUT, open_gziped_file_when_available
 from . import _config as _c
 from . import jimp_parser as jp
 from . import jimp_code_term_extractor as jcte

@@ -8,6 +8,7 @@ sys.path.insert(
     0, os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'src'))
 
 import agoat.andor_tree as at
+import agoat.calltree as ac
 import agoat.jimp_parser as jp
 import agoat.calltree_builder as cb
 
@@ -184,6 +185,50 @@ class CalltreeBuilderTest(unittest.TestCase):
             entry_point, resolve_dispatch,
             include_direct_recursive_calls=False)
         self.assertEqual(methods_ircc, [crv('B', 'b'), crv('C', 'c')])
+
+    def test_find_entry_points(self):
+        cd = jp.ClassData('Sample', 'java.lang.Object')
+        md_g = jp.MethodData('Sample\tvoid\tdo_greeting', cd)
+        md_m = jp.MethodData('Sample\tvoid\tmain\tjava.lang.String[]', cd)
+        cd.methods = {
+            md_g.clzmsig: md_g,
+            md_m.clzmsig: md_m,
+        }
+        class_table = {cd.class_name: cd}
+        entry_points = cb.find_entry_points(class_table)
+        self.assertSequenceEqual(entry_points, ['Sample\tvoid\tmain\tjava.lang.String[]'])
+
+    def test_build_andor_tree(self):
+        entry_points = ['Sample\tvoid\tmain\tjava.lang.String[]']
+        cd = jp.ClassData('Sample', 'java.lang.Object')
+        md_g = jp.MethodData('Sample\tvoid\tdo_greeting', cd)
+        md_g.code = ['&&', ('invoke', 'java.io.PrintStream\tvoid\tprintln\tjava.lang.String', ('"hello"',), 18), ('return', 19)]
+        md_m = jp.MethodData('Sample\tvoid\tmain\tjava.lang.String[]', cd)
+        md_m.code = ['&&', ('invoke', 'Sample\tvoid\tdo_greeting', (), 27), ('return', 28)]
+        cd.methods = {
+            md_g.clzmsig: md_g,
+            md_m.clzmsig: md_m,
+        }
+        class_table = {cd.class_name: cd}
+        call_trees = cb.extract_call_andor_trees(class_table, entry_points)
+        self.assertEqual(len(call_trees), 1)
+
+        ct = call_trees[0]
+        self.assertTrue(isinstance(ct, ac.CallNode))
+
+        inv = ct.invoked
+        self.assertTrue(isinstance(inv, ac.Invoked))
+        self.assertEqual(inv.callee, 'Sample\tvoid\tmain\tjava.lang.String[]')
+
+        b = ct.body
+        self.assertTrue(isinstance(b, ac.CallNode))
+        inv = b.invoked
+        self.assertTrue(isinstance(inv, ac.Invoked))
+        self.assertEqual(inv.callee, 'Sample\tvoid\tdo_greeting')
+
+        b = b.body
+        self.assertTrue(isinstance(b, ac.Invoked))
+        self.assertEqual(b.callee, 'java.io.PrintStream\tvoid\tprintln\tjava.lang.String')
 
 
 stub_class_to_descendants = { 
