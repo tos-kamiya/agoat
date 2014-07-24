@@ -5,8 +5,8 @@ Agoat, a tool of Arbitrary-Granurality On And-or Tree
 
 ## Dependencies
 
-* [Open JDK](http://openjdk.java.net/), Oracle JDK perhaps works (not tested)
-* [Soot: a Java Optimization Framework](http://www.sable.mcgill.ca/soot/)
+* [Open JDK](http://openjdk.java.net/). Oracle JDK perhaps works (not tested)
+* [Soot: a Java Optimization Framework](http://www.sable.mcgill.ca/soot/), enclosed
 * [Python](https://www.python.org/)
 * [colorama](https://pypi.python.org/pypi/colorama)
 
@@ -97,7 +97,9 @@ MonthlyCalendar void <init>(int,int) {
 
 ## License
 
-MIT License.
+Agoat is distributed under [MIT License](license/LICENSE_AGOAT).
+
+An enclosed library, Soot, is distributed under [GNU LGPL](license/LICENSE_SOOT).
 
 ## Reference
 
