@@ -69,7 +69,7 @@ and generate an index data from it (with `index` command).
 ~/sample$ ls
 MonthlyCalendar.class  agoat.linenumbertable.gz  javapOutput
 MonthlyCalendar.java   agoat.soot_log            sootOutput
-agoat.calltree.gz      agoat.summarytable.gz
+agoat.classtable.gz      agoat.summarytable.gz
 ```
 
 ### step 3. Do searching
